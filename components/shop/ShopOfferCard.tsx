@@ -1,0 +1,120 @@
+'use client';
+
+import { useState } from 'react';
+import Image from 'next/image';
+import { ShopOffer } from '@/lib/types';
+import { formatCzk, getOfferPricingInfo, getOfferSpecsList } from './offerMeta';
+
+interface ShopOfferCardProps {
+  offer: ShopOffer;
+  onClick?: () => void;
+}
+
+export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
+  const [imgError, setImgError] = useState(false);
+  const specs = getOfferSpecsList(offer);
+  const pricing = getOfferPricingInfo(offer);
+
+  // Derive subtle category badge for the image corner
+  const titleAndDesc = `${offer.title} ${offer.description || ''}`;
+  let badgeText = 'Skladem';
+  if (/zimn/i.test(titleAndDesc)) {
+    badgeText = '❄ Zimní';
+  } else if (/letn/i.test(titleAndDesc)) {
+    badgeText = '☀ Letní';
+  } else if (/celoroč/i.test(titleAndDesc)) {
+    badgeText = 'Celoroční';
+  } else if (/disky|alu/i.test(titleAndDesc)) {
+    badgeText = 'ALU disky';
+  }
+
+  // Filter top 3 most informative specs for the card
+  const displaySpecs = specs
+    .filter((s) => ['Rozměr', 'Vzorek', 'Rozteč', 'Značka', 'Typ'].includes(s.label))
+    .slice(0, 3);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex h-full flex-col rounded-3xl bg-white p-3.5 sm:p-4 text-left border border-slate-200/90 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_16px_36px_-6px_rgba(15,23,42,0.13),0_2px_8px_rgba(15,23,42,0.06)] hover:border-slate-300 hover:-translate-y-1 active:scale-[0.99] transition-all duration-300 touch-manipulation"
+    >
+      {/* Image Container with grounding border and zoom */}
+      <div className="relative h-52 sm:h-56 w-full overflow-hidden rounded-2xl bg-slate-100/80 border border-slate-200/70">
+        {/* Top-left status badge */}
+        <div className="absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-[11px] font-bold text-slate-800 shadow-xs border border-slate-200/80 backdrop-blur-xs">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span>{badgeText}</span>
+        </div>
+
+        {offer.preview_image && !imgError ? (
+          <Image
+            src={offer.preview_image}
+            alt={offer.title}
+            fill
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-slate-400">
+            <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+        )}
+      </div>
+
+      {/* Card Details */}
+      <div className="flex flex-1 flex-col px-1 pb-1 pt-4">
+        {/* Title */}
+        <h3 className="line-clamp-2 min-h-[2.85rem] text-base sm:text-lg font-bold leading-snug text-slate-950 group-hover:text-emerald-700 transition-colors">
+          {offer.title}
+        </h3>
+
+        {/* Structured Spec Badges */}
+        {displaySpecs.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {displaySpecs.map((spec, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800"
+              >
+                <span className="text-slate-400 font-normal">{spec.label}:</span>
+                <span>{spec.value}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Price & Detail CTA Footer */}
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-slate-100 pt-4 mt-5">
+          <div>
+            <div className="flex items-baseline gap-1">
+              <p className="text-2xl sm:text-[26px] font-black leading-none tracking-tight text-slate-950">
+                {formatCzk(offer.price)}
+              </p>
+              {pricing.isPerPiece && (
+                <span className="text-xs font-bold text-slate-500">
+                  / kus
+                </span>
+              )}
+            </div>
+            <p
+              className={`mt-1.5 text-[10px] font-bold uppercase tracking-wider ${
+                pricing.isPerPiece ? 'text-emerald-700' : 'text-slate-500'
+              }`}
+            >
+              {pricing.priceLabel}
+            </p>
+          </div>
+
+          <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-800 shadow-2xs group-hover:bg-[hsl(142_71%_45%)] group-hover:text-white group-hover:border-transparent transition-all duration-200">
+            <span>Detail</span>
+            <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
