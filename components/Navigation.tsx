@@ -98,6 +98,7 @@ export default function Navigation() {
   const adminItems = [
     { href: '/users', label: 'Uživatelé' },
     { href: '/accounts', label: 'Napojení účtů' },
+    { href: '/transactions', label: 'Transakce' },
   ];
 
   const navItems = [

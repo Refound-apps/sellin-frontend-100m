@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import AccountsView from '@/components/AccountsView';
 
 export const metadata: Metadata = {
-  title: 'Napojení účtů | Sellin.cz',
-  description: 'Správa napojených inzertních a prodejních účtů (Bazoš, Sbazar, Facebook, E-shop)',
+  title: 'Napojení účtů a prodejních kanálů | Sellin.cz',
+  description:
+    'Integrace a synchronizace prodejních kanálů – Bazoš, Sbazar, vlastní e-shop, Shoptet, Shopify, sociální sítě a cenové srovnávače.',
 };
 
 export default function AccountsPage() {

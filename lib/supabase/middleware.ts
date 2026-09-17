@@ -37,6 +37,7 @@ export async function updateSession(request: NextRequest) {
   // 1. Veřejné trasy - nevyžadují přihlášení
   const isPublicRoute =
     pathname.startsWith('/shop') ||
+    pathname.startsWith('/api') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/auth') ||
@@ -59,8 +60,11 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 2. Kontrola admin tras (/users, /accounts)
-  const isAdminRoute = pathname.startsWith('/users') || pathname.startsWith('/accounts');
+  // 2. Kontrola admin tras (/users, /accounts, /transactions)
+  const isAdminRoute =
+    pathname.startsWith('/users') ||
+    pathname.startsWith('/accounts') ||
+    pathname.startsWith('/transactions');
   if (user && isAdminRoute) {
     const { data: credential } = await supabase
       .from('credential_pg')

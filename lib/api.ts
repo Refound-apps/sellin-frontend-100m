@@ -1,4 +1,4 @@
-import { Offer, OfferDetail, ShopInfo, ShopOffer, User, ApiResponse } from './types';
+import { Offer, OfferDetail, ShopInfo, ShopOffer, User, ApiResponse, TransactionsApiResponse } from './types';
 
 export const SHOP_SBAZAR_EMAIL = 'duplux@seznam.cz';
 
@@ -241,4 +241,46 @@ export async function updateOfferById(id: number, updates: { title?: string, des
     console.error('Error updating offer:', error);
     throw error;
   }
+}
+
+export async function getTransactions(params: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  marketplace?: string;
+  condition?: string;
+  autorenew?: string;
+}): Promise<TransactionsApiResponse> {
+  const query = new URLSearchParams();
+  if (params.limit) query.set('limit', String(params.limit));
+  if (params.offset !== undefined) query.set('offset', String(params.offset));
+  if (params.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params.marketplace && params.marketplace !== 'all') query.set('marketplace', params.marketplace);
+  if (params.condition && params.condition !== 'all') query.set('condition', params.condition);
+  if (params.autorenew && params.autorenew !== 'all') query.set('autorenew', params.autorenew);
+
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+
+  const endpoints =
+    typeof window !== 'undefined'
+      ? [`/api/transactions${queryString}`, `${API_BASE_URL}/api/transactions${queryString}`]
+      : [`${API_BASE_URL}/api/transactions${queryString}`, `http://localhost:3300/api/transactions${queryString}`];
+
+  let lastError: unknown = null;
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (response.ok) {
+        const json = await response.json();
+        if (json && json.success) {
+          return json;
+        }
+      }
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  console.error('Error fetching transactions from endpoints:', endpoints, lastError);
+  throw lastError || new Error('Failed to fetch transactions');
 }

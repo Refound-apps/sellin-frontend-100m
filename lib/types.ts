@@ -33,17 +33,37 @@ export interface ShopInfo {
 }
 
 export interface OfferDetail {
-  'auto id': number;
-  link: string;
-  condition: string;
-  autorenew: boolean;
-  autorenew_freq: string;
-  last_date_renewed: string;
-  next_date_renew: string;
-  bb_marketplace_id: string;
-  date: string;
-  bb_offer_id: string;
-  bb_email_od?: string;
+  id: number;
+  'auto id'?: number;
+  link: string | null;
+  condition: string | null;
+  autorenew: boolean | null;
+  autorenew_freq: string | null;
+  last_date_renewed: string | null;
+  next_date_renew: string | null;
+  bb_marketplace_id: string | null;
+  date: string | null;
+  bb_offer_id: string | null;
+  bb_email?: string | null;
+  bb_email_od?: string | null;
+  offer_title?: string | null;
+  offer_id?: number | null;
+  offer_price?: number | null;
+  offer_image?: string | null;
+}
+
+export interface TransactionsApiResponse {
+  success: boolean;
+  data: OfferDetail[];
+  total: number;
+  limit: number;
+  offset: number;
+  stats: {
+    total: number;
+    success: number;
+    errors: number;
+    autorenewActive: number;
+  };
 }
 
 export interface User {
