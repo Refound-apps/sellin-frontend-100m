@@ -325,3 +325,32 @@ export async function getTransactions(params: {
     throw error;
   }
 }
+
+export async function uploadImageToR2(fileOrBase64: string, filename?: string): Promise<string> {
+  const response = await apiFetch('/api/upload/image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: fileOrBase64, filename }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Nepodařilo se nahrát obrázek');
+  }
+  const data = await response.json();
+  return data.url;
+}
+
+export async function uploadImagesToR2(images: { data: string; filename?: string }[]): Promise<string[]> {
+  const response = await apiFetch('/api/upload/image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ images }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Nepodařilo se nahrát obrázky');
+  }
+  const data = await response.json();
+  return data.urls || (data.url ? [data.url] : []);
+}
+

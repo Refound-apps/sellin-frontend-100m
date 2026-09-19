@@ -4,6 +4,14 @@ export interface Offer {
   description: string;
   price: number;
   preview_image: string;
+  image2?: string | null;
+  image3?: string | null;
+  image4?: string | null;
+  image5?: string | null;
+  image6?: string | null;
+  image7?: string | null;
+  image8?: string | null;
+  image9?: string | null;
   created_at: string;
   state: string;
   bb_id?: string;

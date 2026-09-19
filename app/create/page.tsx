@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { formatPhoneNumber } from '@/components/offerStatus';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, uploadImagesToR2 } from '@/lib/api';
 
 interface MarketplaceOption {
   id: string;
@@ -138,7 +138,9 @@ export default function CreateOfferPage() {
   const [loadingCredentials, setLoadingCredentials] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<any[]>([]);
-  const [imagePreviewError, setImagePreviewError] = useState(false);
+  const [imageList, setImageList] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [customImageUrl, setCustomImageUrl] = useState('');
   
   const [formData, setFormData] = useState({
     title: '',
@@ -147,7 +149,6 @@ export default function CreateOfferPage() {
     bb_email: '',
     marketplace: ['Bazoš', 'Sbazar'] as string[],
     autorenew_freq: '1x za 10 dní vč. TOP',
-    preview_image: '',
     category: 0,
   });
 
@@ -182,6 +183,68 @@ export default function CreateOfferPage() {
     }));
   };
 
+  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 9 - imageList.length;
+    if (remainingSlots <= 0) {
+      alert('Lze nahrát maximálně 9 fotografií na jeden inzerát.');
+      return;
+    }
+
+    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+    setUploadingImages(true);
+    setError(null);
+
+    try {
+      const readPromises = selectedFiles.map((file) => {
+        return new Promise<{ data: string; filename: string }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ data: reader.result as string, filename: file.name });
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      const base64Files = await Promise.all(readPromises);
+      const uploadedUrls = await uploadImagesToR2(base64Files);
+
+      setImageList((prev) => [...prev, ...uploadedUrls].slice(0, 9));
+    } catch (err: any) {
+      console.error('Upload to R2 failed:', err);
+      setError('Nepodařilo se nahrát obrázky do Cloudflare R2: ' + (err.message || ''));
+    } finally {
+      setUploadingImages(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddImageUrl = () => {
+    const trimmed = customImageUrl.trim();
+    if (!trimmed) return;
+    if (imageList.length >= 9) {
+      alert('Lze nahrát maximálně 9 fotografií.');
+      return;
+    }
+    setImageList((prev) => [...prev, trimmed]);
+    setCustomImageUrl('');
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImageList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMoveImage = (from: number, to: number) => {
+    if (to < 0 || to >= imageList.length) return;
+    setImageList((prev) => {
+      const copy = [...prev];
+      const item = copy.splice(from, 1)[0];
+      copy.splice(to, 0, item);
+      return copy;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -202,6 +265,7 @@ export default function CreateOfferPage() {
 
     try {
       const selectedCategory = CATEGORIES[formData.category];
+      const payloadImages = imageList.map(url => ({ url }));
       const response = await apiFetch('/api/offers/create', {
         method: 'POST',
         headers: {
@@ -214,7 +278,16 @@ export default function CreateOfferPage() {
           bb_email: formData.bb_email,
           marketplace: formData.marketplace,
           autorenew_freq: formData.autorenew_freq,
-          preview_image: formData.preview_image.trim() || null,
+          images: payloadImages,
+          preview_image: imageList[0] || null,
+          image2: imageList[1] || null,
+          image3: imageList[2] || null,
+          image4: imageList[3] || null,
+          image5: imageList[4] || null,
+          image6: imageList[5] || null,
+          image7: imageList[6] || null,
+          image8: imageList[7] || null,
+          image9: imageList[8] || null,
           state: 'app_create',
           category: [{
             bazos_category: selectedCategory.bazos_category,
@@ -501,46 +574,159 @@ export default function CreateOfferPage() {
         {/* Card 4: Média a Automatická obnova */}
         <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-2xs">
           <div className="border-b border-slate-100 pb-4 mb-5">
-            <h2 className="text-base font-bold text-slate-950">Média a plánování obnovy</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Fotografie produktu a automatické TOPování inzerátů.</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-950">Média a plánování obnovy</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Fotografie produktu (Cloudflare R2) a automatické TOPování.</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                {imageList.length} / 9 fotek
+              </span>
+            </div>
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-6">
+            {/* R2 Image Upload */}
             <div>
-              <label htmlFor="preview_image" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                URL adresa náhledového obrázku
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                Fotografie produktu (až 9 fotek)
               </label>
-              <input
-                type="url"
-                id="preview_image"
-                value={formData.preview_image}
-                onChange={(e) => {
-                  setFormData({ ...formData, preview_image: e.target.value });
-                  setImagePreviewError(false);
-                }}
-                className="w-full rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-sm font-medium text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all placeholder:text-slate-400"
-                placeholder="https://domena.cz/obrazek.jpg nebo /prod-budi-app-assets/..."
-              />
 
-              {/* Live image preview */}
-              {formData.preview_image && !imagePreviewError && (
-                <div className="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 max-w-sm">
-                  <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-200">
-                    <Image
-                      src={formData.preview_image}
-                      alt="Náhled"
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                      onError={() => setImagePreviewError(true)}
-                    />
-                  </div>
-                  <div className="text-xs text-slate-600 truncate">
-                    <p className="font-bold text-slate-900">Náhled obrázku</p>
-                    <p className="text-slate-500 truncate text-[11px]">{formData.preview_image}</p>
+              {/* Upload Dropzone */}
+              <div className="relative">
+                <input
+                  type="file"
+                  id="image_file_input"
+                  multiple
+                  accept="image/*"
+                  disabled={uploadingImages || imageList.length >= 9}
+                  onChange={handleFilesSelected}
+                  className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                />
+                <div className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 transition-all ${
+                  uploadingImages
+                    ? 'border-blue-400 bg-blue-50/50'
+                    : imageList.length >= 9
+                    ? 'border-slate-200 bg-slate-50 opacity-60'
+                    : 'border-slate-300 hover:border-slate-500 bg-slate-50/50 hover:bg-slate-50'
+                }`}>
+                  {uploadingImages ? (
+                    <div className="flex flex-col items-center gap-2 text-blue-600">
+                      <div className="h-7 w-7 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                      <p className="text-xs font-bold">Optimalizuji a nahrávám do Cloudflare R2...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-2xs text-lg mb-2">
+                        ☁️
+                      </div>
+                      <p className="text-xs font-bold text-slate-800">
+                        {imageList.length >= 9
+                          ? 'Dosažen maximální limit 9 fotografií'
+                          : 'Klikněte nebo přetáhněte fotografie'}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        JPEG, PNG, WebP • Automaticky optimalizováno a uloženo v Cloudflare R2
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Uploaded Gallery Grid */}
+              {imageList.length > 0 && (
+                <div className="mt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {imageList.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className={`group relative aspect-4/3 rounded-xl overflow-hidden border bg-slate-100 shadow-2xs transition-all ${
+                          idx === 0 ? 'ring-2 ring-slate-900 border-transparent' : 'border-slate-200'
+                        }`}
+                      >
+                        <Image
+                          src={url}
+                          alt={`Fotografie ${idx + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        />
+                        
+                        {/* Badge for 1st image */}
+                        {idx === 0 && (
+                          <div className="absolute top-1.5 left-1.5 rounded-md bg-slate-900/90 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs backdrop-blur-xs">
+                            Hlavní
+                          </div>
+                        )}
+
+                        {/* Actions overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
+                          {idx > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleMoveImage(idx, idx - 1)}
+                              title="Posunout vlevo"
+                              className="rounded-lg bg-white/90 p-1.5 text-slate-900 hover:bg-white text-xs shadow-xs"
+                            >
+                              ◀
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            title="Odstranit"
+                            className="rounded-lg bg-rose-600/90 hover:bg-rose-600 p-1.5 text-white text-xs shadow-xs"
+                          >
+                            ✕
+                          </button>
+                          {idx < imageList.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleMoveImage(idx, idx + 1)}
+                              title="Posunout vpravo"
+                              className="rounded-lg bg-white/90 p-1.5 text-slate-900 hover:bg-white text-xs shadow-xs"
+                            >
+                              ▶
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Number */}
+                        <div className="absolute bottom-1 right-1.5 rounded bg-black/60 px-1 text-[9px] font-mono text-white">
+                          #{idx + 1}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+
+              {/* Add image via URL fallback */}
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={customImageUrl}
+                    onChange={(e) => setCustomImageUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddImageUrl();
+                      }
+                    }}
+                    placeholder="Nebo zadejte přímou URL adresu obrázku..."
+                    className="flex-1 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs font-medium text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all placeholder:text-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddImageUrl}
+                    disabled={!customImageUrl.trim() || imageList.length >= 9}
+                    className="rounded-xl bg-slate-100 hover:bg-slate-200 px-3.5 py-2 text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
+                  >
+                    + Přidat URL
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div>
