@@ -242,3 +242,41 @@ export function getOfferSpecsList(offer: ShopOffer): StructuredSpec[] {
 export const TIRE_WIDTHS = ['175', '185', '195', '205', '215', '225', '235', '245', '255', '265'];
 export const TIRE_PROFILES = ['35', '40', '45', '50', '55', '60', '65', '70', '75'];
 export const TIRE_RIMS = ['14', '15', '16', '17', '18', '19', '20', '21'];
+
+export const TIRE_BRANDS = [
+  { value: 'barum', label: 'Barum' },
+  { value: 'bridgestone', label: 'Bridgestone' },
+  { value: 'continental', label: 'Continental' },
+  { value: 'dunlop', label: 'Dunlop' },
+  { value: 'falken', label: 'Falken' },
+  { value: 'goodyear', label: 'Goodyear' },
+  { value: 'hankook', label: 'Hankook' },
+  { value: 'kleber', label: 'Kleber' },
+  { value: 'kumho', label: 'Kumho' },
+  { value: 'matador', label: 'Matador' },
+  { value: 'michelin', label: 'Michelin' },
+  { value: 'nexen', label: 'Nexen' },
+  { value: 'nokian', label: 'Nokian' },
+  { value: 'pirelli', label: 'Pirelli' },
+  { value: 'semperit', label: 'Semperit' },
+  { value: 'toyo', label: 'Toyo' },
+];
+
+export const CAR_WHEEL_BRANDS = [
+  { value: 'skoda', label: 'Škoda' },
+  { value: 'volkswagen', label: 'Volkswagen (VW)' },
+  { value: 'audi', label: 'Audi' },
+  { value: 'bmw', label: 'BMW' },
+  { value: 'mercedes', label: 'Mercedes-Benz' },
+  { value: 'ford', label: 'Ford' },
+  { value: 'seat', label: 'Seat' },
+  { value: 'hyundai', label: 'Hyundai' },
+  { value: 'kia', label: 'Kia' },
+  { value: 'volvo', label: 'Volvo' },
+  { value: 'opel', label: 'Opel' },
+  { value: 'renault', label: 'Renault' },
+  { value: 'peugeot', label: 'Peugeot' },
+  { value: 'dezent', label: 'Disky Dezent' },
+  { value: 'ronal', label: 'Disky Ronal' },
+  { value: 'borbet', label: 'Disky Borbet' },
+];

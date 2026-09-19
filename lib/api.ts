@@ -184,6 +184,7 @@ export type ShopOfferFilters = {
   width?: string;
   profile?: string;
   rim?: string;
+  brand?: string;
   sort?: string;
 };
 
@@ -211,6 +212,7 @@ export async function getShopOffers(
     if (filters.width) params.set('width', filters.width);
     if (filters.profile) params.set('profile', filters.profile);
     if (filters.rim) params.set('rim', filters.rim);
+    if (filters.brand) params.set('brand', filters.brand);
     if (filters.sort) params.set('sort', filters.sort);
 
     const response = await apiFetch(`/api/shop/offers?${params.toString()}`);

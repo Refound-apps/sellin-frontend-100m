@@ -13,7 +13,7 @@ import ShopFeatures from './ShopFeatures';
 import ShopServices from './ShopServices';
 import ShopFaq from './ShopFaq';
 import ShopInquiry from './ShopInquiry';
-import { TIRE_PROFILES, TIRE_RIMS, TIRE_WIDTHS } from './offerMeta';
+import { CAR_WHEEL_BRANDS, TIRE_BRANDS, TIRE_PROFILES, TIRE_RIMS, TIRE_WIDTHS } from './offerMeta';
 import { scrollToShopSection } from './shopScroll';
 
 export default function ShopCatalog() {
@@ -37,6 +37,7 @@ export default function ShopCatalog() {
     const typeParam = searchParams.get('type');
     const seasonParam = searchParams.get('season');
     const rimParam = searchParams.get('rim');
+    const brandParam = searchParams.get('brand');
     const searchParam = searchParams.get('search') || searchParams.get('q');
 
     const nextFilters: ShopOfferFilters = {};
@@ -44,6 +45,7 @@ export default function ShopCatalog() {
     if (typeParam) nextFilters.type = typeParam;
     if (seasonParam) nextFilters.season = seasonParam;
     if (rimParam) nextFilters.rim = rimParam;
+    if (brandParam) nextFilters.brand = brandParam;
 
     if (Object.keys(nextFilters).length > 0) {
       setFilters((prev) => ({ ...prev, ...nextFilters }));
@@ -237,6 +239,7 @@ export default function ShopCatalog() {
   const hasActiveFilters = Boolean(
     searchQuery ||
     filters.type ||
+    filters.brand ||
     filters.season ||
     filters.width ||
     filters.profile ||
@@ -309,8 +312,8 @@ export default function ShopCatalog() {
               </div>
             </div>
 
-            {/* Filter Dropdowns - 2 columns on mobile with 5th spanning 2 cols */}
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {/* Filter Dropdowns - 2 cols mobile, 3 cols tablet, 6 cols desktop */}
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <select
                 value={filters.type || ''}
                 onChange={(e) => updateFilter('type', e.target.value)}
@@ -320,6 +323,29 @@ export default function ShopCatalog() {
                 <option value="pneu">Pneumatiky</option>
                 <option value="disk">ALU disky</option>
               </select>
+
+              <select
+                value={filters.brand || ''}
+                onChange={(e) => updateFilter('brand', e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Značka: vše</option>
+                <optgroup label="Značky pneu">
+                  {TIRE_BRANDS.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Auta a disky">
+                  {CAR_WHEEL_BRANDS.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+
               <select
                 value={filters.season || ''}
                 onChange={(e) => updateFilter('season', e.target.value)}
@@ -330,6 +356,7 @@ export default function ShopCatalog() {
                 <option value="letni">Letní</option>
                 <option value="celorocni">Celoroční</option>
               </select>
+
               <select
                 value={filters.width || ''}
                 onChange={(e) => updateFilter('width', e.target.value)}
@@ -340,6 +367,7 @@ export default function ShopCatalog() {
                   <option key={width} value={width}>{width} mm</option>
                 ))}
               </select>
+
               <select
                 value={filters.profile || ''}
                 onChange={(e) => updateFilter('profile', e.target.value)}
@@ -350,10 +378,11 @@ export default function ShopCatalog() {
                   <option key={profile} value={profile}>{profile}</option>
                 ))}
               </select>
+
               <select
                 value={filters.rim || ''}
                 onChange={(e) => updateFilter('rim', e.target.value)}
-                className={`${selectClass} col-span-2 sm:col-span-1`}
+                className={selectClass}
               >
                 <option value="">Průměr (vše)</option>
                 {TIRE_RIMS.map((rim) => (
