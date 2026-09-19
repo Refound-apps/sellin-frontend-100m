@@ -29,21 +29,52 @@ export async function getCredentialsMap(): Promise<Record<string, { phone: strin
   }
 }
 
-export async function getOffers(limit: number = 50, offset: number = 0, search?: string): Promise<Offer[]> {
+export async function getOffers(
+  limit: number = 50,
+  offset: number = 0,
+  search?: string,
+  emails?: string[]
+): Promise<Offer[]> {
   try {
-    let url = `${API_BASE_URL}/api/offers?limit=${limit}&offset=${offset}`;
+    const query = new URLSearchParams();
+    query.set('limit', String(limit));
+    query.set('offset', String(offset));
     if (search && search.trim()) {
-      url += `&search=${encodeURIComponent(search.trim())}`;
+      query.set('search', search.trim());
     }
-    
+    if (emails && emails.length > 0) {
+      const clean = emails.map((e) => e.toLowerCase().trim()).filter(Boolean);
+      if (clean.length > 0) {
+        query.set('emails', clean.join(','));
+      }
+    }
+
+    const queryString = `?${query.toString()}`;
+    const endpoints =
+      typeof window !== 'undefined'
+        ? [`/api/offers${queryString}`, `${API_BASE_URL}/api/offers${queryString}`]
+        : [`${API_BASE_URL}/api/offers${queryString}`, `http://localhost:3300/api/offers${queryString}`];
+
+    let lastError: unknown = null;
+    let data: ApiResponse<Offer[]> | null = null;
+
+    for (const url of endpoints) {
+      try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (response.ok) {
+          data = await response.json();
+          break;
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (!data || !data.data) {
+      throw lastError || new Error('Failed to fetch offers');
+    }
+
     const credsMap: Record<string, { phone: string; name: string }> = await getCredentialsMap().catch(() => ({}));
-    const response = await fetch(url, { cache: 'no-store' });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch offers');
-    }
-    
-    const data: ApiResponse<Offer[]> = await response.json();
     return data.data.map((offer) => {
       const emailKey = offer.bb_email?.toLowerCase().trim();
       const cred = emailKey ? credsMap[emailKey] : null;

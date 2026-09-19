@@ -90,35 +90,52 @@ export default function Navigation() {
     );
   }
 
-  const baseItems = [
-    { href: '/', label: 'Moje nabídka' },
-    { href: '/create', label: 'Vytvořit inzerát' },
+  const isAdminSection = pathname.startsWith('/admin');
+
+  // Navigační položky pro běžné prodejce (včetně Napojení účtů a E-shopu)
+  const sellerNavItems = [
+    { href: '/', label: 'Moje nabídka', exact: true },
+    { href: '/create', label: 'Vytvořit inzerát', exact: false },
+    { href: '/accounts', label: 'Napojení účtů', exact: false },
+    { href: '/shop', label: 'E-shop', exact: false },
   ];
 
-  const adminItems = [
-    { href: '/users', label: 'Uživatelé' },
-    { href: '/accounts', label: 'Napojení účtů' },
-    { href: '/transactions', label: 'Transakce' },
+  // Navigační položky pro administrátorské rozhraní (pouze čisté admin sekce)
+  const adminNavItems = [
+    { href: '/admin/offers', label: 'Nabídka', exact: false },
+    { href: '/admin/transactions', label: 'Transakce', exact: false },
+    { href: '/admin/users', label: 'Uživatelé', exact: false },
   ];
 
-  const navItems = [
-    ...baseItems,
-    ...(role === 'admin' ? adminItems : []),
-    { href: '/shop', label: 'E-shop' },
-  ];
+  const currentNavItems = isAdminSection ? adminNavItems : sellerNavItems;
 
   return (
     <nav className="sticky top-0 z-40 border-b border-[hsl(214_24%_88%)] bg-white/80 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-6">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="shrink-0 text-lg font-bold tracking-tight text-[hsl(222_47%_11%)]">
-              Sellin
+        <div className="flex h-16 items-center justify-between gap-4 sm:gap-6">
+          {/* Logo & Hlavní navigace */}
+          <div className="flex items-center gap-6 lg:gap-8">
+            <Link
+              href={isAdminSection ? '/admin/offers' : '/'}
+              className="flex items-center gap-2 shrink-0"
+            >
+              <span className="text-lg font-bold tracking-tight text-[hsl(222_47%_11%)]">
+                Sellin
+              </span>
+              {isAdminSection && (
+                <span className="rounded bg-[hsl(222_47%_11%)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                  Admin
+                </span>
+              )}
             </Link>
 
+            {/* Desktopové položky menu se shodným minimalistickým designem */}
             <div className="hidden items-center gap-1 md:flex">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
+              {currentNavItems.map((item) => {
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(item.href + '/');
+
                 return (
                   <Link
                     key={item.href}
@@ -136,7 +153,40 @@ export default function Navigation() {
             </div>
           </div>
 
+          {/* Pravá část lišty: Subtilní Admin přepínač + Uživatel */}
           <div className="flex items-center gap-3">
+            {/* Decentní, subtilní přepínač výhradně pro administrátory */}
+            {role === 'admin' && (
+              <div
+                className="flex items-center rounded-lg bg-slate-100/90 p-0.5 border border-slate-200/80 text-[11px]"
+                role="group"
+                aria-label="Režim zobrazení"
+              >
+                <Link
+                  href="/"
+                  title="Přepnout do portálu prodejce"
+                  className={`rounded-md px-2.5 py-1 font-medium transition-all ${
+                    !isAdminSection
+                      ? 'bg-white text-slate-950 font-semibold shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Prodejce
+                </Link>
+                <Link
+                  href="/admin/offers"
+                  title="Přepnout do administrace"
+                  className={`rounded-md px-2.5 py-1 font-medium transition-all ${
+                    isAdminSection
+                      ? 'bg-white text-slate-950 font-semibold shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Admin
+                </Link>
+              </div>
+            )}
+
             {user ? (
               <div className="flex items-center gap-3">
                 <div className="hidden flex-col items-end sm:flex">
@@ -148,7 +198,7 @@ export default function Navigation() {
                 <button
                   onClick={handleLogout}
                   title="Odhlásit se"
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 active:scale-95"
                 >
                   Odhlásit
                 </button>
@@ -164,14 +214,18 @@ export default function Navigation() {
           </div>
         </div>
 
-        <div className="flex gap-1 overflow-x-auto pb-3 md:hidden">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
+        {/* Mobilní menu */}
+        <div className="flex gap-1 overflow-x-auto pb-3 pt-1 md:hidden">
+          {currentNavItems.map((item) => {
+            const isActive = item.exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(item.href + '/');
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${
+                className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-[hsl(222_47%_11%)] text-white'
                     : 'bg-[hsl(210_30%_94%)] text-[hsl(222_20%_38%)]'

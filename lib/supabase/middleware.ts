@@ -60,11 +60,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 2. Kontrola admin tras (/users, /accounts, /transactions)
-  const isAdminRoute =
-    pathname.startsWith('/users') ||
-    pathname.startsWith('/accounts') ||
-    pathname.startsWith('/transactions');
+  // 2. Kontrola admin tras (/admin/users, /admin/transactions a legacy přesměrování)
+  const isLegacyAdminRoute =
+    pathname === '/users' ||
+    pathname.startsWith('/users/') ||
+    pathname === '/transactions' ||
+    pathname.startsWith('/transactions/');
+
+  const isAdminRoute = pathname.startsWith('/admin') || isLegacyAdminRoute;
+
   if (user && isAdminRoute) {
     const { data: credential } = await supabase
       .from('credential_pg')
@@ -78,6 +82,19 @@ export async function updateSession(request: NextRequest) {
       // Uživatel není admin -> přesměrovat na domovskou stránku /
       const url = request.nextUrl.clone();
       url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
+
+    // Pro administrátora přesměrovat případné staré URL na /admin/*
+    if (isLegacyAdminRoute || pathname === '/admin' || pathname === '/admin/') {
+      const url = request.nextUrl.clone();
+      if (pathname === '/admin' || pathname === '/admin/') {
+        url.pathname = '/admin/offers';
+      } else if (pathname.startsWith('/users')) {
+        url.pathname = pathname.replace(/^\/users/, '/admin/users');
+      } else if (pathname.startsWith('/transactions')) {
+        url.pathname = pathname.replace(/^\/transactions/, '/admin/transactions');
+      }
       return NextResponse.redirect(url);
     }
   }

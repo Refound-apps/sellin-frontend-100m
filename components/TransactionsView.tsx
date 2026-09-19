@@ -258,7 +258,7 @@ export default function TransactionsView() {
         } = await supabase.auth.getUser();
 
         if (!user) {
-          router.push('/login?redirect=/transactions');
+          router.push('/login?redirect=/admin/transactions');
           return;
         }
 
@@ -377,6 +377,58 @@ export default function TransactionsView() {
     return Math.max(1, Math.ceil(totalCount / pageSize));
   }, [totalCount, pageSize]);
 
+  // Seskupení po sobě jdoucích transakcí se stejným ID nabídky (např. obnovené inzeráty)
+  const groupedRows = useMemo(() => {
+    const result: {
+      tx: OfferDetail;
+      isGroupStart: boolean;
+      groupSpan: number;
+      groupIndex: number;
+      totalInGroup: number;
+      isLastInGroup: boolean;
+      groupId: string;
+    }[] = [];
+
+    let i = 0;
+    while (i < transactions.length) {
+      const current = transactions[i];
+      const offerId = current.offer_id;
+
+      if (offerId != null) {
+        let j = i + 1;
+        while (j < transactions.length && transactions[j].offer_id === offerId) {
+          j++;
+        }
+        const count = j - i;
+        const groupId = `offer-${offerId}-${current.id}`;
+        for (let k = 0; k < count; k++) {
+          result.push({
+            tx: transactions[i + k],
+            isGroupStart: k === 0,
+            groupSpan: count,
+            groupIndex: k,
+            totalInGroup: count,
+            isLastInGroup: k === count - 1,
+            groupId,
+          });
+        }
+        i = j;
+      } else {
+        result.push({
+          tx: current,
+          isGroupStart: true,
+          groupSpan: 1,
+          groupIndex: 0,
+          totalInGroup: 1,
+          isLastInGroup: true,
+          groupId: `tx-${current.id}`,
+        });
+        i++;
+      }
+    }
+    return result;
+  }, [transactions]);
+
   // Loading state
   if (authChecking) {
     return (
@@ -409,25 +461,25 @@ export default function TransactionsView() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-4 sm:space-y-5">
       {/* 1. Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
               Pouze administrátor
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Živá synchronizace
             </span>
           </div>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+          <h1 className="mt-1.5 text-xl sm:text-2xl font-black tracking-tight text-slate-950">
             Transakce inzerátů
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-2xl">
-            Audit a historie synchronizací na inzertní tržiště (Bazoš, Sbazar, Facebook), stavy nahrávání a plánované auto-obnovy řazené od nejnovějších.
+          <p className="mt-0.5 text-xs text-slate-500 max-w-2xl">
+            Audit synchronizací na inzertní tržiště (Bazoš, Sbazar, Facebook), stavy nahrávání a plánované auto-obnovy řazené od nejnovějších.
           </p>
         </div>
 
@@ -436,7 +488,7 @@ export default function TransactionsView() {
           <button
             type="button"
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all shadow-2xs ${
+            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs ${
               autoRefresh
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                 : 'bg-white text-slate-700 border-slate-200/90 hover:bg-slate-50'
@@ -452,7 +504,7 @@ export default function TransactionsView() {
             type="button"
             onClick={fetchTransactions}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all disabled:opacity-50"
           >
             <svg
               className={`h-3.5 w-3.5 text-slate-500 ${loading ? 'animate-spin' : ''}`}
@@ -472,79 +524,12 @@ export default function TransactionsView() {
         </div>
       </div>
 
-      {/* 2. Top KPI Metric Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        {/* Celkem transakcí */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Celkem transakcí</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-sm">
-              📊
-            </span>
-          </div>
-          <p className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
-            {stats.total.toLocaleString('cs-CZ')}
-          </p>
-          <span className="mt-1 inline-block text-[11px] font-medium text-slate-400">
-            zaznamenaných v databázi
-          </span>
-        </div>
-
-        {/* Úspěšné nahrání */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Úspěšně vloženo</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-sm">
-              ✓
-            </span>
-          </div>
-          <p className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-emerald-700">
-            {stats.success.toLocaleString('cs-CZ')}
-          </p>
-          <span className="mt-1 inline-block text-[11px] font-bold text-emerald-600">
-            {stats.total > 0 ? `${Math.round((stats.success / stats.total) * 100)} % úspěšnost` : '—'}
-          </span>
-        </div>
-
-        {/* Chyby a blokace */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Chyby a blokace</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-200/60 text-sm">
-              ⚠️
-            </span>
-          </div>
-          <p className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-rose-700">
-            {stats.errors.toLocaleString('cs-CZ')}
-          </p>
-          <span className="mt-1 inline-block text-[11px] font-bold text-rose-600">
-            vyžaduje pozornost
-          </span>
-        </div>
-
-        {/* Aktivní auto-obnova */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Aktivní auto-obnova</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-700 border border-blue-200/60 text-sm">
-              ⚡
-            </span>
-          </div>
-          <p className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-blue-700">
-            {stats.autorenewActive.toLocaleString('cs-CZ')}
-          </p>
-          <span className="mt-1 inline-block text-[11px] font-medium text-slate-500">
-            inzerátů s plánovaným TOP
-          </span>
-        </div>
-      </div>
-
-      {/* 3. Search & Filter Bar */}
-      <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-3.5">
-        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2.5">
+      {/* 2. Search & Filter Bar */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-3.5 shadow-2xs space-y-2.5">
+        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <svg
-              className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -561,13 +546,13 @@ export default function TransactionsView() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Hledat podle názvu inzerátu, odkazu na Bazoš, e-mailu prodejce nebo ID..."
-              className="w-full rounded-2xl border border-slate-200/90 bg-white py-3 pl-11 pr-10 text-xs sm:text-sm font-medium text-slate-950 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all"
+              className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-10 pr-9 text-xs sm:text-sm font-medium text-slate-950 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all"
             />
             {searchInput && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 text-xs"
                 title="Vymazat hledání"
               >
                 ✕
@@ -576,15 +561,15 @@ export default function TransactionsView() {
           </div>
           <button
             type="submit"
-            className="rounded-xl bg-slate-950 px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-slate-800 active:scale-95 transition-all"
+            className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 active:scale-95 transition-all shrink-0"
           >
             Vyhledat
           </button>
         </form>
 
         {/* Filter dropdowns & View switcher */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-100 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5">
             {/* Tržiště */}
             <select
               value={marketplaceFilter}
@@ -592,7 +577,7 @@ export default function TransactionsView() {
                 setMarketplaceFilter(e.target.value as MarketplaceFilter);
                 setPage(1);
               }}
-              className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 font-bold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
+              className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
             >
               <option value="all">Všechna tržiště</option>
               <option value="bazos">Bazoš.cz</option>
@@ -608,7 +593,7 @@ export default function TransactionsView() {
                 setConditionFilter(e.target.value as ConditionFilter);
                 setPage(1);
               }}
-              className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 font-bold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
+              className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
             >
               <option value="all">Všechny stavy</option>
               <option value="ok_created">Pouze Vloženo (ok_created)</option>
@@ -625,7 +610,7 @@ export default function TransactionsView() {
                 setAutorenewFilter(e.target.value as AutorenewFilter);
                 setPage(1);
               }}
-              className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 font-bold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
+              className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
             >
               <option value="all">Všechny obnovy</option>
               <option value="enabled">S aktivní auto-obnovou</option>
@@ -639,7 +624,7 @@ export default function TransactionsView() {
                 setPageSize(Number(e.target.value));
                 setPage(1);
               }}
-              className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 font-bold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
+              className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
             >
               <option value="25">25 na stranu</option>
               <option value="50">50 na stranu</option>
@@ -784,31 +769,32 @@ export default function TransactionsView() {
           </button>
         </div>
       ) : viewMode === 'table' ? (
-        /* TABLE VIEW */
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs">
+        /* TABLE VIEW (kompaktní vertikální přehled se sloučením obnovených inzerátů) */
+        <div className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-100 text-left">
-              <thead className="bg-slate-50/80">
+            <table className="min-w-full text-left">
+              <thead className="bg-slate-50/90 border-b border-slate-200/80">
                 <tr>
-                  <th scope="col" className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-slate-700 min-w-[300px]">
+                  <th scope="col" className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[280px]">
                     Inzerát & Nabídka
                   </th>
-                  <th scope="col" className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-slate-700 min-w-[200px]">
+                  <th scope="col" className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[190px]">
                     Tržiště & Účet
                   </th>
-                  <th scope="col" className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-slate-700 min-w-[150px]">
+                  <th scope="col" className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[150px]">
                     Stav synchronizace
                   </th>
-                  <th scope="col" className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-slate-700 min-w-[210px]">
+                  <th scope="col" className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[180px]">
                     Publikováno & Obnova
                   </th>
-                  <th scope="col" className="px-5 py-3.5 text-right text-xs font-bold uppercase tracking-wider text-slate-700 min-w-[170px]">
+                  <th scope="col" className="px-3.5 py-2.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[150px]">
                     Akce
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {transactions.map((tx) => {
+              <tbody>
+                {groupedRows.map((item) => {
+                  const tx = item.tx;
                   const mInfo = getMarketplaceInfo(tx.bb_marketplace_id);
                   const sInfo = getConditionInfo(tx.condition);
                   const pubDate = formatDateTime(tx.date || tx.last_date_renewed);
@@ -818,92 +804,116 @@ export default function TransactionsView() {
                   return (
                     <tr
                       key={tx.id}
-                      className={`hover:bg-slate-50/70 transition-colors group ${
+                      className={`hover:bg-slate-50/70 transition-colors ${
                         sInfo.isError ? 'bg-rose-50/25' : ''
+                      } ${
+                        item.totalInGroup > 1
+                          ? item.isLastInGroup
+                            ? 'border-b-2 border-slate-200'
+                            : 'border-b border-slate-100/70'
+                          : 'border-b border-slate-100'
                       }`}
                     >
-                      {/* 1. Inzerát & Nabídka */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-start gap-3">
-                          {/* Photo thumbnail */}
-                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200/80 flex items-center justify-center">
-                            {tx.offer_image ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img
-                                src={tx.offer_image}
-                                alt={tx.offer_title || 'Foto inzerátu'}
-                                className="h-full w-full object-cover"
-                                onError={(e) => {
-                                  // Fallback na ikonu při chybě načtení
-                                  (e.target as HTMLElement).style.display = 'none';
-                                }}
-                              />
-                            ) : null}
-                            <span className="text-lg opacity-40 select-none pointer-events-none">
-                              🚗
-                            </span>
-                          </div>
-
-                          {/* Titles and badges */}
-                          <div className="min-w-0 flex-1">
-                            {tx.offer_id ? (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenOffer(tx)}
-                                className="text-left font-bold text-sm text-slate-950 hover:text-emerald-700 transition-colors line-clamp-1 group-hover:text-emerald-800"
-                                title={`Otevřít nabídku: ${tx.offer_title || `#${tx.offer_id}`}`}
-                              >
-                                {tx.offer_title || `Inzerát #${tx.offer_id}`}
-                              </button>
-                            ) : (
-                              <span className="font-bold text-sm text-slate-950 line-clamp-1">
-                                {tx.offer_title || `Záznam #${tx.id}`}
+                      {/* 1. Inzerát & Nabídka (vertikálně sloučeno při obnoveném inzerátu se stejným offer_id) */}
+                      {item.isGroupStart && (
+                        <td
+                          rowSpan={item.groupSpan}
+                          className={`px-3.5 py-2 align-top border-r border-slate-100 transition-colors ${
+                            item.totalInGroup > 1 ? 'bg-slate-50/45' : 'bg-white'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            {/* Photo thumbnail */}
+                            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-slate-100 border border-slate-200/80 flex items-center justify-center">
+                              {tx.offer_image ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img
+                                  src={tx.offer_image}
+                                  alt={tx.offer_title || 'Foto inzerátu'}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : null}
+                              <span className="text-sm opacity-40 select-none pointer-events-none">
+                                🚗
                               </span>
-                            )}
+                            </div>
 
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-                              {tx.offer_price !== null && tx.offer_price !== undefined && (
-                                <span className="font-black text-emerald-700">
-                                  {tx.offer_price.toLocaleString('cs-CZ')} Kč
-                                </span>
-                              )}
-                              <span className="font-mono text-[11px] text-slate-400">
-                                ID #{tx.id}
-                              </span>
-                              {tx.offer_id && (
+                            {/* Titles and badges */}
+                            <div className="min-w-0 flex-1">
+                              {tx.offer_id ? (
                                 <button
                                   type="button"
                                   onClick={() => handleOpenOffer(tx)}
-                                  className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-700 hover:bg-slate-200 transition-colors"
-                                  title="Otevřít detail nabídky v Sellin"
+                                  className="text-left font-bold text-xs text-slate-950 hover:text-emerald-700 transition-colors line-clamp-2"
+                                  title={`Otevřít nabídku: ${tx.offer_title || `#${tx.offer_id}`}`}
                                 >
-                                  Nabídka #{tx.offer_id}
+                                  {tx.offer_title || `Inzerát #${tx.offer_id}`}
                                 </button>
+                              ) : (
+                                <span className="font-bold text-xs text-slate-950 line-clamp-2">
+                                  {tx.offer_title || `Záznam #${tx.id}`}
+                                </span>
+                              )}
+
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                                {tx.offer_price !== null && tx.offer_price !== undefined && (
+                                  <span className="font-extrabold text-emerald-700 text-xs">
+                                    {tx.offer_price.toLocaleString('cs-CZ')} Kč
+                                  </span>
+                                )}
+                                {tx.offer_id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenOffer(tx)}
+                                    className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-700 hover:bg-slate-200 transition-colors"
+                                    title="Otevřít detail nabídky v Sellin"
+                                  >
+                                    Nabídka #{tx.offer_id}
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Sloučený indikátor obnoveného inzerátu */}
+                              {item.totalInGroup > 1 && (
+                                <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-sky-50 border border-sky-200/80 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">
+                                  <span className="text-sky-600">🔄</span>
+                                  <span>Obnovený inzerát ({item.totalInGroup}× záznam)</span>
+                                </div>
                               )}
                             </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                      )}
 
                       {/* 2. Tržiště & Účet */}
-                      <td className="px-5 py-4">
-                        <div>
-                          <span
-                            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${mInfo.badgeClass}`}
-                          >
-                            <span>{mInfo.icon}</span>
-                            <span>{mInfo.name}</span>
-                          </span>
+                      <td className="px-3.5 py-2 align-middle">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold ${mInfo.badgeClass}`}
+                            >
+                              <span>{mInfo.icon}</span>
+                              <span>{mInfo.name}</span>
+                            </span>
+                            {item.totalInGroup > 1 && (
+                              <span className="text-[10px] font-semibold text-slate-400">
+                                {item.groupIndex === 0 ? '• poslední' : `• #${item.totalInGroup - item.groupIndex}`}
+                              </span>
+                            )}
+                          </div>
 
-                          <div className="mt-1.5 flex items-center gap-1 text-xs text-slate-600 font-medium">
-                            <span className="truncate max-w-[180px]" title={tx.bb_email || 'Bez e-mailu'}>
+                          <div className="flex items-center gap-1 text-[11px] text-slate-600 font-medium">
+                            <span className="truncate max-w-[170px]" title={tx.bb_email || 'Bez e-mailu'}>
                               {tx.bb_email || '—'}
                             </span>
                             {tx.bb_email && (
                               <button
                                 type="button"
                                 onClick={() => handleCopy(tx.bb_email!, `email-${tx.id}`)}
-                                className="text-slate-400 hover:text-slate-700 p-0.5"
+                                className="text-slate-400 hover:text-slate-700 p-0.5 text-[10px]"
                                 title="Zkopírovat e-mail"
                               >
                                 {copiedField === `email-${tx.id}` ? '✓' : '📋'}
@@ -914,63 +924,60 @@ export default function TransactionsView() {
                       </td>
 
                       {/* 3. Stav synchronizace */}
-                      <td className="px-5 py-4">
-                        <div>
+                      <td className="px-3.5 py-2 align-middle">
+                        <div className="flex flex-col gap-0.5">
                           <span
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold shadow-2xs ${sInfo.badgeClass}`}
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold shadow-2xs w-fit ${sInfo.badgeClass}`}
                           >
-                            <span className={`h-2 w-2 rounded-full ${sInfo.dotClass}`} />
+                            <span className={`h-1.5 w-1.5 rounded-full ${sInfo.dotClass}`} />
                             <span>{sInfo.label}</span>
                           </span>
 
-                          <div className="mt-1 text-[11px] font-mono text-slate-400">
+                          <span className="font-mono text-[10px] text-slate-400">
                             {tx.condition || '—'}
-                          </div>
+                          </span>
                         </div>
                       </td>
 
                       {/* 4. Publikováno & Obnova */}
-                      <td className="px-5 py-4">
-                        <div>
-                          <div className="text-xs font-bold text-slate-900">
-                            {pubDate.relative}
-                          </div>
-                          <div className="text-[11px] font-mono text-slate-400 mt-0.5">
-                            {pubDate.short}
+                      <td className="px-3.5 py-2 align-middle">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="font-bold text-slate-900">{pubDate.relative}</span>
+                            <span className="text-[10px] font-mono text-slate-400">({pubDate.short})</span>
                           </div>
 
-                          {/* Auto-obnova detail */}
                           {tx.autorenew_freq && tx.autorenew_freq !== 'Neobnovovat' ? (
-                            <div className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-sky-800">
+                            <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-800">
                               <span>⚡</span>
-                              <span className="truncate max-w-[160px]" title={tx.autorenew_freq}>
+                              <span className="truncate max-w-[150px]" title={tx.autorenew_freq}>
                                 {tx.autorenew_freq}
                               </span>
                             </div>
                           ) : (
-                            <div className="mt-1 text-[11px] text-slate-400">
-                              Bez auto-obnovy
-                            </div>
+                            <span className="text-[10px] text-slate-400">Bez auto-obnovy</span>
                           )}
 
                           {tx.next_date_renew && (
-                            <div className="text-[10px] text-slate-500 font-medium">
+                            <span className="text-[10px] text-slate-500 font-medium">
                               Příští: {nextDate.relative}
-                            </div>
+                            </span>
                           )}
                         </div>
                       </td>
 
                       {/* 5. Akce */}
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-3.5 py-2 text-right align-middle">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Live portal link button */}
+                          <span className="font-mono text-[10px] text-slate-400 mr-1">
+                            #{tx.id}
+                          </span>
                           {isLiveUrl ? (
                             <a
                               href={tx.link!}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 shadow-2xs transition-all"
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200/90 bg-white px-2 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 shadow-2xs transition-all"
                               title="Přejít na inzerát na portálu"
                             >
                               <span>Otevřít</span>
@@ -980,11 +987,10 @@ export default function TransactionsView() {
                             </a>
                           ) : null}
 
-                          {/* Detail transakce button */}
                           <button
                             type="button"
                             onClick={() => setSelectedTx(tx)}
-                            className="inline-flex items-center gap-1 rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 shadow-2xs transition-all active:scale-95"
+                            className="inline-flex items-center gap-1 rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-bold text-white hover:bg-slate-800 shadow-2xs transition-all active:scale-95"
                           >
                             Detail
                           </button>

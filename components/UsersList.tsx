@@ -364,14 +364,26 @@ export default function UsersList() {
                       </td>
 
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedUser(user)}
-                          className="inline-flex items-center gap-1 rounded-xl border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs group-hover:bg-slate-900 group-hover:text-white group-hover:border-transparent transition-all duration-200"
-                        >
-                          <span>Detail</span>
-                          <span>→</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/?account=${encodeURIComponent(user.email)}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 rounded-xl border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 shadow-2xs transition-all"
+                            title="Zobrazit nabídku tohoto prodejce v portálu prodejce"
+                          >
+                            <span>👁️</span>
+                            <span>Nabídka</span>
+                          </Link>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUser(user)}
+                            className="inline-flex items-center gap-1 rounded-xl border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs group-hover:bg-slate-900 group-hover:text-white group-hover:border-transparent transition-all duration-200"
+                          >
+                            <span>Detail</span>
+                            <span>→</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -544,7 +556,16 @@ export default function UsersList() {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end border-t border-slate-100 bg-slate-50/50 px-6 py-3.5">
+            <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-6 py-3.5">
+              <Link
+                href={`/?account=${encodeURIComponent(selectedUser.email)}`}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 shadow-xs active:scale-95 transition-all"
+              >
+                <span>👁️</span>
+                <span>Zobrazit nabídku prodejce</span>
+                <span>→</span>
+              </Link>
+
               <button
                 type="button"
                 onClick={() => setSelectedUser(null)}

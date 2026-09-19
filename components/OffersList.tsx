@@ -1,13 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { Offer } from '@/lib/types';
-import { getOffers } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
+import { Offer, User } from '@/lib/types';
+import { getOffers, getUsers } from '@/lib/api';
+import { createClient } from '@/lib/supabase/client';
 import OfferCard from './OfferCard';
 import OfferModal from './OfferModal';
+import SellerAccountSwitcher from './SellerAccountSwitcher';
+import { formatPhoneNumber } from './offerStatus';
 
-export default function OffersList() {
+interface OffersListProps {
+  mode?: 'user' | 'admin';
+}
+
+export default function OffersList({ mode = 'user' }: OffersListProps) {
+  const supabase = useMemo(() => createClient(), []);
+  const searchParams = useSearchParams();
+  const urlAccountParam = searchParams?.get('account') || searchParams?.get('seller') || null;
+
+  // Offers state
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +31,190 @@ export default function OffersList() {
   const [searchInput, setSearchInput] = useState('');
   const limit = 20;
 
+  // User & credentials state
+  const [userLoading, setUserLoading] = useState(mode === 'user');
+  const [myEmail, setMyEmail] = useState<string | null>(null);
+  const [myEmails, setMyEmails] = useState<string[]>([]);
+  const [userEmails, setUserEmails] = useState<string[] | null>(mode === 'admin' ? [] : null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+
+  // Admin Account Impersonation state (when admin views a specific seller account on seller page)
+  const [selectedSeller, setSelectedSeller] = useState<User | null>(null);
+  const [selectedCustomEmail, setSelectedCustomEmail] = useState<string | null>(null);
+
+  // 1. In 'user' mode, fetch logged in user, role, and my credentials
+  useEffect(() => {
+    if (mode === 'admin') {
+      setUserLoading(false);
+      setUserEmails([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function loadUserAndCredentials() {
+      try {
+        setUserLoading(true);
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (isCancelled) return;
+
+        if (!authUser) {
+          setUserEmails([]);
+          setMyEmail(null);
+          setMyEmails([]);
+          return;
+        }
+
+        const email = authUser.email ?? null;
+        setMyEmail(email);
+
+        // Fetch credentials matching user_id or email
+        const { data: credentials } = await supabase
+          .from('credential_pg')
+          .select('role, email, sbazar_email, bazos_email, facebook_email')
+          .or(`user_id.eq.${authUser.id},email.ilike.${authUser.email}`);
+
+        const myEmailsSet = new Set<string>();
+        if (email) {
+          myEmailsSet.add(email.toLowerCase().trim());
+        }
+
+        let isUserAdmin = false;
+        if (credentials && credentials.length > 0) {
+          for (const cred of credentials) {
+            if (cred.role === 'admin') {
+              isUserAdmin = true;
+            }
+            if (cred.email) myEmailsSet.add(cred.email.toLowerCase().trim());
+            if (cred.sbazar_email) myEmailsSet.add(cred.sbazar_email.toLowerCase().trim());
+            if (cred.bazos_email) myEmailsSet.add(cred.bazos_email.toLowerCase().trim());
+            if (cred.facebook_email) myEmailsSet.add(cred.facebook_email.toLowerCase().trim());
+          }
+        }
+
+        setIsAdminUser(isUserAdmin);
+        const resolvedMyEmails = Array.from(myEmailsSet);
+        setMyEmails(resolvedMyEmails);
+
+        // If user is admin and URL contains ?account=..., resolve and select that seller account
+        if (isUserAdmin && urlAccountParam) {
+          try {
+            const allUsers = await getUsers();
+            const cleanTarget = urlAccountParam.toLowerCase().trim();
+            const matched = allUsers.find(
+              (u) =>
+                u.email.toLowerCase().trim() === cleanTarget ||
+                (u.sbazar_email && u.sbazar_email.toLowerCase().trim() === cleanTarget) ||
+                (u.bazos_email && u.bazos_email.toLowerCase().trim() === cleanTarget)
+            );
+
+            if (matched) {
+              setSelectedSeller(matched);
+              setSelectedCustomEmail(null);
+              const targetEmails = [
+                matched.email,
+                matched.sbazar_email,
+                matched.bazos_email,
+                matched.facebook_email,
+              ]
+                .filter((e): e is string => Boolean(e && e.trim()))
+                .map((e) => e.toLowerCase().trim());
+              setUserEmails(targetEmails);
+              return;
+            } else {
+              setSelectedSeller(null);
+              setSelectedCustomEmail(cleanTarget);
+              setUserEmails([cleanTarget]);
+              return;
+            }
+          } catch (e) {
+            console.error('Failed to resolve account from URL:', e);
+          }
+        }
+
+        setUserEmails(resolvedMyEmails);
+      } catch (err) {
+        console.error('Error resolving user emails:', err);
+        setUserEmails(myEmail ? [myEmail.toLowerCase().trim()] : []);
+      } finally {
+        if (!isCancelled) {
+          setUserLoading(false);
+        }
+      }
+    }
+
+    loadUserAndCredentials();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [mode, supabase, urlAccountParam]);
+
+  // Handler for Admin Account Switcher
+  const handleSelectAccount = useCallback(
+    (user: User | null, customEmail?: string) => {
+      setPage(0);
+
+      if (user) {
+        setSelectedSeller(user);
+        setSelectedCustomEmail(null);
+        const emails = [
+          user.email,
+          user.sbazar_email,
+          user.bazos_email,
+          user.facebook_email,
+        ]
+          .filter((e): e is string => Boolean(e && e.trim()))
+          .map((e) => e.toLowerCase().trim());
+
+        // Update URL query parameter
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.set('account', user.email);
+          url.searchParams.delete('seller');
+          window.history.replaceState({}, '', url.toString());
+        }
+
+        setUserEmails(emails);
+      } else if (customEmail) {
+        setSelectedSeller(null);
+        setSelectedCustomEmail(customEmail);
+        const emails = [customEmail.toLowerCase().trim()];
+
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.set('account', customEmail);
+          url.searchParams.delete('seller');
+          window.history.replaceState({}, '', url.toString());
+        }
+
+        setUserEmails(emails);
+      } else {
+        // Reset to my own account
+        setSelectedSeller(null);
+        setSelectedCustomEmail(null);
+
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('account');
+          url.searchParams.delete('seller');
+          window.history.replaceState({}, '', url.toString());
+        }
+
+        setUserEmails(myEmails);
+      }
+    },
+    [myEmails]
+  );
+
+  const handleResetToMe = useCallback(() => {
+    handleSelectAccount(null);
+  }, [handleSelectAccount]);
+
+  // 2. Debounce search input
   useEffect(() => {
     const timeout = setTimeout(() => {
       const nextQuery = searchInput.trim();
@@ -30,15 +227,33 @@ export default function OffersList() {
     return () => clearTimeout(timeout);
   }, [searchInput, searchQuery]);
 
+  // 3. Load offers when page, search query, or user emails change
   useEffect(() => {
+    if (userLoading) return;
+
     loadOffers();
-  }, [page, searchQuery]);
+  }, [page, searchQuery, userLoading, userEmails]);
 
   const loadOffers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getOffers(limit, page * limit, searchQuery);
+
+      // In user mode: if user has no emails, don't load everything
+      const filterEmails =
+        mode === 'user' && userEmails && userEmails.length > 0
+          ? userEmails
+          : undefined;
+
+      // If user mode and userEmails resolved to empty, return empty list
+      if (mode === 'user' && userEmails && userEmails.length === 0) {
+        setOffers([]);
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+
+      const data = await getOffers(limit, page * limit, searchQuery, filterEmails);
 
       if (page === 0) {
         setOffers(data);
@@ -61,37 +276,128 @@ export default function OffersList() {
     setSearchInput('');
   };
 
+  const isImpersonating = Boolean(
+    mode === 'user' &&
+      isAdminUser &&
+      (selectedSeller ||
+        (selectedCustomEmail && selectedCustomEmail.toLowerCase() !== myEmail?.toLowerCase()))
+  );
+
+  const activeAccountDisplay =
+    selectedSeller?.bazos_name || selectedSeller?.email || selectedCustomEmail;
+
   return (
     <div>
+      {/* Impersonation Banner for Admins */}
+      {isImpersonating && (
+        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-2xl bg-amber-500/10 border border-amber-300/90 p-4 text-amber-950 shadow-2xs">
+          <div className="flex items-start sm:items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white text-lg font-black shadow-xs">
+              👁️
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                  Režim prohlížení účtu
+                </span>
+                <span className="rounded bg-amber-200/90 text-amber-900 px-1.5 py-0.2 text-[10px] font-bold">
+                  Administrátor
+                </span>
+              </div>
+              <p className="text-sm sm:text-base font-black text-slate-950 leading-tight">
+                {activeAccountDisplay}
+                {selectedSeller?.bazos_name && (
+                  <span className="font-normal text-xs text-slate-600"> ({selectedSeller.email})</span>
+                )}
+              </p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
+                {selectedSeller?.telephone1 && (
+                  <span className="font-semibold text-slate-800">
+                    📞 {formatPhoneNumber(selectedSeller.telephone1)}
+                  </span>
+                )}
+                <span>
+                  • Spárované e-maily:{' '}
+                  <span className="font-mono font-semibold text-slate-800">
+                    {(userEmails || []).join(', ')}
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end shrink-0">
+            <button
+              type="button"
+              onClick={handleResetToMe}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-amber-50 active:scale-95 transition-all"
+            >
+              <span>✕</span>
+              <span>Zpět na můj účet</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Správa inzerce
-          </span>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
-            Moje nabídka
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">
-            Přehled publikovaných inzerátů z Bazoše, Sbazaru a dalších portálů.
-          </p>
+          {mode === 'admin' ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 text-xs font-bold text-indigo-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                Administrace · Všechny nabídky
+              </span>
+              <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+                Nabídka (všechny inzeráty)
+              </h1>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                Globální přehled všech publikovaných inzerátů od všech prodejců z Bazoše, Sbazaru a dalších portálů.
+              </p>
+            </>
+          ) : (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {isImpersonating
+                  ? `Zobrazení prodejce: ${activeAccountDisplay}`
+                  : 'Moje inzerce · Prodejce'}
+              </span>
+              <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+                {isImpersonating ? `Nabídka: ${activeAccountDisplay}` : 'Moje nabídka'}
+              </h1>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                {isImpersonating
+                  ? `Přehled inzerátů publikovaných pod účtem ${activeAccountDisplay}.`
+                  : 'Přehled vašich publikovaných inzerátů odpovídajících vašim prodejním účtům na inzertních webech.'}
+              </p>
+            </>
+          )}
         </div>
 
-        <Link
-          href="/create"
-          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-slate-800 active:scale-95 transition-all self-start sm:self-auto"
-        >
-          <span>+</span>
-          <span>Nový inzerát</span>
-        </Link>
+        {/* Right Header Actions */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {/* Admin Switcher for Seller Accounts */}
+          {mode === 'user' && isAdminUser && (
+            <SellerAccountSwitcher
+              currentEmail={selectedSeller?.email || selectedCustomEmail || myEmail}
+              myEmail={myEmail}
+              onSelectAccount={handleSelectAccount}
+            />
+          )}
+
+          <Link
+            href="/create"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-slate-800 active:scale-95 transition-all"
+          >
+            <span>+</span>
+            <span>Nový inzerát</span>
+          </Link>
+        </div>
       </div>
 
       {/* Search Input Bar */}
-      <form
-        onSubmit={(e) => e.preventDefault()}
-        className="mb-6"
-      >
+      <form onSubmit={(e) => e.preventDefault()} className="mb-6">
         <div className="relative">
           <svg
             className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
@@ -128,13 +434,18 @@ export default function OffersList() {
         </div>
       </form>
 
-      {/* Results Count & Current Filter info */}
-      <div className="mb-4 flex items-center justify-between text-xs sm:text-sm text-slate-500 font-medium">
-        <span>
-          {searchQuery
-            ? `Výsledky pro „${searchQuery}“`
-            : 'Nejnovější inzeráty'}
-        </span>
+      {/* Results Count & Filter info */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm text-slate-500 font-medium">
+        <div className="flex items-center gap-2">
+          <span>
+            {searchQuery ? `Výsledky pro „${searchQuery}“` : 'Nejnovější inzeráty'}
+          </span>
+          {mode === 'user' && userEmails && userEmails.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+              • spárováno s ({userEmails.join(', ')})
+            </span>
+          )}
+        </div>
         {!loading && (
           <span className="font-semibold text-slate-700">
             {offers.length} {offers.length === 1 ? 'nabídka' : offers.length < 5 ? 'nabídky' : 'nabídek'}
@@ -152,7 +463,7 @@ export default function OffersList() {
             Zkusit znovu
           </button>
         </div>
-      ) : loading && page === 0 ? (
+      ) : (loading || userLoading) && page === 0 ? (
         <div className="admin-offer-grid">
           {Array.from({ length: 8 }).map((_, index) => (
             <div
@@ -184,11 +495,30 @@ export default function OffersList() {
           <h3 className="text-base sm:text-lg font-bold text-slate-900">
             {searchQuery ? 'Nic jsme nenašli' : 'Zatím žádné nabídky'}
           </h3>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-sm mx-auto">
+          <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
             {searchQuery
               ? 'Zkuste jiný dotaz, rozměr pneu nebo zkontrolujte překlepy.'
+              : isImpersonating
+              ? `Pro účet ${activeAccountDisplay} nebyly v centrální databázi nalezeny žádné inzeráty.`
+              : mode === 'user' && myEmail
+              ? `Pro váš administrátorský účet (${myEmail}) nejsou přímo spárovány žádné inzeráty.`
               : 'Až přidáte nový inzerát, zobrazí se zde v přehledu.'}
           </p>
+
+          {/* Helper hint for admin on empty own account */}
+          {mode === 'user' && isAdminUser && !isImpersonating && !searchQuery && (
+            <div className="mt-6 inline-flex flex-col sm:flex-row items-center gap-2 rounded-2xl bg-indigo-50 border border-indigo-200/80 p-3.5 text-xs text-indigo-900 max-w-lg mx-auto">
+              <span className="text-lg">💡</span>
+              <div className="text-left">
+                <span className="font-bold">Tip pro administrátora:</span> Chcete-li zobrazit nabídky konkrétního prodejce, použijte tlačítko{' '}
+                <span className="font-bold text-indigo-950">„Filtrovat účet“</span> vpravo nahoře, nebo přejděte na{' '}
+                <Link href="/admin/offers" className="font-bold underline hover:text-indigo-950">
+                  všechny nabídky
+                </Link>
+                .
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="admin-offer-grid">
@@ -205,10 +535,7 @@ export default function OffersList() {
 
       {/* Selected Offer Detail & Edit Modal */}
       {selectedOffer && (
-        <OfferModal
-          offer={selectedOffer}
-          onClose={() => setSelectedOffer(null)}
-        />
+        <OfferModal offer={selectedOffer} onClose={() => setSelectedOffer(null)} />
       )}
 
       {/* Pagination Load More Button */}
