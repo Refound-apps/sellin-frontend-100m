@@ -535,7 +535,16 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
 
       {/* Selected Offer Detail & Edit Modal */}
       {selectedOffer && (
-        <OfferModal offer={selectedOffer} onClose={() => setSelectedOffer(null)} />
+        <OfferModal
+          offer={selectedOffer}
+          onClose={() => setSelectedOffer(null)}
+          onOfferUpdated={(updated) => {
+            setSelectedOffer({ ...updated });
+            setOffers((prev) =>
+              prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
+            );
+          }}
+        />
       )}
 
       {/* Pagination Load More Button */}

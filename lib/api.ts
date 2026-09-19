@@ -184,7 +184,13 @@ export type ShopOfferFilters = {
   width?: string;
   profile?: string;
   rim?: string;
+  sort?: string;
 };
+
+export interface ShopOffersResponse {
+  offers: ShopOffer[];
+  total: number;
+}
 
 export async function getShopOffers(
   limit: number = 24,
@@ -192,7 +198,7 @@ export async function getShopOffers(
   search?: string,
   sbazarEmail: string = SHOP_SBAZAR_EMAIL,
   filters: ShopOfferFilters = {}
-): Promise<ShopOffer[]> {
+): Promise<ShopOffersResponse> {
   try {
     const params = new URLSearchParams({
       sbazar_email: sbazarEmail,
@@ -205,6 +211,7 @@ export async function getShopOffers(
     if (filters.width) params.set('width', filters.width);
     if (filters.profile) params.set('profile', filters.profile);
     if (filters.rim) params.set('rim', filters.rim);
+    if (filters.sort) params.set('sort', filters.sort);
 
     const response = await apiFetch(`/api/shop/offers?${params.toString()}`);
 
@@ -213,7 +220,9 @@ export async function getShopOffers(
     }
 
     const data: ApiResponse<ShopOffer[]> = await response.json();
-    return data.data || [];
+    const offers = data.data || [];
+    const total = typeof data.total === 'number' ? data.total : offers.length;
+    return { offers, total };
   } catch (error) {
     console.error('Error fetching shop offers:', error);
     throw error;
@@ -273,7 +282,23 @@ export async function getUsers(): Promise<User[]> {
 
 export async function updateOfferById(
   id: number,
-  updates: { title?: string; description?: string; price?: number; autorenew_freq?: string; state?: string }
+  updates: {
+    title?: string;
+    description?: string;
+    price?: number;
+    autorenew_freq?: string;
+    state?: string;
+    images?: string[];
+    preview_image?: string | null;
+    image2?: string | null;
+    image3?: string | null;
+    image4?: string | null;
+    image5?: string | null;
+    image6?: string | null;
+    image7?: string | null;
+    image8?: string | null;
+    image9?: string | null;
+  }
 ): Promise<void> {
   try {
     const response = await apiFetch(`/api/offers/${id}`, {

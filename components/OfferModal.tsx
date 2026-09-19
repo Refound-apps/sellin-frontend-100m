@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Offer, OfferDetail } from '@/lib/types';
-import { getOfferDetails, getShopOfferImages, updateOfferById } from '@/lib/api';
+import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2 } from '@/lib/api';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
 import {
   formatOfferDate,
@@ -17,6 +17,7 @@ import {
 interface OfferModalProps {
   offer: Offer;
   onClose: () => void;
+  onOfferUpdated?: (updatedOffer: Offer) => void;
 }
 
 function getPortalInfo(rawId: string | null | undefined) {
@@ -64,7 +65,7 @@ function renderTextWithPhoneLinks(text: string) {
   return parts.length > 0 ? parts : text;
 }
 
-export default function OfferModal({ offer, onClose }: OfferModalProps) {
+export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModalProps) {
   const [details, setDetails] = useState<OfferDetail[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -78,10 +79,23 @@ export default function OfferModal({ offer, onClose }: OfferModalProps) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const getInitialImages = useCallback(() => {
+    const arr: string[] = [];
+    if (offer.preview_image) arr.push(offer.preview_image);
+    for (let i = 2; i <= 9; i++) {
+      const extra = (offer as any)[`image${i}`];
+      if (extra && typeof extra === 'string' && !arr.includes(extra)) {
+        arr.push(extra);
+      }
+    }
+    return arr;
+  }, [offer]);
+
   // Gallery & Lightbox
-  const [images, setImages] = useState<string[]>(
-    offer.preview_image ? [offer.preview_image] : []
-  );
+  const [images, setImages] = useState<string[]>(getInitialImages);
+  const [editedImages, setEditedImages] = useState<string[]>(getInitialImages);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [customImageUrl, setCustomImageUrl] = useState('');
   const [imageIndex, setImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -95,6 +109,7 @@ export default function OfferModal({ offer, onClose }: OfferModalProps) {
     getShopOfferImages(offer.id).then((gallery) => {
       if (gallery && gallery.length > 0) {
         setImages(gallery);
+        setEditedImages(gallery);
         setImageIndex(0);
       }
     });
@@ -132,6 +147,73 @@ export default function OfferModal({ offer, onClose }: OfferModalProps) {
     setImageIndex((prev) => prev - 1);
   }, []);
 
+  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 9 - editedImages.length;
+    if (remainingSlots <= 0) {
+      alert('Lze mít maximálně 9 fotografií na jeden inzerát.');
+      return;
+    }
+
+    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+    setUploadingImages(true);
+    setSaveError(null);
+
+    try {
+      const readPromises = selectedFiles.map((file) => {
+        return new Promise<{ data: string; filename: string }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ data: reader.result as string, filename: file.name });
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      const base64Files = await Promise.all(readPromises);
+      const uploadedUrls = await uploadImagesToR2(base64Files);
+
+      setEditedImages((prev) => [...prev, ...uploadedUrls].slice(0, 9));
+    } catch (err: any) {
+      console.error('Upload to R2 failed in modal:', err);
+      setSaveError('Nepodařilo se nahrát obrázky do Cloudflare R2: ' + (err.message || ''));
+    } finally {
+      setUploadingImages(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddImageUrl = () => {
+    const trimmed = customImageUrl.trim();
+    if (!trimmed) return;
+    if (editedImages.length >= 9) {
+      alert('Lze mít maximálně 9 fotografií.');
+      return;
+    }
+    setEditedImages((prev) => [...prev, trimmed]);
+    setCustomImageUrl('');
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setEditedImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMoveImage = (from: number, to: number) => {
+    if (to < 0 || to >= editedImages.length) return;
+    setEditedImages((prev) => {
+      const copy = [...prev];
+      const item = copy.splice(from, 1)[0];
+      copy.splice(to, 0, item);
+      return copy;
+    });
+  };
+
+  const handleMakePrimary = (index: number) => {
+    if (index === 0) return;
+    handleMoveImage(index, 0);
+  };
+
   const handleCancel = useCallback(() => {
     const fallbackFreq =
       offer.autorenew_freq ||
@@ -143,33 +225,51 @@ export default function OfferModal({ offer, onClose }: OfferModalProps) {
       price: offer.price,
       autorenew_freq: fallbackFreq,
     });
+    setEditedImages([...images]);
     setIsEditing(false);
     setSaveError(null);
-  }, [offer.title, offer.description, offer.price, offer.autorenew_freq, details]);
+  }, [offer.title, offer.description, offer.price, offer.autorenew_freq, details, images]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     setSaveError(null);
     try {
-      await updateOfferById(offer.id, editedOffer);
+      await updateOfferById(offer.id, {
+        ...editedOffer,
+        images: editedImages,
+      });
 
       offer.title = editedOffer.title;
       offer.description = editedOffer.description;
       offer.price = editedOffer.price;
       offer.autorenew_freq = editedOffer.autorenew_freq;
+      offer.preview_image = editedImages[0] || '';
+      offer.image2 = editedImages[1] || null;
+      offer.image3 = editedImages[2] || null;
+      offer.image4 = editedImages[3] || null;
+      offer.image5 = editedImages[4] || null;
+      offer.image6 = editedImages[5] || null;
+      offer.image7 = editedImages[6] || null;
+      offer.image8 = editedImages[7] || null;
+      offer.image9 = editedImages[8] || null;
+
+      setImages([...editedImages]);
+      setImageIndex(0);
+      onOfferUpdated?.(offer);
+
       setDetails((prev) =>
         prev.map((d) => ({ ...d, autorenew_freq: editedOffer.autorenew_freq }))
       );
       setIsEditing(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3500);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving offer:', error);
-      setSaveError('Chyba při komunikaci se serverem.');
+      setSaveError('Chyba při ukládání: ' + (error.message || 'Chyba při komunikaci se serverem.'));
     } finally {
       setSaving(false);
     }
-  }, [editedOffer, offer]);
+  }, [editedOffer, editedImages, offer, onOfferUpdated]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -408,99 +508,300 @@ export default function OfferModal({ offer, onClose }: OfferModalProps) {
             {/* Left Column: Visuals & Secondary Meta (lg: 5 cols) */}
             <div className="lg:col-span-5 flex flex-col gap-4">
               
-              {/* Photo Gallery Frame */}
-              <div>
-                <div
-                  className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 border border-slate-200 shadow-xs select-none touch-pan-y"
-                  onTouchStart={handleTouchStart}
-                  onTouchEnd={handleTouchEnd}
-                >
-                  {currentImage ? (
-                    <>
-                      <Image
-                        src={currentImage}
-                        alt={offer.title}
-                        fill
-                        className="cursor-zoom-in object-contain p-1 transition-transform duration-300 hover:scale-[1.02]"
-                        sizes="(max-width: 1024px) 100vw, 40vw"
-                        priority
-                        onClick={() => setLightboxOpen(true)}
-                      />
+              {/* Photo Gallery Frame OR Photo Manager when Editing */}
+              {!isEditing ? (
+                <div>
+                  <div
+                    className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 border border-slate-200 shadow-xs select-none touch-pan-y"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                  >
+                    {currentImage ? (
+                      <>
+                        <Image
+                          src={currentImage}
+                          alt={offer.title}
+                          fill
+                          className="cursor-zoom-in object-contain p-1 transition-transform duration-300 hover:scale-[1.02]"
+                          sizes="(max-width: 1024px) 100vw, 40vw"
+                          priority
+                          onClick={() => setLightboxOpen(true)}
+                        />
 
-                      {/* Image Counter Badge */}
-                      {count > 1 && (
-                        <div className="absolute left-3 bottom-3 z-10 rounded-full bg-slate-900/80 px-2.5 py-1 text-xs font-semibold text-white shadow-xs backdrop-blur-xs">
-                          {current + 1} / {count}
+                        {/* Image Counter Badge */}
+                        {count > 1 && (
+                          <div className="absolute left-3 bottom-3 z-10 rounded-full bg-slate-900/80 px-2.5 py-1 text-xs font-semibold text-white shadow-xs backdrop-blur-xs">
+                            {current + 1} / {count}
+                          </div>
+                        )}
+
+                        {/* Gallery Navigation Buttons */}
+                        {count > 1 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrev();
+                              }}
+                              className="absolute left-2.5 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/95 p-2 text-slate-800 shadow-md border border-slate-200/60 transition-all hover:bg-white active:scale-95"
+                              aria-label="Předchozí fotka"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNext();
+                              }}
+                              className="absolute right-2.5 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/95 p-2 text-slate-800 shadow-md border border-slate-200/60 transition-all hover:bg-white active:scale-95"
+                              aria-label="Další fotka"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-slate-400">
+                        <svg className="h-14 w-14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Thumbnails Strip */}
+                  {count > 1 && (
+                    <div className="mt-2.5 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                      {images.map((img, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setImageIndex(i)}
+                          className={`relative h-14 w-18 shrink-0 overflow-hidden rounded-xl border bg-slate-100 transition-all ${
+                            i === current
+                              ? 'border-2 border-slate-900 ring-2 ring-slate-900/20 shadow-xs'
+                              : 'border-slate-200 opacity-75 hover:opacity-100'
+                          }`}
+                        >
+                          <Image
+                            src={img}
+                            alt={`Náhled ${i + 1}`}
+                            fill
+                            className="object-cover"
+                            sizes="72px"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Manage Photos Quick Button in View Mode */}
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditedImages([...images]);
+                        setIsEditing(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition-all shadow-2xs"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Spravovat fotografie ({count})</span>
+                    </button>
+                    {count > 1 && (
+                      <span className="text-[11px] text-slate-400">
+                        Kliknutím na foto zvětšíte
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* PHOTO MANAGER IN EDIT MODE */
+                <div className="flex flex-col gap-3 rounded-2xl border-2 border-slate-900/10 bg-white p-4 sm:p-5 shadow-xs">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-950 flex items-center gap-1.5">
+                        <span>📸</span>
+                        <span>Fotografie inzerátu</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Nahrávání do Cloudflare R2 • Max. 9 fotek
+                      </p>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                      editedImages.length >= 9
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-slate-100 text-slate-700'
+                    }`}>
+                      {editedImages.length} / 9
+                    </span>
+                  </div>
+
+                  {/* Dropzone for R2 upload */}
+                  <div className="relative">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      disabled={uploadingImages || editedImages.length >= 9}
+                      onChange={handleFilesSelected}
+                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                    />
+                    <div className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-4 text-center transition-all ${
+                      uploadingImages
+                        ? 'border-blue-400 bg-blue-50/50'
+                        : editedImages.length >= 9
+                        ? 'border-slate-200 bg-slate-50 opacity-60'
+                        : 'border-slate-300 hover:border-slate-500 bg-slate-50/60 hover:bg-slate-50'
+                    }`}>
+                      {uploadingImages ? (
+                        <div className="flex flex-col items-center gap-1.5 text-blue-600 py-1">
+                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                          <p className="text-xs font-bold">Nahrávám a optimalizuji v Cloudflare R2…</p>
                         </div>
-                      )}
-
-                      {/* Gallery Navigation Buttons */}
-                      {count > 1 && (
+                      ) : (
                         <>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePrev();
-                            }}
-                            className="absolute left-2.5 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/95 p-2 text-slate-800 shadow-md border border-slate-200/60 transition-all hover:bg-white active:scale-95"
-                            aria-label="Předchozí fotka"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNext();
-                            }}
-                            className="absolute right-2.5 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/95 p-2 text-slate-800 shadow-md border border-slate-200/60 transition-all hover:bg-white active:scale-95"
-                            aria-label="Další fotka"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-2xs text-base mb-1">
+                            ☁️
+                          </div>
+                          <p className="text-xs font-bold text-slate-800">
+                            {editedImages.length >= 9
+                              ? 'Dosažen limit 9 fotografií'
+                              : 'Klikněte nebo přetáhněte nové fotografie'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            JPEG, PNG, WebP • Automatické uložení na Cloudflare R2
+                          </p>
                         </>
                       )}
-                    </>
+                    </div>
+                  </div>
+
+                  {/* URL Input */}
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="url"
+                      value={customImageUrl}
+                      onChange={(e) => setCustomImageUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddImageUrl();
+                        }
+                      }}
+                      disabled={editedImages.length >= 9}
+                      placeholder="Nebo vložte URL adresu..."
+                      className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 outline-none placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddImageUrl}
+                      disabled={!customImageUrl.trim() || editedImages.length >= 9}
+                      className="rounded-xl bg-slate-100 hover:bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
+                    >
+                      + Přidat
+                    </button>
+                  </div>
+
+                  {/* Image List / Grid */}
+                  {editedImages.length > 0 ? (
+                    <div className="space-y-2 mt-1 max-h-[380px] overflow-y-auto pr-1">
+                      {editedImages.map((img, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex items-center gap-2.5 rounded-xl border p-2 bg-slate-50/80 transition-all ${
+                            idx === 0
+                              ? 'border-slate-900 ring-1 ring-slate-900/20 bg-slate-50'
+                              : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {/* Thumbnail */}
+                          <div className="relative h-13 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-200 border border-slate-200">
+                            <Image
+                              src={img}
+                              alt={`Fotografie ${idx + 1}`}
+                              fill
+                              className="object-cover"
+                              sizes="64px"
+                            />
+                            <div className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-[8px] font-mono font-bold text-white">
+                              #{idx + 1}
+                            </div>
+                          </div>
+
+                          {/* Info & badges */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              {idx === 0 ? (
+                                <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs">
+                                  ★ Hlavní foto
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleMakePrimary(idx)}
+                                  className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 hover:border-slate-900 hover:text-slate-950 transition-colors"
+                                  title="Nastavit tuto fotografii jako hlavní náhled"
+                                >
+                                  Nastavit jako hlavní
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 truncate" title={img}>
+                              {img}
+                            </p>
+                          </div>
+
+                          {/* Order & Delete buttons */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMoveImage(idx, idx - 1)}
+                                title="Posunout nahoru"
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950 text-[10px] shadow-2xs font-bold"
+                              >
+                                ▲
+                              </button>
+                            )}
+                            {idx < editedImages.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMoveImage(idx, idx + 1)}
+                                title="Posunout dolů"
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-950 text-[10px] shadow-2xs font-bold"
+                              >
+                                ▼
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(idx)}
+                              title="Smazat fotografii"
+                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white text-xs transition-colors shadow-2xs ml-0.5"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                    <div className="flex h-full items-center justify-center text-slate-400">
-                      <svg className="h-14 w-14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+                    <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-xs text-slate-400">
+                      Žádné fotografie. Přidejte fotku nahráním nebo zadáním URL.
                     </div>
                   )}
                 </div>
-
-                {/* Thumbnails Strip */}
-                {count > 1 && (
-                  <div className="mt-2.5 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                    {images.map((img, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setImageIndex(i)}
-                        className={`relative h-14 w-18 shrink-0 overflow-hidden rounded-xl border bg-slate-100 transition-all ${
-                          i === current
-                            ? 'border-2 border-slate-900 ring-2 ring-slate-900/20 shadow-xs'
-                            : 'border-slate-200 opacity-75 hover:opacity-100'
-                        }`}
-                      >
-                        <Image
-                          src={img}
-                          alt={`Náhled ${i + 1}`}
-                          fill
-                          className="object-cover"
-                          sizes="72px"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Prodejní kanály - Compact & Clean */}
               <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3.5">

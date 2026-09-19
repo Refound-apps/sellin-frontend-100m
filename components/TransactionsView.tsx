@@ -1176,6 +1176,9 @@ export default function TransactionsView() {
         <OfferModal
           offer={selectedOffer}
           onClose={() => setSelectedOffer(null)}
+          onOfferUpdated={(updated) => {
+            setSelectedOffer({ ...updated });
+          }}
         />
       )}
 

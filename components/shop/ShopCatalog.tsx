@@ -18,6 +18,7 @@ import { scrollToShopSection } from './shopScroll';
 
 export default function ShopCatalog() {
   const [offers, setOffers] = useState<ShopOffer[]>([]);
+  const [totalOffers, setTotalOffers] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -29,6 +30,29 @@ export default function ShopCatalog() {
   const limit = 24;
 
   const searchParams = useSearchParams();
+
+  // Initialize filters and search input from URL search parameters on mount/navigation
+  useEffect(() => {
+    const sortParam = searchParams.get('sort');
+    const typeParam = searchParams.get('type');
+    const seasonParam = searchParams.get('season');
+    const rimParam = searchParams.get('rim');
+    const searchParam = searchParams.get('search') || searchParams.get('q');
+
+    const nextFilters: ShopOfferFilters = {};
+    if (sortParam) nextFilters.sort = sortParam;
+    if (typeParam) nextFilters.type = typeParam;
+    if (seasonParam) nextFilters.season = seasonParam;
+    if (rimParam) nextFilters.rim = rimParam;
+
+    if (Object.keys(nextFilters).length > 0) {
+      setFilters((prev) => ({ ...prev, ...nextFilters }));
+    }
+    if (searchParam) {
+      setSearchInput(searchParam);
+      setSearchQuery(searchParam);
+    }
+  }, [searchParams]);
 
   // Deep-linking: open offer modal when ?offer=ID or ?id=ID is in URL
   useEffect(() => {
@@ -58,6 +82,19 @@ export default function ShopCatalog() {
       });
   }, [searchParams, offers, selectedOffer]);
 
+  const handleOpenModal = useCallback((offer: ShopOffer) => {
+    setSelectedOffer(offer);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('offer', String(offer.id));
+      window.history.pushState(
+        null,
+        '',
+        url.pathname + `?${url.searchParams.toString()}` + url.hash
+      );
+    }
+  }, []);
+
   const handleCloseModal = useCallback(() => {
     setSelectedOffer(null);
     if (typeof window !== 'undefined') {
@@ -65,10 +102,11 @@ export default function ShopCatalog() {
       if (url.searchParams.has('offer') || url.searchParams.has('id')) {
         url.searchParams.delete('offer');
         url.searchParams.delete('id');
+        const remainingQuery = url.searchParams.toString();
         window.history.replaceState(
           null,
           '',
-          url.pathname + (url.search ? `?${url.searchParams.toString()}` : '') + url.hash
+          url.pathname + (remainingQuery ? `?${remainingQuery}` : '') + url.hash
         );
       }
     }
@@ -144,15 +182,17 @@ export default function ShopCatalog() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getShopOffers(limit, page * limit, searchQuery, SHOP_SBAZAR_EMAIL, filters);
+      const { offers: data, total } = await getShopOffers(limit, page * limit, searchQuery, SHOP_SBAZAR_EMAIL, filters);
 
       if (page === 0) {
         setOffers(data);
+        setTotalOffers(total);
       } else {
         setOffers((prev) => [...prev, ...data]);
+        setTotalOffers(total);
       }
 
-      setHasMore(data.length === limit);
+      setHasMore(data.length === limit && (page + 1) * limit < total);
     } catch (err) {
       setError('Nabídky se teď nepodařilo načíst. Zkuste to prosím znovu.');
       console.error(err);
@@ -195,7 +235,13 @@ export default function ShopCatalog() {
   };
 
   const hasActiveFilters = Boolean(
-    searchQuery || filters.type || filters.season || filters.width || filters.profile || filters.rim
+    searchQuery ||
+    filters.type ||
+    filters.season ||
+    filters.width ||
+    filters.profile ||
+    filters.rim ||
+    (filters.sort && filters.sort !== 'newest')
   );
 
   const selectClass =
@@ -317,6 +363,51 @@ export default function ShopCatalog() {
             </div>
           </form>
 
+          {/* Catalog Controls: Total Count & Sorting */}
+          <div className="mx-auto mb-6 max-w-7xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[hsl(214_32%_91%)] pb-4">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-[hsl(142_71%_45%)] shrink-0" />
+              <p className="text-sm font-bold text-[hsl(222_47%_11%)]">
+                {totalOffers !== null ? (
+                  <>
+                    Celkem nalezeno{' '}
+                    <span className="inline-block rounded-md bg-[hsl(142_71%_45%/0.12)] px-2 py-0.5 text-xs sm:text-sm font-extrabold text-[hsl(142_71%_35%)]">
+                      {totalOffers}
+                    </span>{' '}
+                    {totalOffers === 1
+                      ? 'nabídka'
+                      : totalOffers >= 2 && totalOffers <= 4
+                      ? 'nabídky'
+                      : 'nabídek'}
+                  </>
+                ) : (
+                  'Načítám nabídky…'
+                )}
+              </p>
+              {totalOffers !== null && offers.length > 0 && offers.length < totalOffers && (
+                <span className="text-xs text-[hsl(215_16%_47%)] font-medium">
+                  (zobrazeno {offers.length})
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <label htmlFor="catalog-sort" className="text-xs font-semibold text-[hsl(215_16%_47%)] whitespace-nowrap">
+                Řazení:
+              </label>
+              <select
+                id="catalog-sort"
+                value={filters.sort || 'newest'}
+                onChange={(e) => updateFilter('sort', e.target.value)}
+                className="rounded-xl border border-[hsl(214_32%_91%)] bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-[hsl(222_47%_11%)] shadow-2xs outline-none ring-1 ring-[hsl(214_32%_91%)] focus:ring-2 focus:ring-[hsl(142_71%_45%)] cursor-pointer"
+              >
+                <option value="newest">Nejnovější</option>
+                <option value="price_asc">Nejlevnější (od nejnižší ceny)</option>
+                <option value="price_desc">Nejdražší (od nejvyšší ceny)</option>
+              </select>
+            </div>
+          </div>
+
           {/* Offers Grid */}
           {loading && page === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-[hsl(215_16%_47%)]">
@@ -367,7 +458,7 @@ export default function ShopCatalog() {
                   <ShopOfferCard
                     key={offer.id}
                     offer={offer}
-                    onClick={() => setSelectedOffer(offer)}
+                    onClick={() => handleOpenModal(offer)}
                   />
                 ))}
               </div>
@@ -382,7 +473,7 @@ export default function ShopCatalog() {
                       onClick={() => setPage((prev) => prev + 1)}
                       className="w-full sm:w-auto rounded-xl border border-[hsl(214_32%_91%)] bg-white px-7 py-3 text-sm font-semibold text-[hsl(222_47%_11%)] shadow-2xs hover:bg-[hsl(210_40%_96%)] transition-colors active:scale-98"
                     >
-                      Načíst další nabídky ({offers.length} zobrazeno)
+                      Načíst další nabídky ({offers.length} z {totalOffers ?? offers.length} zobrazeno)
                     </button>
                   )}
                 </div>

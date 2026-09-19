@@ -130,13 +130,25 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
     setTouchStart(null);
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (typeof window !== 'undefined') {
-      const url = `${window.location.origin}/shop?search=${encodeURIComponent(offer.title)}`;
-      navigator.clipboard.writeText(url).then(() => {
+      const url = `${window.location.origin}/shop?offer=${offer.id}`;
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: offer.title,
+            url: url,
+          });
+          return;
+        } catch {
+          // If cancelled or rejected, fall back to copying to clipboard
+        }
+      }
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2200);
-      });
+      }
     }
   };
 

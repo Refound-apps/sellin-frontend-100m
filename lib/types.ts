@@ -98,6 +98,7 @@ export interface User {
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
+  total?: number;
   error?: string;
   limit?: number;
   offset?: number;
