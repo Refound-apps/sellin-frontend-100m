@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { formatPhoneNumber } from '@/components/offerStatus';
+import { apiFetch } from '@/lib/api';
 
 interface MarketplaceOption {
   id: string;
@@ -156,10 +157,7 @@ export default function CreateOfferPage() {
 
   const loadCredentials = async () => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
-      const response = await fetch(`${API_BASE_URL}/api/credentials`, {
-        cache: 'no-store',
-      });
+      const response = await apiFetch('/api/credentials');
       
       if (response.ok) {
         const data = await response.json();
@@ -204,8 +202,7 @@ export default function CreateOfferPage() {
 
     try {
       const selectedCategory = CATEGORIES[formData.category];
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
-      const response = await fetch(`${API_BASE_URL}/api/offers/create`, {
+      const response = await apiFetch('/api/offers/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,10 +6,50 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
 
 let credentialsCache: Record<string, { phone: string; name: string }> | null = null;
 
+export function getEndpoints(pathWithQuery: string): string[] {
+  const cleanPath = pathWithQuery.startsWith('/') ? pathWithQuery : `/${pathWithQuery}`;
+  if (typeof window !== 'undefined') {
+    // In client browser: ALWAYS call current origin relative path first!
+    // This avoids CORS, Mixed Content (http vs https), and port issues on Vercel
+    return [cleanPath, `${API_BASE_URL}${cleanPath}`];
+  }
+  // On server: use API_BASE_URL (or internal localhost:3300)
+  return [`${API_BASE_URL}${cleanPath}`, `http://localhost:3300${cleanPath}`];
+}
+
+export async function apiFetch(pathWithQuery: string, init?: RequestInit): Promise<Response> {
+  const endpoints = getEndpoints(pathWithQuery);
+  let lastError: unknown = null;
+  let lastResponse: Response | null = null;
+
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { ...init, cache: 'no-store' });
+      if (response.ok) {
+        return response;
+      }
+      lastResponse = response;
+      const contentType = response.headers.get('content-type') || '';
+      // If it's a backend JSON response (even 4xx/5xx), return it directly
+      if (contentType.includes('application/json')) {
+        return response;
+      }
+      lastError = new Error(`Request to ${url} returned status ${response.status}`);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (lastResponse) {
+    return lastResponse;
+  }
+  throw lastError || new Error(`Failed to fetch ${pathWithQuery}`);
+}
+
 export async function getCredentialsMap(): Promise<Record<string, { phone: string; name: string }>> {
   if (credentialsCache) return credentialsCache;
   try {
-    const response = await fetch(`${API_BASE_URL}/api/credentials`, { cache: 'no-store' });
+    const response = await apiFetch('/api/credentials');
     if (!response.ok) return {};
     const data: ApiResponse<any[]> = await response.json();
     const map: Record<string, { phone: string; name: string }> = {};
@@ -50,28 +90,14 @@ export async function getOffers(
     }
 
     const queryString = `?${query.toString()}`;
-    const endpoints =
-      typeof window !== 'undefined'
-        ? [`/api/offers${queryString}`, `${API_BASE_URL}/api/offers${queryString}`]
-        : [`${API_BASE_URL}/api/offers${queryString}`, `http://localhost:3300/api/offers${queryString}`];
-
-    let lastError: unknown = null;
-    let data: ApiResponse<Offer[]> | null = null;
-
-    for (const url of endpoints) {
-      try {
-        const response = await fetch(url, { cache: 'no-store' });
-        if (response.ok) {
-          data = await response.json();
-          break;
-        }
-      } catch (err) {
-        lastError = err;
-      }
+    const response = await apiFetch(`/api/offers${queryString}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch offers (status ${response.status})`);
     }
 
+    const data: ApiResponse<Offer[]> = await response.json();
     if (!data || !data.data) {
-      throw lastError || new Error('Failed to fetch offers');
+      throw new Error('Failed to fetch offers');
     }
 
     const credsMap: Record<string, { phone: string; name: string }> = await getCredentialsMap().catch(() => ({}));
@@ -93,7 +119,7 @@ export async function getOffers(
 export async function getOfferById(id: number): Promise<Offer | null> {
   try {
     const credsMap: Record<string, { phone: string; name: string }> = await getCredentialsMap().catch(() => ({}));
-    const response = await fetch(`${API_BASE_URL}/api/offers/${id}`, { cache: 'no-store' });
+    const response = await apiFetch(`/api/offers/${id}`);
     
     if (!response.ok) {
       if (response.status === 404) {
@@ -121,16 +147,13 @@ export async function getOfferById(id: number): Promise<Offer | null> {
 
 export async function getOfferDetails(bbOfferId: string): Promise<OfferDetail[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/offers/${bbOfferId}/details`, {
-      cache: 'no-store',
-    });
-    
+    const response = await apiFetch(`/api/offers/${encodeURIComponent(bbOfferId)}/details`);
     if (!response.ok) {
       throw new Error('Failed to fetch offer details');
     }
     
     const data: ApiResponse<OfferDetail[]> = await response.json();
-    return data.data;
+    return data.data || [];
   } catch (error) {
     console.error('Error fetching offer details:', error);
     return [];
@@ -139,9 +162,8 @@ export async function getOfferDetails(bbOfferId: string): Promise<OfferDetail[]>
 
 export async function getShopInfo(sbazarEmail: string = SHOP_SBAZAR_EMAIL): Promise<ShopInfo> {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/shop?sbazar_email=${encodeURIComponent(sbazarEmail)}`,
-      { cache: 'no-store' }
+    const response = await apiFetch(
+      `/api/shop?sbazar_email=${encodeURIComponent(sbazarEmail)}`
     );
 
     if (!response.ok) {
@@ -184,16 +206,14 @@ export async function getShopOffers(
     if (filters.profile) params.set('profile', filters.profile);
     if (filters.rim) params.set('rim', filters.rim);
 
-    const response = await fetch(`${API_BASE_URL}/api/shop/offers?${params.toString()}`, {
-      cache: 'no-store',
-    });
+    const response = await apiFetch(`/api/shop/offers?${params.toString()}`);
 
     if (!response.ok) {
       throw new Error('Failed to fetch shop offers');
     }
 
     const data: ApiResponse<ShopOffer[]> = await response.json();
-    return data.data;
+    return data.data || [];
   } catch (error) {
     console.error('Error fetching shop offers:', error);
     throw error;
@@ -202,12 +222,10 @@ export async function getShopOffers(
 
 export async function getShopOfferImages(id: number): Promise<string[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/shop/offers/${id}/images`, {
-      cache: 'no-store',
-    });
+    const response = await apiFetch(`/api/shop/offers/${id}/images`);
 
     if (!response.ok) {
-      throw new Error('Failed to fetch offer images');
+      return [];
     }
 
     const data: ApiResponse<string[]> = await response.json();
@@ -220,16 +238,14 @@ export async function getShopOfferImages(id: number): Promise<string[]> {
 
 export async function getUsers(): Promise<User[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/credentials`, {
-      cache: 'no-store',
-    });
+    const response = await apiFetch('/api/credentials');
 
     if (!response.ok) {
       throw new Error('Failed to fetch users');
     }
 
     const data: ApiResponse<Record<string, unknown>[]> = await response.json();
-    return data.data.map((row) => ({
+    return (data.data || []).map((row) => ({
       id: Number(row.id),
       email: String(row.email ?? ''),
       telephone1: (row.telephone1 as string | null) ?? null,
@@ -255,9 +271,12 @@ export async function getUsers(): Promise<User[]> {
   }
 }
 
-export async function updateOfferById(id: number, updates: { title?: string, description?: string, price?: number }): Promise<void> {
+export async function updateOfferById(
+  id: number,
+  updates: { title?: string; description?: string; price?: number; autorenew_freq?: string; state?: string }
+): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/offers/${id}`, {
+    const response = await apiFetch(`/api/offers/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -292,26 +311,17 @@ export async function getTransactions(params: {
 
   const queryString = query.toString() ? `?${query.toString()}` : '';
 
-  const endpoints =
-    typeof window !== 'undefined'
-      ? [`/api/transactions${queryString}`, `${API_BASE_URL}/api/transactions${queryString}`]
-      : [`${API_BASE_URL}/api/transactions${queryString}`, `http://localhost:3300/api/transactions${queryString}`];
-
-  let lastError: unknown = null;
-  for (const url of endpoints) {
-    try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (response.ok) {
-        const json = await response.json();
-        if (json && json.success) {
-          return json;
-        }
+  try {
+    const response = await apiFetch(`/api/transactions${queryString}`);
+    if (response.ok) {
+      const json: TransactionsApiResponse = await response.json();
+      if (json && json.success) {
+        return json;
       }
-    } catch (err) {
-      lastError = err;
     }
+    throw new Error('Failed to fetch transactions');
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    throw error;
   }
-
-  console.error('Error fetching transactions from endpoints:', endpoints, lastError);
-  throw lastError || new Error('Failed to fetch transactions');
 }

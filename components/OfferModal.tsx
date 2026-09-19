@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Offer, OfferDetail } from '@/lib/types';
-import { getOfferDetails, getShopOfferImages } from '@/lib/api';
+import { getOfferDetails, getShopOfferImages, updateOfferById } from '@/lib/api';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
 import {
   formatOfferDate,
@@ -151,31 +151,18 @@ export default function OfferModal({ offer, onClose }: OfferModalProps) {
     setSaving(true);
     setSaveError(null);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300'}/api/offers/${offer.id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(editedOffer),
-        }
-      );
+      await updateOfferById(offer.id, editedOffer);
 
-      if (response.ok) {
-        offer.title = editedOffer.title;
-        offer.description = editedOffer.description;
-        offer.price = editedOffer.price;
-        offer.autorenew_freq = editedOffer.autorenew_freq;
-        setDetails((prev) =>
-          prev.map((d) => ({ ...d, autorenew_freq: editedOffer.autorenew_freq }))
-        );
-        setIsEditing(false);
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3500);
-      } else {
-        setSaveError('Nepodařilo se uložit změny.');
-      }
+      offer.title = editedOffer.title;
+      offer.description = editedOffer.description;
+      offer.price = editedOffer.price;
+      offer.autorenew_freq = editedOffer.autorenew_freq;
+      setDetails((prev) =>
+        prev.map((d) => ({ ...d, autorenew_freq: editedOffer.autorenew_freq }))
+      );
+      setIsEditing(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3500);
     } catch (error) {
       console.error('Error saving offer:', error);
       setSaveError('Chyba při komunikaci se serverem.');
@@ -232,21 +219,9 @@ export default function OfferModal({ offer, onClose }: OfferModalProps) {
 
     setSaving(true);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300'}/api/offers/${offer.id}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ state: nextState }),
-        }
-      );
-
-      if (response.ok) {
-        offer.state = nextState;
-        window.location.reload();
-      } else {
-        alert('Nepodařilo se změnit stav inzerátu');
-      }
+      await updateOfferById(offer.id, { state: nextState });
+      offer.state = nextState;
+      window.location.reload();
     } catch (err) {
       console.error(err);
       alert('Chyba při ukládání');
