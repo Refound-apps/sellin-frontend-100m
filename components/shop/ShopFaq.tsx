@@ -78,7 +78,7 @@ export default function ShopFaq() {
   };
 
   return (
-    <section id="faq" className="border-b border-[hsl(214_32%_91%)] bg-white py-10 sm:py-18">
+    <section id="faq" className="scroll-mt-20 sm:scroll-mt-24 border-b border-[hsl(214_32%_91%)] bg-white py-10 sm:py-18">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="text-center max-w-xl mx-auto mb-6 sm:mb-10">
           <p className="text-xs font-semibold uppercase tracking-wider text-[hsl(142_71%_35%)]">

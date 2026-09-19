@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   SHOP_NAME,
   SHOP_PHONE,
@@ -13,9 +16,19 @@ import {
   SHOP_FOOTER_LINKS,
   SHOP_GOOGLE_MAPS_LINK,
 } from './shopConfig';
+import { scrollToShopSection } from './shopScroll';
 
 export default function ShopFooter() {
   const currentYear = new Date().getFullYear();
+  const pathname = usePathname();
+
+  const handleFooterLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href.startsWith('/shop#') && pathname === '/shop') {
+      e.preventDefault();
+      const sectionId = href.replace('/shop#', '');
+      scrollToShopSection(sectionId);
+    }
+  };
 
   return (
     <footer className="border-t border-[hsl(214_32%_91%)] bg-[hsl(222_47%_11%)] text-white">
@@ -96,14 +109,22 @@ export default function ShopFooter() {
           <ul className="mt-4 space-y-2.5 text-sm text-white/70">
             {SHOP_FOOTER_LINKS.shop.map((link) => (
               <li key={link.label}>
-                <Link href={link.href} className="transition-colors hover:text-white">
+                <Link
+                  href={link.href}
+                  onClick={(e) => handleFooterLinkClick(e, link.href)}
+                  className="transition-colors hover:text-white"
+                >
                   {link.label}
                 </Link>
               </li>
             ))}
             {SHOP_FOOTER_LINKS.services.slice(0, 2).map((link) => (
               <li key={link.label}>
-                <Link href={link.href} className="transition-colors hover:text-white">
+                <Link
+                  href={link.href}
+                  onClick={(e) => handleFooterLinkClick(e, link.href)}
+                  className="transition-colors hover:text-white"
+                >
                   {link.label}
                 </Link>
               </li>

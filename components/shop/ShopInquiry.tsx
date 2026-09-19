@@ -15,7 +15,7 @@ export default function ShopInquiry() {
   };
 
   return (
-    <section id="poptavka" className="border-b border-[hsl(214_32%_91%)] bg-gradient-to-b from-white to-[hsl(210_40%_98%)] py-10 sm:py-18">
+    <section id="poptavka" className="scroll-mt-20 sm:scroll-mt-24 border-b border-[hsl(214_32%_91%)] bg-gradient-to-b from-white to-[hsl(210_40%_98%)] py-10 sm:py-18">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="rounded-3xl border border-[hsl(214_32%_88%)] bg-white p-5 sm:p-10 shadow-2xs">
           <div className="grid gap-6 sm:gap-8 md:grid-cols-2 md:items-center">

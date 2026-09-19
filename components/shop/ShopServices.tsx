@@ -25,7 +25,7 @@ export default function ShopServices() {
   ];
 
   return (
-    <section id="sluzby" className="border-b border-[hsl(214_32%_91%)] bg-white py-10 sm:py-18">
+    <section id="sluzby" className="scroll-mt-20 sm:scroll-mt-24 border-b border-[hsl(214_32%_91%)] bg-white py-10 sm:py-18">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>

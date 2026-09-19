@@ -79,7 +79,7 @@ export default function ShopFeatures() {
   ];
 
   return (
-    <section id="jak-nakoupit" className="border-b border-slate-200/90 bg-white py-12 sm:py-20">
+    <section id="jak-nakoupit" className="scroll-mt-20 sm:scroll-mt-24 border-b border-slate-200/90 bg-white py-12 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         
         {/* Section Header */}

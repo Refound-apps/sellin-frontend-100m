@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShopOffer } from '@/lib/types';
 import { getOfferById, getShopOffers, SHOP_SBAZAR_EMAIL, ShopOfferFilters } from '@/lib/api';
@@ -14,6 +14,7 @@ import ShopServices from './ShopServices';
 import ShopFaq from './ShopFaq';
 import ShopInquiry from './ShopInquiry';
 import { TIRE_PROFILES, TIRE_RIMS, TIRE_WIDTHS } from './offerMeta';
+import { scrollToShopSection } from './shopScroll';
 
 export default function ShopCatalog() {
   const [offers, setOffers] = useState<ShopOffer[]>([]);
@@ -71,6 +72,68 @@ export default function ShopCatalog() {
         );
       }
     }
+  }, []);
+
+  const initialHashHandledRef = useRef(false);
+
+  // If page was loaded with a hash (e.g. #sluzby), wait until initial offers finish loading
+  // and are rendered in the DOM before scrolling, so layout height is accurate.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (initialHashHandledRef.current) return;
+
+    const hash = window.location.hash.replace('#', '');
+    if (!hash) {
+      initialHashHandledRef.current = true;
+      return;
+    }
+
+    if (!loading) {
+      initialHashHandledRef.current = true;
+      const timer = setTimeout(() => {
+        scrollToShopSection(hash, { updateHistory: false });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
+  // Handle hash changes (e.g. browser back/forward)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        scrollToShopSection(hash, { updateHistory: false });
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Intercept any in-page shop anchor clicks to guarantee reliable, smooth scroll
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+        return;
+      }
+      const anchor = (e.target as HTMLElement)?.closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+
+      const hashMatch = href.match(/^(?:\/shop)?#([a-zA-Z0-9_-]+)$/);
+      if (hashMatch) {
+        const sectionId = hashMatch[1];
+        const el = document.getElementById(sectionId);
+        if (el) {
+          e.preventDefault();
+          scrollToShopSection(sectionId);
+        }
+      }
+    };
+
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
   }, []);
 
   useEffect(() => {
@@ -154,7 +217,7 @@ export default function ShopCatalog() {
       {/* Catalog & Filter Section */}
       <section
         id="nabidka"
-        className="bg-gradient-to-b from-white via-[hsl(210_40%_98%)] via-[200px] sm:via-[260px] to-[hsl(210_40%_98%)] py-10 sm:py-20"
+        className="scroll-mt-20 sm:scroll-mt-24 bg-gradient-to-b from-white via-[hsl(210_40%_98%)] via-[200px] sm:via-[260px] to-[hsl(210_40%_98%)] py-10 sm:py-20"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto mb-8 sm:mb-10 max-w-2xl text-center">

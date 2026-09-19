@@ -1,6 +1,7 @@
 'use client';
 
 import { SHOP_PHONE, SHOP_PHONE_HREF } from './shopConfig';
+import { scrollToShopSection } from './shopScroll';
 
 interface ShopHeroProps {
   onQuickFilter?: (filterType: 'type' | 'season' | 'rim', value: string) => void;
@@ -200,11 +201,7 @@ export default function ShopHero({
             href="#nabidka"
             onClick={(e) => {
               e.preventDefault();
-              const el = document.getElementById('nabidka');
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth' });
-                window.history.pushState(null, '', '#nabidka');
-              }
+              scrollToShopSection('nabidka');
             }}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[hsl(142_71%_45%)] px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-xs transition-all hover:bg-[hsl(142_71%_35%)] active:scale-98 text-center"
           >
@@ -240,8 +237,7 @@ export default function ShopHero({
                     type="button"
                     onClick={() => {
                       onQuickFilter('rim', isActive ? '' : rim);
-                      const el = document.getElementById('nabidka');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      scrollToShopSection('nabidka');
                     }}
                     className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all shrink-0 active:scale-95 ${
                       isActive
@@ -259,8 +255,7 @@ export default function ShopHero({
                 type="button"
                 onClick={() => {
                   onQuickFilter('season', activeSeason === 'zimni' ? '' : 'zimni');
-                  const el = document.getElementById('nabidka');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  scrollToShopSection('nabidka');
                 }}
                 className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all shrink-0 active:scale-95 ${
                   activeSeason === 'zimni'
@@ -274,8 +269,7 @@ export default function ShopHero({
                 type="button"
                 onClick={() => {
                   onQuickFilter('season', activeSeason === 'letni' ? '' : 'letni');
-                  const el = document.getElementById('nabidka');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  scrollToShopSection('nabidka');
                 }}
                 className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all shrink-0 active:scale-95 ${
                   activeSeason === 'letni'
@@ -289,8 +283,7 @@ export default function ShopHero({
                 type="button"
                 onClick={() => {
                   onQuickFilter('type', activeType === 'disk' ? '' : 'disk');
-                  const el = document.getElementById('nabidka');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  scrollToShopSection('nabidka');
                 }}
                 className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all shrink-0 active:scale-95 ${
                   activeType === 'disk'

@@ -9,10 +9,26 @@ import {
   SHOP_PHONE_HREF,
   SHOP_NAV_ITEMS,
 } from './shopConfig';
+import { scrollToShopSection } from './shopScroll';
 
 export default function ShopHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href.startsWith('/shop#') && pathname === '/shop') {
+      e.preventDefault();
+      const sectionId = href.replace('/shop#', '');
+      if (mobileOpen) {
+        setMobileOpen(false);
+        setTimeout(() => {
+          scrollToShopSection(sectionId);
+        }, 50);
+      } else {
+        scrollToShopSection(sectionId);
+      }
+    }
+  };
 
   return (
     <>
@@ -35,7 +51,17 @@ export default function ShopHeader() {
       {/* Main sticky navigation */}
       <header className="sticky top-0 z-40 border-b border-[hsl(214_32%_91%/0.8)] bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-3.5 py-2.5 sm:px-6 sm:py-3.5">
-          <Link href="/shop" className="group flex items-center gap-2">
+          <Link
+            href="/shop"
+            onClick={(e) => {
+              if (pathname === '/shop') {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (mobileOpen) setMobileOpen(false);
+              }
+            }}
+            className="group flex items-center gap-2"
+          >
             <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-[hsl(222_47%_11%)] text-white font-bold transition-transform group-hover:scale-105">
               <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <circle cx="12" cy="12" r="8" strokeWidth={2} />
@@ -61,6 +87,7 @@ export default function ShopHeader() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={(e) => handleNavClick(e, item.href)}
                   className={`transition-colors hover:text-[hsl(142_71%_35%)] ${
                     isCurrent ? 'font-semibold text-[hsl(142_71%_35%)]' : 'text-[hsl(222_20%_28%)]'
                   }`}
@@ -125,7 +152,13 @@ export default function ShopHeader() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={() => setMobileOpen(false)}
+                    onClick={(e) => {
+                      if (item.href.startsWith('/shop#') && pathname === '/shop') {
+                        handleNavClick(e, item.href);
+                      } else {
+                        setMobileOpen(false);
+                      }
+                    }}
                     className={`rounded-xl px-3 py-2.5 transition-colors ${
                       isCurrent
                         ? 'bg-[hsl(210_40%_96%)] font-semibold text-[hsl(142_71%_35%)]'
