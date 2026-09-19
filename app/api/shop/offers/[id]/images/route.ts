@@ -4,27 +4,6 @@ const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'h
 
 export const dynamic = 'force-dynamic';
 
-async function probeBazosImages(link: string): Promise<string[]> {
-  const listingId = link.match(/inzerat\/(\d+)/)?.[1];
-  if (!listingId) return [];
-
-  const isSk = link.includes('bazos.sk');
-  const domain = isSk ? 'www.bazos.sk' : 'www.bazos.cz';
-  const folder = listingId.slice(-3);
-
-  const checks = Array.from({ length: 15 }, (_, idx) => {
-    const n = idx + 1;
-    const url = `https://${domain}/img/${n}/${folder}/${listingId}.jpg`;
-    return fetch(url, { method: 'HEAD' })
-      .then((r) => (r.ok ? { n, url } : null))
-      .catch(() => null);
-  });
-
-  const results = await Promise.all(checks);
-  const active = results.filter((item): item is { n: number; url: string } => Boolean(item));
-  return active.sort((a, b) => a.n - b.n).map((x) => x.url);
-}
-
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -32,7 +11,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // 1. First attempt: Ask backend
+    // 1. Fetch images from backend (which gets them from internal Postgres / MinIO)
     try {
       const backendRes = await fetch(`${BACKEND_URL}/api/shop/offers/${id}/images`, {
         cache: 'no-store',
@@ -40,8 +19,7 @@ export async function GET(
 
       if (backendRes.ok) {
         const data = await backendRes.json();
-        // If backend returned a full gallery (more than 1 image), return immediately
-        if (data && Array.isArray(data.data) && data.data.length > 1) {
+        if (data && Array.isArray(data.data) && data.data.length > 0) {
           return NextResponse.json(data);
         }
       }
@@ -49,8 +27,7 @@ export async function GET(
       console.warn(`Backend image fetch failed for offer ${id}:`, e);
     }
 
-    // 2. Fallback / Enhancement: Check offer details to see if there is a Bazos listing link
-    let fallbackGallery: string[] = [];
+    // 2. Direct fallback from offer data in DB if image endpoint was temporarily unreachable
     try {
       const offerRes = await fetch(`${BACKEND_URL}/api/offers/${id}`, { cache: 'no-store' });
       if (offerRes.ok) {
@@ -58,48 +35,32 @@ export async function GET(
         const offer = offerData.data;
 
         if (offer) {
-          // Collect stored images first
           const stored: string[] = [];
           const pushImg = (url?: string | null) => {
-            if (!url || typeof url !== 'string') return;
-            const full = url.startsWith('/') ? `http://46.36.36.196:9000${url}` : url;
+            if (!url || typeof url !== 'string' || !url.trim()) return;
+            const trimmed = url.trim();
+            const full = trimmed.startsWith('/') ? `http://46.36.36.196:9000${trimmed}` : trimmed;
             if (!stored.includes(full)) stored.push(full);
           };
+
           pushImg(offer.preview_image);
           for (let i = 2; i <= 9; i++) {
             pushImg(offer[`image${i}`]);
           }
-          fallbackGallery = stored;
 
-          // If offer has bb_id, fetch marketplace details for Bazos link
-          if (offer.bb_id) {
-            const detailsRes = await fetch(
-              `${BACKEND_URL}/api/offers/${encodeURIComponent(offer.bb_id)}/details`,
-              { cache: 'no-store' }
-            );
-            if (detailsRes.ok) {
-              const detailsData = await detailsRes.json();
-              const details: any[] = detailsData.data || [];
-              const bazos = details.find(
-                (d) => String(d.bb_marketplace_id || '').toLowerCase().includes('bazo') && d.link
-              );
-              if (bazos?.link) {
-                const bazosImages = await probeBazosImages(bazos.link);
-                if (bazosImages.length > 0) {
-                  fallbackGallery = bazosImages;
-                }
-              }
-            }
-          }
+          return NextResponse.json({
+            success: true,
+            data: stored,
+          });
         }
       }
     } catch (fallbackErr) {
-      console.error(`Fallback gallery resolution failed for offer ${id}:`, fallbackErr);
+      console.error(`Stored image fallback failed for offer ${id}:`, fallbackErr);
     }
 
     return NextResponse.json({
       success: true,
-      data: fallbackGallery,
+      data: [],
     });
   } catch (err: unknown) {
     console.error('Error proxying images for offer:', err);
