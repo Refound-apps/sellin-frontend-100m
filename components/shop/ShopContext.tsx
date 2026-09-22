@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShopConfigData } from '@/lib/types';
 import { resolveShopConfig } from '@/lib/api';
@@ -128,14 +128,37 @@ export function ShopProvider({
   const [loading, setLoading] = useState<boolean>(!initialShop);
   const searchParams = useSearchParams();
 
+  // Extract ONLY shop-identity query parameters (shop, slug, domain)
+  // so unrelated query changes (like ?offer=ID or filters) never cause shop reload
+  const shopQueryKey = useMemo(() => {
+    return (
+      searchParams.get('shop') ||
+      searchParams.get('slug') ||
+      searchParams.get('domain') ||
+      ''
+    ).trim().toLowerCase();
+  }, [searchParams]);
+
+  const loadedShopRef = useRef<string | null>(null);
+
   useEffect(() => {
+    // If this shop query key has already been resolved or loaded, do not re-fetch
+    if (loadedShopRef.current === shopQueryKey) {
+      return;
+    }
+    loadedShopRef.current = shopQueryKey;
+
     let isMounted = true;
     async function loadShop() {
       try {
-        const queryShop = searchParams.get('shop') || searchParams.get('slug') || searchParams.get('domain');
-        const resolved = await resolveShopConfig(queryShop || undefined);
+        const resolved = await resolveShopConfig(shopQueryKey || undefined);
         if (isMounted && resolved) {
-          setShop(resolved);
+          setShop((prev) => {
+            if (prev && resolved && prev.id === resolved.id && prev.updated_at === resolved.updated_at) {
+              return prev;
+            }
+            return resolved;
+          });
         }
       } catch (err) {
         console.error('Failed to load shop in provider:', err);
@@ -149,7 +172,23 @@ export function ShopProvider({
     return () => {
       isMounted = false;
     };
-  }, [searchParams]);
+  }, [shopQueryKey]);
+
+  // Memoize linkedEmails with a serialized string key so reference identity remains strictly stable
+  const linkedEmailsKey = useMemo(() => {
+    const list =
+      shop?.linked_credential_emails && shop.linked_credential_emails.length > 0
+        ? shop.linked_credential_emails
+        : FALLBACK_SHOP.linked_credential_emails;
+    return list.slice().sort().join(',');
+  }, [shop?.linked_credential_emails]);
+
+  const stableLinkedEmails = useMemo(() => {
+    return shop?.linked_credential_emails && shop.linked_credential_emails.length > 0
+      ? shop.linked_credential_emails
+      : FALLBACK_SHOP.linked_credential_emails;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedEmailsKey]);
 
   const value = useMemo<ShopContextType>(() => {
     const s = shop || FALLBACK_SHOP;
@@ -173,12 +212,10 @@ export function ShopProvider({
       shippingPriceRims: s.shipping_price_rims || DEFAULT_SHIPPING_RIMS,
       mapLink: s.map_link || DEFAULT_MAP_LINK,
       googleMapsLink: s.google_maps_link || DEFAULT_GOOGLE_MAPS_LINK,
-      linkedEmails: s.linked_credential_emails && s.linked_credential_emails.length > 0
-        ? s.linked_credential_emails
-        : FALLBACK_SHOP.linked_credential_emails,
+      linkedEmails: stableLinkedEmails,
       templateId: s.template_id || 'pneu-classic',
     };
-  }, [shop, loading]);
+  }, [shop, loading, stableLinkedEmails]);
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
 }

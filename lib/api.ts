@@ -205,13 +205,41 @@ export interface ShopOffersResponse {
   total: number;
 }
 
+// In-memory caches to guarantee lightning-fast smooth UX and eliminate redundant network requests
+const shopOffersCache = new Map<string, { data: ShopOffersResponse; timestamp: number }>();
+const shopConfigCache = new Map<string, { data: ShopConfigData | null; timestamp: number }>();
+const shopOfferImagesCache = new Map<number, string[]>();
+
+const OFFERS_CACHE_TTL = 90 * 1000; // 90 seconds client cache
+const SHOP_CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
 export async function getShopOffers(
   limit: number = 24,
   offset: number = 0,
   search?: string,
   sbazarEmailOrEmails: string | string[] = SHOP_SBAZAR_EMAIL,
-  filters: ShopOfferFilters = {}
+  filters: ShopOfferFilters = {},
+  forceRefresh: boolean = false
 ): Promise<ShopOffersResponse> {
+  const emailKey = Array.isArray(sbazarEmailOrEmails)
+    ? sbazarEmailOrEmails.slice().sort().join(',')
+    : (sbazarEmailOrEmails || '');
+
+  const cacheKey = JSON.stringify({
+    limit,
+    offset,
+    search: (search || '').trim().toLowerCase(),
+    emailKey,
+    filters,
+  });
+
+  if (!forceRefresh && typeof window !== 'undefined') {
+    const cached = shopOffersCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < OFFERS_CACHE_TTL) {
+      return cached.data;
+    }
+  }
+
   try {
     const params = new URLSearchParams({
       limit: String(limit),
@@ -244,14 +272,28 @@ export async function getShopOffers(
     const data: ApiResponse<ShopOffer[]> = await response.json();
     const offers = data.data || [];
     const total = typeof data.total === 'number' ? data.total : offers.length;
-    return { offers, total };
+    const result: ShopOffersResponse = { offers, total };
+
+    if (typeof window !== 'undefined') {
+      shopOffersCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    }
+
+    return result;
   } catch (error) {
     console.error('Error fetching shop offers:', error);
     throw error;
   }
 }
 
-export async function resolveShopConfig(domainOrSlug?: string): Promise<ShopConfigData | null> {
+export async function resolveShopConfig(domainOrSlug?: string, forceRefresh: boolean = false): Promise<ShopConfigData | null> {
+  const cacheKey = (domainOrSlug || '__default__').toLowerCase().trim();
+  if (!forceRefresh && typeof window !== 'undefined') {
+    const cached = shopConfigCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < SHOP_CONFIG_CACHE_TTL) {
+      return cached.data;
+    }
+  }
+
   try {
     const params = new URLSearchParams();
     if (domainOrSlug) {
@@ -270,7 +312,11 @@ export async function resolveShopConfig(domainOrSlug?: string): Promise<ShopConf
     }
 
     const json = await response.json();
-    return json.data || null;
+    const data = json.data || null;
+    if (typeof window !== 'undefined') {
+      shopConfigCache.set(cacheKey, { data, timestamp: Date.now() });
+    }
+    return data;
   } catch (error) {
     console.error('Error resolving shop config:', error);
     return null;
@@ -319,6 +365,9 @@ export async function saveUserShop(payload: Partial<ShopConfigData>): Promise<Sh
 }
 
 export async function getShopOfferImages(id: number): Promise<string[]> {
+  if (shopOfferImagesCache.has(id)) {
+    return shopOfferImagesCache.get(id)!;
+  }
   try {
     const response = await apiFetch(`/api/shop/offers/${id}/images`);
 
@@ -327,7 +376,11 @@ export async function getShopOfferImages(id: number): Promise<string[]> {
     }
 
     const data: ApiResponse<string[]> = await response.json();
-    return data.data || [];
+    const images = data.data || [];
+    if (images.length > 0) {
+      shopOfferImagesCache.set(id, images);
+    }
+    return images;
   } catch (error) {
     console.error('Error fetching shop offer images:', error);
     return [];

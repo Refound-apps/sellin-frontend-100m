@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShopOffer } from '@/lib/types';
 import { getOfferById, getShopOffers, SHOP_SBAZAR_EMAIL, ShopOfferFilters } from '@/lib/api';
@@ -32,39 +32,71 @@ export default function ShopCatalog() {
 
   const searchParams = useSearchParams();
 
-  // Initialize filters and search input from URL search parameters on mount/navigation
+  // Extract filter-related URL parameters
+  const urlSort = searchParams.get('sort') || '';
+  const urlType = searchParams.get('type') || '';
+  const urlSeason = searchParams.get('season') || '';
+  const urlRim = searchParams.get('rim') || '';
+  const urlBrand = searchParams.get('brand') || '';
+  const urlSearch = searchParams.get('search') || searchParams.get('q') || '';
+
+  const filterUrlKey = `${urlSort}|${urlType}|${urlSeason}|${urlRim}|${urlBrand}|${urlSearch}`;
+  const lastSyncedFilterUrlKeyRef = useRef<string | null>(null);
+
+  // Sync URL search parameters to filter state ONLY when filter-related params actually change
+  // This prevents URL changes from ?offer=... or hash from re-setting filters
   useEffect(() => {
-    const sortParam = searchParams.get('sort');
-    const typeParam = searchParams.get('type');
-    const seasonParam = searchParams.get('season');
-    const rimParam = searchParams.get('rim');
-    const brandParam = searchParams.get('brand');
-    const searchParam = searchParams.get('search') || searchParams.get('q');
+    if (lastSyncedFilterUrlKeyRef.current === filterUrlKey) {
+      return;
+    }
+    const isFirstRun = lastSyncedFilterUrlKeyRef.current === null;
+    lastSyncedFilterUrlKeyRef.current = filterUrlKey;
 
     const nextFilters: ShopOfferFilters = {};
-    if (sortParam) nextFilters.sort = sortParam;
-    if (typeParam) nextFilters.type = typeParam;
-    if (seasonParam) nextFilters.season = seasonParam;
-    if (rimParam) nextFilters.rim = rimParam;
-    if (brandParam) nextFilters.brand = brandParam;
+    if (urlSort) nextFilters.sort = urlSort;
+    if (urlType) nextFilters.type = urlType;
+    if (urlSeason) nextFilters.season = urlSeason;
+    if (urlRim) nextFilters.rim = urlRim;
+    if (urlBrand) nextFilters.brand = urlBrand;
 
-    if (Object.keys(nextFilters).length > 0) {
-      setFilters((prev) => ({ ...prev, ...nextFilters }));
+    if (Object.keys(nextFilters).length > 0 || !isFirstRun) {
+      setFilters((prev) => {
+        const isSame =
+          (prev.sort || '') === (nextFilters.sort || '') &&
+          (prev.type || '') === (nextFilters.type || '') &&
+          (prev.season || '') === (nextFilters.season || '') &&
+          (prev.rim || '') === (nextFilters.rim || '') &&
+          (prev.brand || '') === (nextFilters.brand || '');
+        return isSame ? prev : nextFilters;
+      });
     }
-    if (searchParam) {
-      setSearchInput(searchParam);
-      setSearchQuery(searchParam);
+
+    if (urlSearch) {
+      setSearchInput((prev) => (prev === urlSearch ? prev : urlSearch));
+      setSearchQuery((prev) => (prev === urlSearch ? prev : urlSearch));
+    } else if (!isFirstRun) {
+      setSearchInput((prev) => (prev === '' ? prev : ''));
+      setSearchQuery((prev) => (prev === '' ? prev : ''));
     }
-  }, [searchParams]);
+  }, [filterUrlKey, urlSort, urlType, urlSeason, urlRim, urlBrand, urlSearch]);
 
   // Deep-linking: open offer modal when ?offer=ID or ?id=ID is in URL
+  const offerParamRaw = searchParams.get('offer') || searchParams.get('id');
+  const selectedOfferRef = useRef<ShopOffer | null>(null);
+  selectedOfferRef.current = selectedOffer;
+
   useEffect(() => {
-    const rawId = searchParams.get('offer') || searchParams.get('id');
-    if (!rawId) return;
-    const targetId = parseInt(rawId, 10);
+    if (!offerParamRaw) {
+      // If user clicked browser back button, close modal cleanly
+      if (selectedOfferRef.current) {
+        setSelectedOffer(null);
+      }
+      return;
+    }
+    const targetId = parseInt(offerParamRaw, 10);
     if (!targetId || isNaN(targetId)) return;
 
-    if (selectedOffer && selectedOffer.id === targetId) return;
+    if (selectedOfferRef.current && selectedOfferRef.current.id === targetId) return;
 
     // Check if offer is already in loaded offers
     const existing = offers.find((o) => o.id === targetId);
@@ -83,7 +115,7 @@ export default function ShopCatalog() {
       .catch((err) => {
         console.error('Failed to load offer from URL param:', err);
       });
-  }, [searchParams, offers, selectedOffer]);
+  }, [offerParamRaw, offers]);
 
   const handleOpenModal = useCallback((offer: ShopOffer) => {
     setSelectedOffer(offer);
@@ -179,33 +211,66 @@ export default function ShopCatalog() {
 
   const { linkedEmails, shop } = useShop();
 
-  useEffect(() => {
-    loadOffers();
-  }, [page, searchQuery, filters, linkedEmails]);
+  const activeRequestIdRef = useRef(0);
+  const filtersSerialized = useMemo(() => JSON.stringify(filters), [filters]);
+  const linkedEmailsSerialized = useMemo(() => (linkedEmails || []).join(','), [linkedEmails]);
 
-  const loadOffers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const emailsToQuery = linkedEmails && linkedEmails.length > 0 ? linkedEmails : (shop?.owner_email || SHOP_SBAZAR_EMAIL);
-      const { offers: data, total } = await getShopOffers(limit, page * limit, searchQuery, emailsToQuery, filters);
+  const loadOffers = useCallback(
+    async (targetPage: number = page, forceRefresh = false) => {
+      const requestId = ++activeRequestIdRef.current;
+      try {
+        setLoading(true);
+        setError(null);
+        const emailsToQuery =
+          linkedEmails && linkedEmails.length > 0
+            ? linkedEmails
+            : (shop?.owner_email || SHOP_SBAZAR_EMAIL);
 
-      if (page === 0) {
-        setOffers(data);
-        setTotalOffers(total);
-      } else {
-        setOffers((prev) => [...prev, ...data]);
-        setTotalOffers(total);
+        const { offers: data, total } = await getShopOffers(
+          limit,
+          targetPage * limit,
+          searchQuery,
+          emailsToQuery,
+          filters,
+          forceRefresh
+        );
+
+        // Discard result if newer request has already started
+        if (requestId !== activeRequestIdRef.current) {
+          return;
+        }
+
+        if (targetPage === 0) {
+          setOffers(data);
+          setTotalOffers(total);
+        } else {
+          setOffers((prev) => {
+            const existingIds = new Set(prev.map((o) => o.id));
+            const fresh = data.filter((o) => !existingIds.has(o.id));
+            return [...prev, ...fresh];
+          });
+          setTotalOffers(total);
+        }
+
+        setHasMore(data.length === limit && (targetPage + 1) * limit < total);
+      } catch (err) {
+        if (requestId === activeRequestIdRef.current) {
+          setError('Nabídky se teď nepodařilo načíst. Zkuste to prosím znovu.');
+          console.error(err);
+        }
+      } finally {
+        if (requestId === activeRequestIdRef.current) {
+          setLoading(false);
+        }
       }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [page, searchQuery, filtersSerialized, linkedEmailsSerialized, shop?.owner_email]
+  );
 
-      setHasMore(data.length === limit && (page + 1) * limit < total);
-    } catch (err) {
-      setError('Nabídky se teď nepodařilo načíst. Zkuste to prosím znovu.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    loadOffers(page);
+  }, [page, searchQuery, filtersSerialized, linkedEmailsSerialized]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -441,17 +506,24 @@ export default function ShopCatalog() {
             </div>
           </div>
 
+          {/* Subtle loading indicator line while fetching in background */}
+          <div className="relative h-1 mb-4 overflow-hidden rounded-full">
+            {loading && offers.length > 0 && (
+              <div className="h-full w-full bg-[hsl(142_71%_45%)] animate-pulse rounded-full" />
+            )}
+          </div>
+
           {/* Offers Grid */}
-          {loading && page === 0 ? (
+          {loading && offers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-[hsl(215_16%_47%)]">
               <div className="h-10 w-10 animate-spin rounded-full border-2 border-[hsl(214_32%_91%)] border-t-[hsl(142_71%_45%)]" />
               <p className="mt-4 text-sm font-medium">Načítám skladové zásoby…</p>
             </div>
-          ) : error && page === 0 ? (
+          ) : error && offers.length === 0 ? (
             <div className="rounded-2xl border border-red-200 bg-white p-8 text-center shadow-xs">
               <p className="font-semibold text-red-700">{error}</p>
               <button
-                onClick={() => loadOffers()}
+                onClick={() => loadOffers(0, true)}
                 className="mt-4 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
               >
                 Zkusit znovu
@@ -486,7 +558,11 @@ export default function ShopCatalog() {
             </div>
           ) : (
             <>
-              <div className="shop-offer-grid">
+              <div
+                className={`shop-offer-grid transition-opacity duration-200 ${
+                  loading && page === 0 ? 'opacity-60 pointer-events-none' : 'opacity-100'
+                }`}
+              >
                 {offers.map((offer) => (
                   <ShopOfferCard
                     key={offer.id}
@@ -499,12 +575,13 @@ export default function ShopCatalog() {
               {/* Load More Button */}
               {hasMore && (
                 <div className="mt-8 sm:mt-12 text-center">
-                  {loading ? (
+                  {loading && page > 0 ? (
                     <p className="text-sm text-[hsl(215_16%_47%)]">Načítám další položky…</p>
                   ) : (
                     <button
                       onClick={() => setPage((prev) => prev + 1)}
-                      className="w-full sm:w-auto rounded-xl border border-[hsl(214_32%_91%)] bg-white px-7 py-3 text-sm font-semibold text-[hsl(222_47%_11%)] shadow-2xs hover:bg-[hsl(210_40%_96%)] transition-colors active:scale-98"
+                      disabled={loading}
+                      className="w-full sm:w-auto rounded-xl border border-[hsl(214_32%_91%)] bg-white px-7 py-3 text-sm font-semibold text-[hsl(222_47%_11%)] shadow-2xs hover:bg-[hsl(210_40%_96%)] transition-colors active:scale-98 disabled:opacity-50"
                     >
                       Načíst další nabídky ({offers.length} z {totalOffers ?? offers.length} zobrazeno)
                     </button>
