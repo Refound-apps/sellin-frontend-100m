@@ -116,7 +116,7 @@ export default function SellerAccountSwitcher({
     });
   }, [users, search]);
 
-  const isImpersonating = Boolean(currentEmail && currentEmail.toLowerCase() !== myEmail?.toLowerCase());
+  const isFiltered = Boolean(currentEmail && currentEmail.toLowerCase() !== myEmail?.toLowerCase());
 
   const handleSelectUser = (user: User) => {
     onSelectAccount(user);
@@ -139,72 +139,77 @@ export default function SellerAccountSwitcher({
     }
   };
 
+  const displayName = isFiltered
+    ? activeUser?.bazos_name || currentEmail
+    : 'Můj účet (admin)';
+
   return (
-    <div className="relative inline-block text-left" ref={dropdownRef}>
+    <div className="relative inline-flex items-center gap-1.5" ref={dropdownRef}>
       {/* Trigger Button */}
-      <div className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`group inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-all shadow-xs ${
+          isFiltered
+            ? 'border-indigo-300 bg-indigo-50/80 text-indigo-950 ring-2 ring-indigo-500/15 hover:bg-indigo-100/80'
+            : 'border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-50'
+        }`}
+        title="Filtrovat nabídku podle účtu prodejce"
+      >
+        <span
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg transition-colors ${
+            isFiltered
+              ? 'bg-indigo-200/80 text-indigo-800'
+              : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200/80'
+          }`}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
+        </span>
+
+        <span className={`text-xs font-medium ${isFiltered ? 'text-indigo-600 font-semibold' : 'text-slate-500'}`}>
+          Účet:
+        </span>
+        <span
+          className={`font-bold truncate max-w-[130px] sm:max-w-[200px] ${
+            isFiltered ? 'text-indigo-950' : 'text-slate-900'
+          }`}
+        >
+          {displayName}
+        </span>
+        <svg
+          className={`h-4 w-4 transition-transform duration-150 ${
+            isFiltered ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+          } ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isFiltered && (
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={`group inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all shadow-2xs ${
-            isImpersonating
-              ? 'border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100/80 ring-2 ring-amber-400/20'
-              : 'border-slate-200/90 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-300'
-          }`}
-          title="Přepnout do zobrazení konkrétního účtu prodejce (pouze administrátor)"
+          onClick={handleResetToMe}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-200 bg-white text-xs font-bold text-indigo-600 hover:text-indigo-950 hover:bg-indigo-50 hover:border-indigo-300 shadow-xs transition-all active:scale-95"
+          title="Zrušit filtr účtu (vrátit na můj účet)"
         >
-          <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-700 group-hover:scale-105 transition-transform">
-            {isImpersonating ? '👁️' : '👤'}
-          </span>
-
-          <div className="flex flex-col text-left">
-            <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-              {isImpersonating ? 'Zobrazení prodejce' : 'Filtrovat účet'}
-            </span>
-            <span className="font-extrabold text-slate-900 truncate max-w-[170px] sm:max-w-[220px]">
-              {isImpersonating
-                ? activeUser?.bazos_name || currentEmail
-                : 'Můj účet (admin)'}
-            </span>
-          </div>
-
-          <svg
-            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          ✕
         </button>
-
-        {isImpersonating && (
-          <button
-            type="button"
-            onClick={handleResetToMe}
-            className="inline-flex items-center gap-1 rounded-xl border border-slate-200/90 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-950 shadow-2xs transition-all"
-            title="Vrátit se na můj výchozí účet"
-          >
-            ✕
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Dropdown Popover */}
       {isOpen && (
-        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 z-50 w-[320px] sm:w-[380px] rounded-2xl border border-slate-200/90 bg-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden">
-          {/* Header */}
-          <div className="border-b border-slate-100 p-3 bg-slate-50/70">
-            <div className="flex items-center justify-between pb-2">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-700">
-                Přepnout účet prodejce
-              </span>
-              <span className="rounded bg-indigo-100 text-indigo-800 px-1.5 py-0.5 text-[10px] font-bold">
-                Admin nástroj
-              </span>
-            </div>
-
-            {/* Search Input */}
+        <div className="absolute right-0 top-full mt-2 z-50 w-[300px] sm:w-[340px] rounded-2xl border border-slate-200/90 bg-white shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden">
+          {/* Search Input */}
+          <div className="p-2.5 border-b border-slate-100 bg-slate-50/60">
             <div className="relative">
               <svg
                 className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
@@ -224,7 +229,7 @@ export default function SellerAccountSwitcher({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Hledat jméno, e-mail nebo telefon..."
+                placeholder="Hledat prodejce..."
                 className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-7 text-xs font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-900/10 transition-all"
               />
               {search && (
@@ -240,33 +245,32 @@ export default function SellerAccountSwitcher({
           </div>
 
           {/* Quick options: My Account */}
-          <div className="p-2 border-b border-slate-100 space-y-1">
+          <div className="p-1.5 border-b border-slate-100">
             <button
               type="button"
               onClick={handleResetToMe}
               className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-xs transition-colors ${
-                !isImpersonating
-                  ? 'bg-slate-950 text-white font-bold'
-                  : 'text-slate-700 hover:bg-slate-100'
+                !isFiltered
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-sm">👑</span>
-                <div>
-                  <div className="font-bold">Můj administrátorský účet</div>
-                  <div className={`text-[10px] ${!isImpersonating ? 'text-slate-300' : 'text-slate-400'}`}>
-                    {myEmail || 'Výchozí přihlášený uživatel'}
-                  </div>
+              <div className="min-w-0">
+                <div className={`font-bold ${!isFiltered ? 'text-white' : 'text-slate-900'}`}>
+                  Můj účet (admin)
+                </div>
+                <div className={`text-[10px] truncate ${!isFiltered ? 'text-slate-300' : 'text-slate-400'}`}>
+                  {myEmail || 'Výchozí administrátorský účet'}
                 </div>
               </div>
-              {!isImpersonating && (
-                <span className="text-xs font-bold text-emerald-400">Aktivní</span>
+              {!isFiltered && (
+                <span className="text-white font-bold text-xs shrink-0">✓</span>
               )}
             </button>
           </div>
 
           {/* Accounts List */}
-          <div className="max-h-[280px] overflow-y-auto p-2 divide-y divide-slate-100/80">
+          <div className="max-h-[260px] overflow-y-auto p-1.5 space-y-0.5">
             {loading && users.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-400 font-medium">
                 Načítám seznam účtů…
@@ -278,9 +282,9 @@ export default function SellerAccountSwitcher({
                   <button
                     type="button"
                     onClick={handleApplyCustomEmail}
-                    className="mt-2 inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700"
+                    className="mt-2 inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
                   >
-                    Filtrovat podle zadaného e-mailu &quot;{search.trim()}&quot;
+                    Filtrovat &quot;{search.trim()}&quot;
                   </button>
                 )}
               </div>
@@ -292,53 +296,53 @@ export default function SellerAccountSwitcher({
                     (user.sbazar_email && user.sbazar_email.toLowerCase().trim() === currentEmail.toLowerCase().trim()) ||
                     (user.bazos_email && user.bazos_email.toLowerCase().trim() === currentEmail.toLowerCase().trim()));
 
+                const itemDisplayName = user.bazos_name || user.email;
+
                 return (
                   <button
                     key={user.id}
                     type="button"
                     onClick={() => handleSelectUser(user)}
-                    className={`w-full flex items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs transition-colors group ${
+                    className={`w-full flex items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs transition-colors ${
                       isSelected
-                        ? 'bg-amber-500/15 border border-amber-300/80'
-                        : 'hover:bg-slate-50'
+                        ? 'bg-indigo-50 border border-indigo-200/90 text-indigo-950 font-bold'
+                        : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-950 truncate group-hover:text-emerald-700 transition-colors">
-                          {user.bazos_name || user.email}
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span
+                          className={`font-semibold truncate ${
+                            isSelected ? 'text-indigo-950 font-bold' : 'text-slate-900'
+                          }`}
+                        >
+                          {itemDisplayName}
                         </span>
                         {user.bazos_name && (
-                          <span className="text-[10px] text-slate-400 font-normal truncate max-w-[120px]">
+                          <span
+                            className={`text-[10px] font-normal truncate max-w-[120px] ${
+                              isSelected ? 'text-indigo-600/80' : 'text-slate-400'
+                            }`}
+                          >
                             {user.email}
                           </span>
                         )}
                       </div>
 
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
-                        {user.telephone1 && (
-                          <span className="font-semibold text-slate-700">
-                            📞 {formatPhoneNumber(user.telephone1)}
-                          </span>
-                        )}
-                        {user.sbazar_email && user.sbazar_email !== user.email && (
-                          <span className="truncate max-w-[130px] text-slate-400">
-                            Sbazar: {user.sbazar_email}
-                          </span>
-                        )}
-                        {user.location && (
-                          <span className="text-slate-400">• {user.location}</span>
-                        )}
-                      </div>
+                      {user.telephone1 && (
+                        <div
+                          className={`mt-0.5 text-[10px] truncate ${
+                            isSelected ? 'text-indigo-700/80 font-medium' : 'text-slate-400'
+                          }`}
+                        >
+                          {formatPhoneNumber(user.telephone1)}
+                        </div>
+                      )}
                     </div>
 
-                    {isSelected ? (
-                      <span className="shrink-0 rounded-full bg-amber-500 text-white px-2 py-0.5 text-[10px] font-bold">
-                        Vybráno
-                      </span>
-                    ) : (
-                      <span className="shrink-0 text-slate-300 group-hover:text-slate-600 transition-colors">
-                        →
+                    {isSelected && (
+                      <span className="shrink-0 text-indigo-600 font-bold text-xs">
+                        ✓
                       </span>
                     )}
                   </button>
@@ -348,9 +352,17 @@ export default function SellerAccountSwitcher({
           </div>
 
           {/* Footer note */}
-          <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 flex items-center justify-between text-[10px] text-slate-500 font-medium">
-            <span>Celkem {users.length} prodejců</span>
-            <span>Výběr přepne nabídky na inzeráty daného účtu</span>
+          <div className="border-t border-slate-100 bg-slate-50/50 px-3 py-2 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+            <span>{users.length} prodejců</span>
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={handleResetToMe}
+                className="text-indigo-600 hover:text-indigo-900 font-semibold"
+              >
+                Resetovat filtr
+              </button>
+            )}
           </div>
         </div>
       )}

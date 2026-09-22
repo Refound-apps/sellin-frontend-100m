@@ -276,7 +276,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
     setSearchInput('');
   };
 
-  const isImpersonating = Boolean(
+  const isFiltered = Boolean(
     mode === 'user' &&
       isAdminUser &&
       (selectedSeller ||
@@ -288,57 +288,6 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
 
   return (
     <div>
-      {/* Impersonation Banner for Admins */}
-      {isImpersonating && (
-        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-2xl bg-amber-500/10 border border-amber-300/90 p-4 text-amber-950 shadow-2xs">
-          <div className="flex items-start sm:items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white text-lg font-black shadow-xs">
-              👁️
-            </span>
-            <div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
-                  Režim prohlížení účtu
-                </span>
-                <span className="rounded bg-amber-200/90 text-amber-900 px-1.5 py-0.2 text-[10px] font-bold">
-                  Administrátor
-                </span>
-              </div>
-              <p className="text-sm sm:text-base font-black text-slate-950 leading-tight">
-                {activeAccountDisplay}
-                {selectedSeller?.bazos_name && (
-                  <span className="font-normal text-xs text-slate-600"> ({selectedSeller.email})</span>
-                )}
-              </p>
-              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
-                {selectedSeller?.telephone1 && (
-                  <span className="font-semibold text-slate-800">
-                    📞 {formatPhoneNumber(selectedSeller.telephone1)}
-                  </span>
-                )}
-                <span>
-                  • Spárované e-maily:{' '}
-                  <span className="font-mono font-semibold text-slate-800">
-                    {(userEmails || []).join(', ')}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end shrink-0">
-            <button
-              type="button"
-              onClick={handleResetToMe}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-amber-50 active:scale-95 transition-all"
-            >
-              <span>✕</span>
-              <span>Zpět na můj účet</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Top Header */}
       <div className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -359,17 +308,13 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
             <>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                {isImpersonating
-                  ? `Zobrazení prodejce: ${activeAccountDisplay}`
-                  : 'Moje inzerce · Prodejce'}
+                Moje inzerce · Prodejce
               </span>
               <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
-                {isImpersonating ? `Nabídka: ${activeAccountDisplay}` : 'Moje nabídka'}
+                Moje nabídka
               </h1>
               <p className="mt-1 text-xs sm:text-sm text-slate-500">
-                {isImpersonating
-                  ? `Přehled inzerátů publikovaných pod účtem ${activeAccountDisplay}.`
-                  : 'Přehled vašich publikovaných inzerátů odpovídajících vašim prodejním účtům na inzertních webech.'}
+                Přehled vašich publikovaných inzerátů odpovídajících vašim prodejním účtům na inzertních webech.
               </p>
             </>
           )}
@@ -440,9 +385,10 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           <span>
             {searchQuery ? `Výsledky pro „${searchQuery}“` : 'Nejnovější inzeráty'}
           </span>
-          {mode === 'user' && userEmails && userEmails.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-              • spárováno s ({userEmails.join(', ')})
+          {isFiltered && activeAccountDisplay && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+              Prodejce: {activeAccountDisplay}
             </span>
           )}
         </div>
@@ -498,27 +444,10 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
             {searchQuery
               ? 'Zkuste jiný dotaz, rozměr pneu nebo zkontrolujte překlepy.'
-              : isImpersonating
+              : isFiltered && activeAccountDisplay
               ? `Pro účet ${activeAccountDisplay} nebyly v centrální databázi nalezeny žádné inzeráty.`
-              : mode === 'user' && myEmail
-              ? `Pro váš administrátorský účet (${myEmail}) nejsou přímo spárovány žádné inzeráty.`
-              : 'Až přidáte nový inzerát, zobrazí se zde v přehledu.'}
+              : 'Zatím zde nejsou žádné inzeráty.'}
           </p>
-
-          {/* Helper hint for admin on empty own account */}
-          {mode === 'user' && isAdminUser && !isImpersonating && !searchQuery && (
-            <div className="mt-6 inline-flex flex-col sm:flex-row items-center gap-2 rounded-2xl bg-indigo-50 border border-indigo-200/80 p-3.5 text-xs text-indigo-900 max-w-lg mx-auto">
-              <span className="text-lg">💡</span>
-              <div className="text-left">
-                <span className="font-bold">Tip pro administrátora:</span> Chcete-li zobrazit nabídky konkrétního prodejce, použijte tlačítko{' '}
-                <span className="font-bold text-indigo-950">„Filtrovat účet“</span> vpravo nahoře, nebo přejděte na{' '}
-                <Link href="/admin/offers" className="font-bold underline hover:text-indigo-950">
-                  všechny nabídky
-                </Link>
-                .
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="admin-offer-grid">
