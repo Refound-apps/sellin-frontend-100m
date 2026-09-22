@@ -24,7 +24,12 @@ export async function GET(request: NextRequest) {
 
     if (targetSlug) {
       query = query.eq('slug', targetSlug);
-    } else if (cleanTargetDomain && !cleanTargetDomain.includes('localhost') && !cleanTargetDomain.includes('sellin.cz')) {
+    } else if (
+      cleanTargetDomain &&
+      !cleanTargetDomain.includes('localhost') &&
+      !cleanTargetDomain.includes('sellin.cz') &&
+      !cleanTargetDomain.includes('prodejomat.cz')
+    ) {
       query = query.or(
         `custom_domain.ilike.${targetDomain},custom_domain.ilike.${cleanTargetDomain},slug.ilike.${cleanTargetDomain.split('.')[0]}`
       );

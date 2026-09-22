@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 
-export type ChannelCategory = 'all' | 'top-roi' | 'portals' | 'marketplaces' | 'eshops' | 'comparators';
+export type ChannelCategory = 'all' | 'portals' | 'marketplaces' | 'eshops' | 'comparators';
 export type ChannelStatus = 'connected' | 'ready' | 'planned';
 
 export interface ChannelItem {
@@ -11,8 +11,6 @@ export interface ChannelItem {
   name: string;
   category: 'portals' | 'marketplaces' | 'eshops' | 'comparators';
   categoryLabel: string;
-  isTopRoi?: boolean;
-  roiTag?: string;
   brandColor: string;
   bgLight: string;
   status: ChannelStatus;
@@ -38,22 +36,25 @@ export interface ChannelItem {
   };
 }
 
+// Kanály seřazené podle revenue ROI v recommerce:
+// 1. Přímé kanály bez provizí s okamžitým obratem (Bazoš, FB Marketplace, Sbazar, Vlastní E-shop)
+// 2. Osvědčená tržiště s garancí a exportem (Aukro, Vinted, eBay, Allegro)
+// 3. E-commerce platformy (Shoptet, Shopify)
+// 4. Retail marketplace a srovnávače (Kaufland, Google Shopping, Zboží, Heureka)
 const ALL_CHANNELS: ChannelItem[] = [
-  // 1. TOP INZERTNÍ & RE-COMMERCE PORTÁLY (CZ/SK)
+  // 1. BAZOŠ.CZ / SK
   {
     id: 'bazos',
     name: 'Bazoš.cz / SK',
     category: 'portals',
     categoryLabel: 'Inzertní portál',
-    isTopRoi: true,
-    roiTag: '🔥 #1 ROI v ČR/SK',
     brandColor: '#F59E0B',
     bgLight: 'bg-amber-500/10 text-amber-700 border-amber-200/80',
     status: 'connected',
     statusLabel: 'Aktivní synchronizace',
-    tagline: 'Největší inzertní server v ČR a na Slovensku',
-    shortDesc: 'Okamžitá odezva zájemců, přímé telefonické i e-mailové poptávky na pneu, autodíly a zboží.',
-    tags: ['SMS autorizace', 'Auto-TOPování', 'CZ & SK'],
+    tagline: 'Přímý prodej bez provizí',
+    shortDesc: 'Nejvyšší obrat použitého zboží v ČR a SK. Přímé telefonické i e-mailové poptávky, nulové transakční poplatky.',
+    tags: ['0 % provize', 'Přímý kontakt', 'Auto-TOP'],
     config: {
       username: 'Centrální prodejce',
       email: 'prodej@sellin.cz',
@@ -66,20 +67,39 @@ const ALL_CHANNELS: ChannelItem[] = [
       zipcode: '100 00',
     },
   },
+
+  // 2. FACEBOOK MARKETPLACE
+  {
+    id: 'facebook',
+    name: 'Facebook Marketplace',
+    category: 'marketplaces',
+    categoryLabel: 'Sociální inzerce',
+    brandColor: '#1877F2',
+    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Lokální poptávka bez poplatků',
+    shortDesc: 'Rychlý lokální odbyt bez prodejních provizí. Poptávky přímo do Messengeru a okamžitý osobní odběr.',
+    tags: ['0 % provize', 'Messenger chat', 'Lokální odběr'],
+    config: {
+      feedUrl: 'https://sellin.cz/api/feeds/meta-catalog.xml',
+      syncStock: true,
+    },
+  },
+
+  // 3. SBAZAR.CZ
   {
     id: 'sbazar',
     name: 'Sbazar.cz',
     category: 'portals',
     categoryLabel: 'Inzertní portál',
-    isTopRoi: true,
-    roiTag: '🔥 Silný Seznam dosah',
     brandColor: '#DC2626',
     bgLight: 'bg-rose-500/10 text-rose-700 border-rose-200/80',
     status: 'connected',
     statusLabel: 'Aktivní synchronizace',
-    tagline: 'Inzertní síť Seznam.cz s regionálním zacílením',
-    shortDesc: 'Napojení na miliony uživatelů Seznamu. Automatický export nabídek včetně fotek a popisu.',
-    tags: ['Seznam profil', 'Regionální dosah', 'Auto-obnova'],
+    tagline: 'Bezplatná inzerce na Seznamu',
+    shortDesc: 'Silný regionální dosah z vyhledávání Seznam.cz. Přímý kontakt se zájemci bez transakčních srážek.',
+    tags: ['0 % provize', 'Seznam.cz', 'Auto-obnova'],
     config: {
       email: 'seznam.prodej@sellin.cz',
       shopUrl: 'https://sbazar.cz/sellin-pneu',
@@ -89,159 +109,118 @@ const ALL_CHANNELS: ChannelItem[] = [
       zipcode: '100 00',
     },
   },
-  {
-    id: 'aukro',
-    name: 'Aukro.cz',
-    category: 'portals',
-    categoryLabel: 'Aukce & Bazar',
-    isTopRoi: true,
-    roiTag: '🔥 Top Re-commerce',
-    brandColor: '#FF7900',
-    bgLight: 'bg-orange-500/10 text-orange-700 border-orange-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Největší české online tržiště a aukční portál',
-    shortDesc: 'Silná důvěra nakupujících s garancí bezpečného nákupu. Skvělé na bazar, pneu a autodíly.',
-    tags: ['Kup teď & Aukce', 'Ochrana kupujících', 'API napojení'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
-  },
-  {
-    id: 'vinted',
-    name: 'Vinted',
-    category: 'portals',
-    categoryLabel: 'Re-commerce Bazar',
-    isTopRoi: true,
-    roiTag: '🚀 Masivní komunita',
-    brandColor: '#09B1BA',
-    bgLight: 'bg-teal-500/10 text-teal-700 border-teal-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Nejrychleji rostoucí re-commerce v Evropě',
-    shortDesc: 'Populární second-hand platforma s integrovanou levnou dopravou (Zásilkovna, DPD).',
-    tags: ['Poptávky v appce', 'Integrovaná doprava', 'Nulové poplatky'],
-    config: {
-      syncStock: true,
-    },
-  },
 
-  // 2. MARKETPLACES & SOCIÁLNÍ SÍTĚ
-  {
-    id: 'facebook',
-    name: 'Facebook Marketplace',
-    category: 'marketplaces',
-    categoryLabel: 'Sociální Marketplace',
-    isTopRoi: true,
-    roiTag: '🔥 0 % poplatky',
-    brandColor: '#1877F2',
-    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Lokální inzerce a komunikace přes Messenger',
-    shortDesc: 'Vysoká konverze v regionu bez provizí z prodeje s možností dynamického produktového feedu.',
-    tags: ['Messenger chat', 'Lokální prodej', 'Meta Katalog'],
-    config: {
-      feedUrl: 'https://sellin.cz/api/feeds/meta-catalog.xml',
-      syncStock: true,
-    },
-  },
-  {
-    id: 'allegro',
-    name: 'Allegro.cz',
-    category: 'marketplaces',
-    categoryLabel: 'Marketplace',
-    isTopRoi: true,
-    roiTag: '🚀 Miliony nakupujících',
-    brandColor: '#FF5A00',
-    bgLight: 'bg-orange-500/10 text-orange-800 border-orange-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Největší středoevropský marketplace',
-    shortDesc: 'Silný prodej v ČR a Polsku se sekcí Outlet a Použité zboží podpořený programem Allegro Smart.',
-    tags: ['Allegro Smart', 'Bazar & Outlet', 'REST API'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
-  },
-  {
-    id: 'ebay',
-    name: 'eBay Motors & Goods',
-    category: 'marketplaces',
-    categoryLabel: 'Globální Marketplace',
-    isTopRoi: true,
-    roiTag: '🌍 Prodej do celé EU',
-    brandColor: '#3B82F6',
-    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Světová jednička v prodeji použitých autodílů a zboží',
-    shortDesc: 'Získejte zákazníky z Německa, Rakouska i celé Evropy za podstatně vyšší prodejní ceny.',
-    tags: ['eBay Motors', 'Zahraniční kupci', 'Export v EUR'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
-  },
-  {
-    id: 'kaufland',
-    name: 'Kaufland Global',
-    category: 'marketplaces',
-    categoryLabel: 'Marketplace',
-    brandColor: '#E10915',
-    bgLight: 'bg-red-500/10 text-red-700 border-red-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Rychle rostoucí marketplace v CZ, SK a DE',
-    shortDesc: 'Napojení na zákazníky Kauflandu přes jednotný katalog s automatickou rezervací skladu.',
-    tags: ['CZ & SK & DE trh', 'Kaufland API', 'Zajištěné platby'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
-  },
-
-  // 3. E-SHOPY & PLATFORMY
+  // 4. VLASTNÍ E-SHOP (STOREFRONT)
   {
     id: 'sellin-shop',
     name: 'Vlastní E-shop (Storefront)',
     category: 'eshops',
     categoryLabel: 'Vlastní e-shop',
-    isTopRoi: true,
-    roiTag: '💰 0 % provize',
     brandColor: '#10B981',
     bgLight: 'bg-emerald-500/10 text-emerald-800 border-emerald-200/80',
     status: 'connected',
     statusLabel: 'Aktivní storefront',
-    tagline: 'Váš integrovaný online obchod přímo v Sellin.cz',
-    shortDesc: 'Maximální marže bez provizí zprostředkovatelům. Zboží je ihned dostupné online k nákupu.',
-    tags: ['100% zisk pro vás', 'Online košík', 'Okamžitý nákup'],
+    tagline: 'Přímý prodej se 100% marží',
+    shortDesc: 'Plná marže bez zprostředkovatelských provizí. Přímý nákup přes webový košík a budování vlastní zákaznické báze.',
+    tags: ['100 % marže', 'Online košík', 'Vlastní zákazníci'],
     config: {
       shopUrl: '/shop',
       syncStock: true,
       syncOrders: true,
     },
   },
+
+  // 5. AUKRO.CZ
+  {
+    id: 'aukro',
+    name: 'Aukro.cz',
+    category: 'portals',
+    categoryLabel: 'Online tržiště',
+    brandColor: '#FF7900',
+    bgLight: 'bg-orange-500/10 text-orange-700 border-orange-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Pevné ceny i aukce s garancí',
+    shortDesc: 'Vysoká důvěra kupujících a ochrana plateb. Rychlý odbyt použitého zboží formou Kup teď i aukcí.',
+    tags: ['Bezpečná platba', 'Kup teď & Aukce', 'API synchronizace'],
+    config: {
+      apiKey: '',
+      syncStock: true,
+      syncOrders: true,
+    },
+  },
+
+  // 6. VINTED
+  {
+    id: 'vinted',
+    name: 'Vinted',
+    category: 'portals',
+    categoryLabel: 'Second-hand bazar',
+    brandColor: '#09B1BA',
+    bgLight: 'bg-teal-500/10 text-teal-700 border-teal-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Second-hand prodej bez poplatků',
+    shortDesc: 'Nulové poplatky pro prodejce s integrovanou zlevněnou dopravou. Platba předem garantovaná platformou.',
+    tags: ['0 % prodejci', 'Integrovaná doprava', 'Platba předem'],
+    config: {
+      syncStock: true,
+    },
+  },
+
+  // 7. EBAY MOTORS & GOODS
+  {
+    id: 'ebay',
+    name: 'eBay Motors & Goods',
+    category: 'marketplaces',
+    categoryLabel: 'Globální export',
+    brandColor: '#3B82F6',
+    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Export do EU za vyšší EUR ceny',
+    shortDesc: 'Prodej autodílů a zboží do Německa a celé EU. Podstatně vyšší prodejní ceny kompenzují poplatky tržiště.',
+    tags: ['Export v EUR', 'Trh celé EU', 'Vyšší prodejní ceny'],
+    config: {
+      apiKey: '',
+      syncStock: true,
+      syncOrders: true,
+    },
+  },
+
+  // 8. ALLEGRO.CZ
+  {
+    id: 'allegro',
+    name: 'Allegro.cz',
+    category: 'marketplaces',
+    categoryLabel: 'Marketplace',
+    brandColor: '#FF5A00',
+    bgLight: 'bg-orange-500/10 text-orange-800 border-orange-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Široký odbyt v ČR a Polsku',
+    shortDesc: 'Hromadný odbyt v sekcích Outlet a Použité zboží. Program Allegro Smart zvyšuje konverzi a rychlost prodeje.',
+    tags: ['CZ a PL trh', 'Allegro Smart', 'REST API'],
+    config: {
+      apiKey: '',
+      syncStock: true,
+      syncOrders: true,
+    },
+  },
+
+  // 9. SHOPTET
   {
     id: 'shoptet',
     name: 'Shoptet',
     category: 'eshops',
     categoryLabel: 'E-shop platforma',
-    isTopRoi: true,
-    roiTag: '⚡ E-commerce #1 ČR',
     brandColor: '#0284C7',
     bgLight: 'bg-sky-500/10 text-sky-700 border-sky-200/80',
     status: 'ready',
     statusLabel: 'Připraveno k napojení',
-    tagline: 'Obousměrná synchronizace s vaším Shoptetem',
-    shortDesc: 'Sellin spravuje centrální sklad a automaticky promítá kusy i ceny do vašeho Shoptet e-shopu.',
-    tags: ['Shoptet API doplněk', 'Sklad obousměrně', 'Stahování objednávek'],
+    tagline: 'Obousměrné propojení skladu',
+    shortDesc: 'Sellin centrálně řídí zásoby a automaticky synchronizuje počty kusů i ceny do vašeho Shoptetu.',
+    tags: ['Obousměrný sklad', 'API doplněk', 'Import objednávek'],
     config: {
       shopUrl: 'https://vas-obchod.myshoptet.cz',
       apiKey: '',
@@ -250,6 +229,8 @@ const ALL_CHANNELS: ChannelItem[] = [
       feedUrl: 'https://sellin.cz/api/feeds/shoptet-import.xml',
     },
   },
+
+  // 10. SHOPIFY
   {
     id: 'shopify',
     name: 'Shopify',
@@ -259,9 +240,9 @@ const ALL_CHANNELS: ChannelItem[] = [
     bgLight: 'bg-teal-500/10 text-teal-800 border-teal-200/80',
     status: 'ready',
     statusLabel: 'Připraveno k napojení',
-    tagline: 'Globální e-commerce systém s webhooks',
-    shortDesc: 'Přímé napojení přes Shopify Admin API s okamžitým odpočtem skladu při prodeji.',
-    tags: ['Admin REST API', 'Real-time Webhooky', 'Více měn'],
+    tagline: 'Globální e-commerce systém',
+    shortDesc: 'Real-time synchronizace zásob a objednávek s platformou Shopify přes Admin API s podporou více měn.',
+    tags: ['Admin API', 'Webhooky', 'Multi-měna'],
     config: {
       shopUrl: 'https://vas-obchod.myshopify.com',
       apiKey: '',
@@ -270,41 +251,78 @@ const ALL_CHANNELS: ChannelItem[] = [
     },
   },
 
-  // 4. SROVNÁVAČE CEN & KATALOGY
+  // 11. KAUFLAND GLOBAL
+  {
+    id: 'kaufland',
+    name: 'Kaufland Global',
+    category: 'marketplaces',
+    categoryLabel: 'Marketplace',
+    brandColor: '#E10915',
+    bgLight: 'bg-red-500/10 text-red-700 border-red-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Zákaznická báze v CZ, SK a DE',
+    shortDesc: 'Vhodné pro outlet, repasy a nadnormativní zásoby. Automatická rezervace skladu a zajištěné platby.',
+    tags: ['CZ, SK & DE', 'Katalog Kaufland', 'Zajištěné platby'],
+    config: {
+      apiKey: '',
+      syncStock: true,
+      syncOrders: true,
+    },
+  },
+
+  // 12. GOOGLE NÁKUPY
+  {
+    id: 'google-shopping',
+    name: 'Google Nákupy',
+    category: 'comparators',
+    categoryLabel: 'Google Ads & PMax',
+    brandColor: '#4285F4',
+    bgLight: 'bg-sky-500/10 text-sky-700 border-sky-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Výkonnostní kampaně ve vyhledávání',
+    shortDesc: 'Zobrazení produktů ve vyhledávači se štítkem used/refurbished. Cílený nákupní záměr přímo do vašeho e-shopu.',
+    tags: ['Google Merchant', 'Used / Refurbished', 'PMax kampaně'],
+    config: {
+      feedUrl: 'https://sellin.cz/api/feeds/google-merchant.xml',
+      syncStock: true,
+    },
+  },
+
+  // 13. ZBOŽÍ.CZ
   {
     id: 'zbozi',
     name: 'Zboží.cz',
     category: 'comparators',
     categoryLabel: 'Srovnávač cen',
-    isTopRoi: true,
-    roiTag: '📊 Seznam nákupy',
     brandColor: '#DC2626',
     bgLight: 'bg-red-500/10 text-red-700 border-red-200/80',
     status: 'ready',
     statusLabel: 'Připraveno k napojení',
-    tagline: 'Nákupní srovnávač Seznamu s bazarovou sekcí',
-    shortDesc: 'Generovaný XML feed pro Seznam Nákupy s podporou rozbaleného a použitého zboží.',
-    tags: ['Zboží XML feed', 'Měření konverzí', 'Bidding'],
+    tagline: 'PPC z vyhledávání Seznamu',
+    shortDesc: 'Akvizice zákazníků ze srovnávače Seznam.cz s přímou podporou sekce bazarového a rozbaleného zboží.',
+    tags: ['Seznam Nákupy', 'Bazarová sekce', 'Zboží XML'],
     config: {
       feedUrl: 'https://sellin.cz/api/feeds/zbozi.xml',
       apiKey: '',
       syncStock: true,
     },
   },
+
+  // 14. HEUREKA.CZ / SK
   {
     id: 'heureka',
     name: 'Heureka.cz / SK',
     category: 'comparators',
     categoryLabel: 'Srovnávač cen',
-    isTopRoi: true,
-    roiTag: '📊 Největší srovnávač',
     brandColor: '#2563EB',
     bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
     status: 'ready',
     statusLabel: 'Připraveno k napojení',
-    tagline: 'Největší nákupní rádce s dostupnostním feedem',
-    shortDesc: 'Kompletní produktový i depo feed pro Heureku s podporou Ověřeno zákazníky.',
-    tags: ['Produktový XML feed', 'Dostupnostní Depo', 'Ověřeno zákazníky'],
+    tagline: 'Produktový a dostupnostní srovnávač',
+    shortDesc: 'Generování produktového XML a depo feedu. Efektivní pro standardizované skladové položky a autodíly.',
+    tags: ['Produktový feed', 'Dostupnostní depo', 'Měření konverzí'],
     config: {
       feedUrl: 'https://sellin.cz/api/feeds/heureka.xml',
       availabilityFeedUrl: 'https://sellin.cz/api/feeds/heureka-dostupnost.xml',
@@ -312,30 +330,10 @@ const ALL_CHANNELS: ChannelItem[] = [
       syncStock: true,
     },
   },
-  {
-    id: 'google-shopping',
-    name: 'Google Nákupy',
-    category: 'comparators',
-    categoryLabel: 'Google Ads & PMax',
-    isTopRoi: true,
-    roiTag: '🔍 Google Shopping',
-    brandColor: '#4285F4',
-    bgLight: 'bg-sky-500/10 text-sky-700 border-sky-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Google Merchant Center a Performance Max',
-    shortDesc: 'Zobrazujte nabídky s označením stavu položky (used / refurbished) přímo ve vyhledávači.',
-    tags: ['Merchant XML', 'PMax kampaně', 'Used / Refurbished'],
-    config: {
-      feedUrl: 'https://sellin.cz/api/feeds/google-merchant.xml',
-      syncStock: true,
-    },
-  },
 ];
 
 const CATEGORIES: { id: ChannelCategory; label: string; icon: string }[] = [
   { id: 'all', label: 'Všechny kanály', icon: '⚡' },
-  { id: 'top-roi', label: 'Top ROI Re-commerce', icon: '🔥' },
   { id: 'portals', label: 'Inzerce & Bazary', icon: '🏷️' },
   { id: 'marketplaces', label: 'Marketplaces & Sítě', icon: '🛍️' },
   { id: 'eshops', label: 'E-shopy & Platformy', icon: '🌐' },
@@ -354,9 +352,7 @@ export default function AccountsView() {
 
   const filteredChannels = useMemo(() => {
     return channels.filter((c) => {
-      if (activeCategory === 'top-roi') {
-        if (!c.isTopRoi) return false;
-      } else if (activeCategory !== 'all') {
+      if (activeCategory !== 'all') {
         if (c.category !== activeCategory) return false;
       }
 
@@ -424,7 +420,7 @@ export default function AccountsView() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Centrální Re-commerce Hub
+              Centrální synchronizace skladu
             </span>
             <span className="text-xs font-semibold text-slate-400">
               {stats.connected} z {stats.total} aktivní
@@ -434,7 +430,7 @@ export default function AccountsView() {
             Prodejní kanály & Integrace
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-            Jeden sklad zboží automaticky propojený na nejvýnosnější inzertní portály, bazary, e-shopy a srovnávače.
+            Centrální sklad propojený na prodejní kanály seřazené podle revenue ROI v recommerce.
           </p>
         </div>
 
@@ -464,8 +460,6 @@ export default function AccountsView() {
             const count =
               cat.id === 'all'
                 ? channels.length
-                : cat.id === 'top-roi'
-                ? channels.filter((c) => c.isTopRoi).length
                 : channels.filter((c) => c.category === cat.id).length;
 
             const isActive = activeCategory === cat.id;
@@ -544,7 +538,7 @@ export default function AccountsView() {
               className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs hover:border-slate-300 hover:shadow-md transition-all duration-150 cursor-pointer"
             >
               <div>
-                {/* Header Row: Logo + ROI Tag or Status */}
+                {/* Header Row: Logo + Status */}
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2.5">
                     <ChannelLogo channelId={channel.id} name={channel.name} />
@@ -558,16 +552,12 @@ export default function AccountsView() {
                     </div>
                   </div>
 
-                  {isConnected ? (
+                  {isConnected && (
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span>Aktivní</span>
                     </span>
-                  ) : channel.isTopRoi ? (
-                    <span className="inline-flex shrink-0 items-center rounded-md border border-amber-200/90 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                      {channel.roiTag}
-                    </span>
-                  ) : null}
+                  )}
                 </div>
 
                 {/* 1-Line Tagline & Short Desc */}
@@ -611,22 +601,21 @@ export default function AccountsView() {
         })}
       </div>
 
-      {/* Re-commerce ROI Advantage Banner */}
+      {/* Multichannel sync info banner */}
       <div className="mt-8 rounded-2xl border border-slate-200/90 bg-linear-to-r from-slate-900 via-slate-950 to-slate-900 p-5 sm:p-6 text-white shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="rounded-md bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                PRODEJNÍ STRATEGIE RE-COMMERCE
+              <span className="rounded-md bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                MULTIKANÁLOVÁ SYNCHRONIZACE
               </span>
-              <span className="text-xs text-slate-400">0 % provize na vlastním e-shopu</span>
+              <span className="text-xs text-slate-400">Automatický odpočet skladu v reálném čase</span>
             </div>
             <h3 className="text-base sm:text-lg font-black text-white">
-              Automatický multikanálový prodej bez duplikace práce
+              Jeden sklad pro všechny prodejní kanály bez duplicit
             </h3>
             <p className="mt-1 text-xs text-slate-300 leading-relaxed">
-              Inzerujte současně na Bazoši, Sbazaru, Facebook Marketplace, Aukru i ve svém e-shopu. Jakmile se
-              zboží prodá na kterémkoliv kanálu, Sellin ho okamžitě odečte ze skladu a stáhne z ostatních portálů.
+              Položku zadáte jednou. Sellin ji propíše na vybrané kanály a jakmile se prodá, okamžitě ji odepíše ze skladu a stáhne z ostatních portálů.
             </p>
           </div>
 
@@ -635,7 +624,7 @@ export default function AccountsView() {
               href="/create"
               className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-950 hover:bg-slate-100 transition-all shadow-xs"
             >
-              <span>+ Vložit nové zboží</span>
+              <span>+ Vložit nabídku</span>
             </Link>
           </div>
         </div>
@@ -902,9 +891,10 @@ function ChannelModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-slate-950 leading-tight">{data.name}</h3>
-                {data.isTopRoi && (
-                  <span className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-amber-800">
-                    {data.roiTag}
+                {isConnected && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span>Aktivní</span>
                   </span>
                 )}
               </div>

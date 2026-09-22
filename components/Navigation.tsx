@@ -93,6 +93,12 @@ export default function Navigation() {
       host === 'bazar.sellin.cz' ||
       host === 'stage.sellin.cz' ||
       host === 'dev.sellin.cz' ||
+      host === 'prodejomat.cz' ||
+      host === 'www.prodejomat.cz' ||
+      host === 'app.prodejomat.cz' ||
+      host === 'bazar.prodejomat.cz' ||
+      host === 'stage.prodejomat.cz' ||
+      host === 'dev.prodejomat.cz' ||
       host === 'localhost' ||
       host === '127.0.0.1' ||
       host.endsWith('.vercel.app');

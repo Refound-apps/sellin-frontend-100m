@@ -26,6 +26,12 @@ const MAIN_DOMAINS = new Set([
   'bazar.sellin.cz',
   'stage.sellin.cz',
   'dev.sellin.cz',
+  'prodejomat.cz',
+  'www.prodejomat.cz',
+  'app.prodejomat.cz',
+  'bazar.prodejomat.cz',
+  'stage.prodejomat.cz',
+  'dev.prodejomat.cz',
   'localhost',
   '127.0.0.1',
 ]);
@@ -46,6 +52,11 @@ export default async function RootLayout({
       isTenant = true;
     } else if (host.endsWith('.sellin.cz')) {
       const subdomain = host.replace('.sellin.cz', '');
+      if (!['app', 'www', 'stage', 'dev', 'bazar'].includes(subdomain)) {
+        isTenant = true;
+      }
+    } else if (host.endsWith('.prodejomat.cz')) {
+      const subdomain = host.replace('.prodejomat.cz', '');
       if (!['app', 'www', 'stage', 'dev', 'bazar'].includes(subdomain)) {
         isTenant = true;
       }
