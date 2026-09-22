@@ -83,6 +83,25 @@ export default function Navigation() {
     return null;
   }
 
+  // Client-side guard: hide app navigation on custom tenant domains and shop previews
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    const isSystemHost =
+      host === 'sellin.cz' ||
+      host === 'www.sellin.cz' ||
+      host === 'app.sellin.cz' ||
+      host === 'bazar.sellin.cz' ||
+      host === 'stage.sellin.cz' ||
+      host === 'dev.sellin.cz' ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.endsWith('.vercel.app');
+
+    if (!isSystemHost || host.includes('.localhost') || window.location.search.includes('custom_domain=')) {
+      return null;
+    }
+  }
+
   if (pathname === '/login' || pathname === '/reset-password') {
     return (
       <header className="sticky top-0 z-40 border-b border-[hsl(214_24%_88%)] bg-white/80 backdrop-blur-xl">
