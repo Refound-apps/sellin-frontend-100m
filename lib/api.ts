@@ -81,12 +81,17 @@ export async function getCredentialsMap(): Promise<Record<string, { phone: strin
   }
 }
 
+export interface OffersResponse {
+  offers: Offer[];
+  total?: number;
+}
+
 export async function getOffers(
   limit: number = 50,
   offset: number = 0,
   search?: string,
   emails?: string[]
-): Promise<Offer[]> {
+): Promise<OffersResponse> {
   try {
     const query = new URLSearchParams();
     query.set('limit', String(limit));
@@ -113,7 +118,7 @@ export async function getOffers(
     }
 
     const credsMap: Record<string, { phone: string; name: string }> = await getCredentialsMap().catch(() => ({}));
-    return data.data.map((offer) => {
+    const offers = data.data.map((offer) => {
       const emailKey = offer.bb_email?.toLowerCase().trim();
       const cred = emailKey ? credsMap[emailKey] : null;
       return {
@@ -122,6 +127,9 @@ export async function getOffers(
         seller_name: offer.seller_name || cred?.name || null,
       };
     });
+
+    const total = typeof data.total === 'number' ? data.total : undefined;
+    return { offers, total };
   } catch (error) {
     console.error('Error fetching offers:', error);
     throw error;

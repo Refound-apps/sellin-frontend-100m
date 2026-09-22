@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Offer, User } from '@/lib/types';
@@ -15,6 +15,61 @@ interface OffersListProps {
   mode?: 'user' | 'admin';
 }
 
+function resolveLinkedEmails(target: User | string | null, allUsers: User[]): string[] {
+  if (!target) return [];
+
+  const emailsSet = new Set<string>();
+
+  const targetEmail =
+    typeof target === 'string'
+      ? target.toLowerCase().trim()
+      : target.email?.toLowerCase().trim();
+  const targetSbazar =
+    typeof target === 'string' ? null : target.sbazar_email?.toLowerCase().trim();
+  const targetBazos =
+    typeof target === 'string' ? null : target.bazos_email?.toLowerCase().trim();
+
+  if (targetEmail) emailsSet.add(targetEmail);
+  if (targetSbazar) emailsSet.add(targetSbazar);
+  if (targetBazos) emailsSet.add(targetBazos);
+
+  // 1. Identify any shared sbazar_email among allUsers
+  let activeSbazarEmail = targetSbazar;
+  if (!activeSbazarEmail && targetEmail) {
+    const matched = allUsers.find(
+      (u) =>
+        u.email?.toLowerCase().trim() === targetEmail ||
+        u.sbazar_email?.toLowerCase().trim() === targetEmail ||
+        u.bazos_email?.toLowerCase().trim() === targetEmail
+    );
+    if (matched?.sbazar_email) {
+      activeSbazarEmail = matched.sbazar_email.toLowerCase().trim();
+      emailsSet.add(activeSbazarEmail);
+    }
+  }
+
+  // 2. Gather all accounts connected through activeSbazarEmail or direct email match
+  for (const u of allUsers) {
+    const uSbazar = u.sbazar_email?.toLowerCase().trim();
+    const uEmail = u.email?.toLowerCase().trim();
+    const uBazos = u.bazos_email?.toLowerCase().trim();
+    const uFb = u.facebook_email?.toLowerCase().trim();
+
+    const isLinked =
+      (activeSbazarEmail && (uSbazar === activeSbazarEmail || uEmail === activeSbazarEmail)) ||
+      (targetEmail && (uEmail === targetEmail || uSbazar === targetEmail || uBazos === targetEmail));
+
+    if (isLinked) {
+      if (uEmail) emailsSet.add(uEmail);
+      if (uSbazar) emailsSet.add(uSbazar);
+      if (uBazos) emailsSet.add(uBazos);
+      if (uFb) emailsSet.add(uFb);
+    }
+  }
+
+  return Array.from(emailsSet).filter(Boolean);
+}
+
 export default function OffersList({ mode = 'user' }: OffersListProps) {
   const supabase = useMemo(() => createClient(), []);
   const searchParams = useSearchParams();
@@ -23,13 +78,17 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
   // Offers state
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalOffers, setTotalOffers] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const limit = 20;
+  const limit = 50;
+
+  const isFetchingRef = useRef(false);
 
   // User & credentials state
   const [userLoading, setUserLoading] = useState(mode === 'user');
@@ -37,6 +96,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
   const [myEmails, setMyEmails] = useState<string[]>([]);
   const [userEmails, setUserEmails] = useState<string[] | null>(mode === 'admin' ? [] : null);
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
 
   // Admin Account Impersonation state (when admin views a specific seller account on seller page)
   const [selectedSeller, setSelectedSeller] = useState<User | null>(null);
@@ -71,27 +131,50 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         const email = authUser.email ?? null;
         setMyEmail(email);
 
-        // Fetch credentials matching user_id or email
-        const { data: credentials } = await supabase
+        // Fetch credentials matching user_id or email, or sbazar_email
+        const { data: directCredentials } = await supabase
           .from('credential_pg')
           .select('role, email, sbazar_email, bazos_email, facebook_email')
-          .or(`user_id.eq.${authUser.id},email.ilike.${authUser.email}`);
+          .or(`user_id.eq.${authUser.id},email.ilike.${authUser.email},sbazar_email.ilike.${authUser.email}`);
 
         const myEmailsSet = new Set<string>();
         if (email) {
           myEmailsSet.add(email.toLowerCase().trim());
         }
 
+        const sbazarEmailsToLink = new Set<string>();
         let isUserAdmin = false;
-        if (credentials && credentials.length > 0) {
-          for (const cred of credentials) {
+        if (directCredentials && directCredentials.length > 0) {
+          for (const cred of directCredentials) {
             if (cred.role === 'admin') {
               isUserAdmin = true;
             }
             if (cred.email) myEmailsSet.add(cred.email.toLowerCase().trim());
-            if (cred.sbazar_email) myEmailsSet.add(cred.sbazar_email.toLowerCase().trim());
+            if (cred.sbazar_email) {
+              const cleanSb = cred.sbazar_email.toLowerCase().trim();
+              myEmailsSet.add(cleanSb);
+              sbazarEmailsToLink.add(cleanSb);
+            }
             if (cred.bazos_email) myEmailsSet.add(cred.bazos_email.toLowerCase().trim());
             if (cred.facebook_email) myEmailsSet.add(cred.facebook_email.toLowerCase().trim());
+          }
+        }
+
+        // If any linked sbazar_email exists, gather all accounts sharing that sbazar_email
+        if (sbazarEmailsToLink.size > 0) {
+          const { data: linkedCredentials } = await supabase
+            .from('credential_pg')
+            .select('role, email, sbazar_email, bazos_email, facebook_email')
+            .in('sbazar_email', Array.from(sbazarEmailsToLink));
+
+          if (linkedCredentials && linkedCredentials.length > 0) {
+            for (const cred of linkedCredentials) {
+              if (cred.role === 'admin') isUserAdmin = true;
+              if (cred.email) myEmailsSet.add(cred.email.toLowerCase().trim());
+              if (cred.sbazar_email) myEmailsSet.add(cred.sbazar_email.toLowerCase().trim());
+              if (cred.bazos_email) myEmailsSet.add(cred.bazos_email.toLowerCase().trim());
+              if (cred.facebook_email) myEmailsSet.add(cred.facebook_email.toLowerCase().trim());
+            }
           }
         }
 
@@ -99,39 +182,41 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         const resolvedMyEmails = Array.from(myEmailsSet);
         setMyEmails(resolvedMyEmails);
 
-        // If user is admin and URL contains ?account=..., resolve and select that seller account
-        if (isUserAdmin && urlAccountParam) {
+        // Preload all users for admin switcher
+        let allUsers: User[] = [];
+        if (isUserAdmin) {
           try {
-            const allUsers = await getUsers();
-            const cleanTarget = urlAccountParam.toLowerCase().trim();
-            const matched = allUsers.find(
-              (u) =>
-                u.email.toLowerCase().trim() === cleanTarget ||
-                (u.sbazar_email && u.sbazar_email.toLowerCase().trim() === cleanTarget) ||
-                (u.bazos_email && u.bazos_email.toLowerCase().trim() === cleanTarget)
-            );
-
-            if (matched) {
-              setSelectedSeller(matched);
-              setSelectedCustomEmail(null);
-              const targetEmails = [
-                matched.email,
-                matched.sbazar_email,
-                matched.bazos_email,
-                matched.facebook_email,
-              ]
-                .filter((e): e is string => Boolean(e && e.trim()))
-                .map((e) => e.toLowerCase().trim());
-              setUserEmails(targetEmails);
-              return;
-            } else {
-              setSelectedSeller(null);
-              setSelectedCustomEmail(cleanTarget);
-              setUserEmails([cleanTarget]);
-              return;
+            allUsers = await getUsers();
+            if (!isCancelled) {
+              setAvailableUsers(allUsers);
             }
           } catch (e) {
-            console.error('Failed to resolve account from URL:', e);
+            console.error('Failed to load users for switcher:', e);
+          }
+        }
+
+        // If user is admin and URL contains ?account=..., resolve and select that seller account
+        if (isUserAdmin && urlAccountParam) {
+          const cleanTarget = urlAccountParam.toLowerCase().trim();
+          const matched = allUsers.find(
+            (u) =>
+              u.email.toLowerCase().trim() === cleanTarget ||
+              (u.sbazar_email && u.sbazar_email.toLowerCase().trim() === cleanTarget) ||
+              (u.bazos_email && u.bazos_email.toLowerCase().trim() === cleanTarget)
+          );
+
+          if (matched) {
+            setSelectedSeller(matched);
+            setSelectedCustomEmail(null);
+            const targetEmails = resolveLinkedEmails(matched, allUsers);
+            setUserEmails(targetEmails);
+            return;
+          } else {
+            setSelectedSeller(null);
+            setSelectedCustomEmail(cleanTarget);
+            const targetEmails = resolveLinkedEmails(cleanTarget, allUsers);
+            setUserEmails(targetEmails.length > 0 ? targetEmails : [cleanTarget]);
+            return;
           }
         }
 
@@ -155,20 +240,26 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
 
   // Handler for Admin Account Switcher
   const handleSelectAccount = useCallback(
-    (user: User | null, customEmail?: string) => {
+    async (user: User | null, customEmail?: string) => {
       setPage(0);
+      setHasMore(true);
+      setTotalOffers(null);
+
+      // Ensure we have availableUsers for resolving linked accounts
+      let users = availableUsers;
+      if (!users || users.length === 0) {
+        try {
+          users = await getUsers();
+          setAvailableUsers(users);
+        } catch (e) {
+          users = [];
+        }
+      }
 
       if (user) {
         setSelectedSeller(user);
         setSelectedCustomEmail(null);
-        const emails = [
-          user.email,
-          user.sbazar_email,
-          user.bazos_email,
-          user.facebook_email,
-        ]
-          .filter((e): e is string => Boolean(e && e.trim()))
-          .map((e) => e.toLowerCase().trim());
+        const linkedEmails = resolveLinkedEmails(user, users);
 
         // Update URL query parameter
         if (typeof window !== 'undefined') {
@@ -178,11 +269,11 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           window.history.replaceState({}, '', url.toString());
         }
 
-        setUserEmails(emails);
+        setUserEmails(linkedEmails);
       } else if (customEmail) {
         setSelectedSeller(null);
         setSelectedCustomEmail(customEmail);
-        const emails = [customEmail.toLowerCase().trim()];
+        const linkedEmails = resolveLinkedEmails(customEmail, users);
 
         if (typeof window !== 'undefined') {
           const url = new URL(window.location.href);
@@ -191,7 +282,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           window.history.replaceState({}, '', url.toString());
         }
 
-        setUserEmails(emails);
+        setUserEmails(linkedEmails.length > 0 ? linkedEmails : [customEmail.toLowerCase().trim()]);
       } else {
         // Reset to my own account
         setSelectedSeller(null);
@@ -207,7 +298,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         setUserEmails(myEmails);
       }
     },
-    [myEmails]
+    [availableUsers, myEmails]
   );
 
   const handleResetToMe = useCallback(() => {
@@ -227,53 +318,97 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
     return () => clearTimeout(timeout);
   }, [searchInput, searchQuery]);
 
-  // 3. Load offers when page, search query, or user emails change
+  // 3. Load offers function
+  const loadOffers = useCallback(
+    async (targetPage: number) => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
+      if (targetPage === 0) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      setError(null);
+
+      try {
+        // In user mode: if user has no emails, don't load everything
+        const filterEmails =
+          mode === 'user' && userEmails && userEmails.length > 0
+            ? userEmails
+            : undefined;
+
+        // If user mode and userEmails resolved to empty, return empty list
+        if (mode === 'user' && userEmails && userEmails.length === 0) {
+          setOffers([]);
+          setTotalOffers(0);
+          setHasMore(false);
+          return;
+        }
+
+        const { offers: data, total } = await getOffers(
+          limit,
+          targetPage * limit,
+          searchQuery,
+          filterEmails
+        );
+
+        if (targetPage === 0) {
+          setOffers(data);
+          setTotalOffers(typeof total === 'number' ? total : null);
+        } else {
+          setOffers((prev) => {
+            const existingIds = new Set(prev.map((o) => o.id));
+            const fresh = data.filter((o) => !existingIds.has(o.id));
+            return [...prev, ...fresh];
+          });
+          if (typeof total === 'number') {
+            setTotalOffers(total);
+          }
+        }
+
+        // More available if full limit returned AND (if total is available) we have not fetched all yet
+        const moreAvailable =
+          data.length === limit &&
+          (typeof total !== 'number' || (targetPage + 1) * limit < total);
+        setHasMore(moreAvailable);
+      } catch (err) {
+        console.error('Error loading offers:', err);
+        if (targetPage === 0) {
+          setError('Nepodařilo se načíst nabídky. Zkuste to prosím znovu.');
+        }
+      } finally {
+        isFetchingRef.current = false;
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [mode, userEmails, searchQuery, limit]
+  );
+
+  // Trigger initial / filter reload
   useEffect(() => {
     if (userLoading) return;
 
-    loadOffers();
-  }, [page, searchQuery, userLoading, userEmails]);
+    setPage(0);
+    setHasMore(true);
+    loadOffers(0);
+  }, [searchQuery, userLoading, userEmails, loadOffers]);
 
-  const loadOffers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // In user mode: if user has no emails, don't load everything
-      const filterEmails =
-        mode === 'user' && userEmails && userEmails.length > 0
-          ? userEmails
-          : undefined;
-
-      // If user mode and userEmails resolved to empty, return empty list
-      if (mode === 'user' && userEmails && userEmails.length === 0) {
-        setOffers([]);
-        setHasMore(false);
-        setLoading(false);
-        return;
-      }
-
-      const data = await getOffers(limit, page * limit, searchQuery, filterEmails);
-
-      if (page === 0) {
-        setOffers(data);
-      } else {
-        setOffers((prev) => [...prev, ...data]);
-      }
-
-      if (data.length < limit) {
-        setHasMore(false);
-      }
-    } catch (err) {
-      setError('Nepodařilo se načíst nabídky. Zkuste to prosím znovu.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Load next page
+  const handleLoadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore || isFetchingRef.current) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadOffers(nextPage);
+  }, [loading, loadingMore, hasMore, page, loadOffers]);
 
   const handleClearSearch = () => {
     setSearchInput('');
+    setSearchQuery('');
+    setPage(0);
+    setHasMore(true);
+    setTotalOffers(null);
   };
 
   const isFiltered = Boolean(
@@ -282,6 +417,14 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
       (selectedSeller ||
         (selectedCustomEmail && selectedCustomEmail.toLowerCase() !== myEmail?.toLowerCase()))
   );
+
+  const linkedAccountsCount = useMemo(() => {
+    if (!userEmails || userEmails.length <= 1) return 0;
+    return availableUsers.filter((u) => {
+      const email = u.email?.toLowerCase().trim();
+      return email && userEmails.includes(email);
+    }).length;
+  }, [userEmails, availableUsers]);
 
   const activeAccountDisplay =
     selectedSeller?.bazos_name || selectedSeller?.email || selectedCustomEmail;
@@ -401,22 +544,29 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           <span>
             {searchQuery ? `Výsledky pro „${searchQuery}“` : 'Nejnovější inzeráty'}
           </span>
-          {loading && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 animate-pulse">
+          {(loading || loadingMore) && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 animate-pulse">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Načítám…
+              {loadingMore ? 'Načítám další…' : 'Načítám…'}
             </span>
           )}
           {isFiltered && activeAccountDisplay && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800">
               <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
               Prodejce: {activeAccountDisplay}
+              {linkedAccountsCount > 1 && (
+                <span className="ml-1 rounded-md bg-indigo-100 border border-indigo-200/60 px-1.5 py-0.2 text-[10px] font-bold text-indigo-700">
+                  {linkedAccountsCount} účtů
+                </span>
+              )}
             </span>
           )}
         </div>
         {!loading && (
           <span className="font-semibold text-slate-700">
-            {offers.length} {offers.length === 1 ? 'nabídka' : offers.length < 5 ? 'nabídky' : 'nabídek'}
+            {totalOffers && totalOffers > offers.length
+              ? `Zobrazeno ${offers.length} z ${totalOffers} nabídek`
+              : `${offers.length} ${offers.length === 1 ? 'nabídka' : offers.length < 5 ? 'nabídky' : 'nabídek'}`}
           </span>
         )}
       </div>
@@ -425,7 +575,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         <div className="rounded-3xl bg-white/95 p-8 text-center border border-rose-200 shadow-[0_16px_36px_-12px_rgba(244,63,94,0.12),0_4px_16px_rgba(0,0,0,0.02)] ring-1 ring-black/[0.02]">
           <p className="font-semibold text-rose-700 text-sm">{error}</p>
           <button
-            onClick={() => loadOffers()}
+            onClick={() => loadOffers(0)}
             className="mt-4 rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 active:scale-95 transition-all shadow-xs"
           >
             Zkusit znovu
@@ -486,6 +636,32 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
               onClick={() => setSelectedOffer(offer)}
             />
           ))}
+
+          {/* Skeletons while loading more ("další loading") */}
+          {loadingMore &&
+            Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={`loading-more-${index}`}
+                className="relative overflow-hidden h-[22.5rem] rounded-3xl bg-white/90 border border-slate-200/80 p-3 flex flex-col justify-between shadow-[0_8px_24px_-4px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.02]"
+              >
+                <div className="pointer-events-none absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+
+                <div className="relative h-48 sm:h-52 rounded-2xl bg-slate-100/90 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-b from-slate-100/50 to-slate-200/40" />
+                </div>
+                <div className="space-y-2 px-1 py-2.5">
+                  <div className="h-4 w-4/5 rounded-md bg-slate-200/70" />
+                  <div className="flex gap-1.5 pt-1">
+                    <div className="h-5 w-16 rounded-lg bg-slate-100" />
+                    <div className="h-5 w-14 rounded-lg bg-slate-100" />
+                  </div>
+                </div>
+                <div className="border-t border-slate-100 pt-3 flex justify-between items-center">
+                  <div className="h-6 w-20 rounded-md bg-slate-200/70" />
+                  <div className="h-6 w-16 rounded-xl bg-slate-100" />
+                </div>
+              </div>
+            ))}
         </div>
       )}
 
@@ -503,26 +679,40 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         />
       )}
 
-      {/* Pagination Load More Button */}
+      {/* Pagination Load More Button & Status */}
       {hasMore && offers.length > 0 && (
-        <div className="mt-10 text-center">
+        <div className="mt-8 sm:mt-10 text-center">
           <button
-            onClick={() => setPage((prev) => prev + 1)}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white/95 px-8 py-3.5 text-xs sm:text-sm font-bold text-slate-900 shadow-[0_8px_20px_-4px_rgba(15,23,42,0.06),0_2px_6px_rgba(15,23,42,0.03)] hover:bg-white hover:border-slate-300 hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1)] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-wait ring-1 ring-black/[0.02]"
+            onClick={handleLoadMore}
+            disabled={loading || loadingMore}
+            className="inline-flex items-center gap-2.5 rounded-2xl border border-slate-200/90 bg-white/95 px-8 py-3.5 text-xs sm:text-sm font-bold text-slate-900 shadow-[0_8px_20px_-4px_rgba(15,23,42,0.06),0_2px_6px_rgba(15,23,42,0.03)] hover:bg-white hover:border-slate-300 hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1)] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-wait ring-1 ring-black/[0.02]"
           >
-            {loading ? (
+            {loadingMore ? (
               <>
-                <svg className="h-4 w-4 animate-spin text-slate-800" fill="none" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 animate-spin text-emerald-600" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                   <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                 </svg>
-                <span>Načítám další inzeráty…</span>
+                <span>Načítám dalších {limit} nabídek…</span>
               </>
             ) : (
-              <span>Načíst další nabídky</span>
+              <>
+                <span>Načíst dalších {limit} nabídek</span>
+                {totalOffers && totalOffers > offers.length && (
+                  <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {offers.length} z {totalOffers}
+                  </span>
+                )}
+              </>
             )}
           </button>
+        </div>
+      )}
+
+      {/* All loaded message */}
+      {!hasMore && offers.length > 0 && (
+        <div className="mt-8 sm:mt-10 text-center text-xs text-slate-400 font-medium">
+          Zobrazeno všech {offers.length} {offers.length === 1 ? 'nabídka' : offers.length < 5 ? 'nabídky' : 'nabídek'}
         </div>
       )}
     </div>
