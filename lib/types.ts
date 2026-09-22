@@ -103,3 +103,44 @@ export interface ApiResponse<T> {
   limit?: number;
   offset?: number;
 }
+
+export interface ShopConfigSummary {
+  id: string;
+  shop_name: string;
+  slug: string;
+  custom_domain: string | null;
+  owner_email: string;
+  is_active: boolean;
+}
+
+export interface ShopConfigData {
+  id: string;
+  user_id: string | null;
+  owner_email: string;
+  slug: string;
+  custom_domain: string | null;
+  is_active: boolean;
+  linked_credential_emails: string[];
+  shop_name: string;
+  tagline: string | null;
+  phone: string | null;
+  phone_href: string | null;
+  email: string | null;
+  owner_name: string | null;
+  ico: string | null;
+  address_line: string | null;
+  address_city: string | null;
+  region: string | null;
+  opening_hours: string | null;
+  shipping_price: string | null;
+  shipping_price_tires: string | null;
+  shipping_price_rims: string | null;
+  map_link: string | null;
+  google_maps_link: string | null;
+  caravan_url: string | null;
+  template_id: string;
+  primary_color: string | null;
+  logo_url: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

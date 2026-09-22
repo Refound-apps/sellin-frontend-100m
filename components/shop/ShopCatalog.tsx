@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShopOffer } from '@/lib/types';
 import { getOfferById, getShopOffers, SHOP_SBAZAR_EMAIL, ShopOfferFilters } from '@/lib/api';
+import { useShop } from './ShopContext';
 import ShopOfferCard from './ShopOfferCard';
 import ShopOfferModal from './ShopOfferModal';
 import ShopHeader from './ShopHeader';
@@ -176,15 +177,18 @@ export default function ShopCatalog() {
     return () => document.removeEventListener('click', handleDocumentClick);
   }, []);
 
+  const { linkedEmails, shop } = useShop();
+
   useEffect(() => {
     loadOffers();
-  }, [page, searchQuery, filters]);
+  }, [page, searchQuery, filters, linkedEmails]);
 
   const loadOffers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const { offers: data, total } = await getShopOffers(limit, page * limit, searchQuery, SHOP_SBAZAR_EMAIL, filters);
+      const emailsToQuery = linkedEmails && linkedEmails.length > 0 ? linkedEmails : (shop?.owner_email || SHOP_SBAZAR_EMAIL);
+      const { offers: data, total } = await getShopOffers(limit, page * limit, searchQuery, emailsToQuery, filters);
 
       if (page === 0) {
         setOffers(data);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { SHOP_PHONE, SHOP_PHONE_HREF } from './shopConfig';
+import { useShop } from './ShopContext';
 
 interface FaqItem {
   question: string;
@@ -10,6 +10,7 @@ interface FaqItem {
 
 export default function ShopFaq() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const { phone, phoneHref } = useShop();
 
   const faqs: FaqItem[] = [
     {
@@ -57,10 +58,10 @@ export default function ShopFaq() {
         <>
           Doporučujeme mít při výběru po ruce velký technický průkaz vozu. Pokud si nejste jistí roztečí, středovým kroužkem nebo zálisem (ET), zavolejte nám předem na{' '}
           <a
-            href={`tel:${SHOP_PHONE_HREF}`}
+            href={`tel:${phoneHref}`}
             className="font-bold text-[hsl(142_71%_35%)] hover:underline inline-block"
           >
-            {SHOP_PHONE}
+            {phone}
           </a>{' '}
           a my vám kompatibilitu podle modelu auta zdarma prověříme.
         </>
@@ -133,10 +134,10 @@ export default function ShopFaq() {
             Zavolejte nám přímo do dílny, rádi vám vše vysvětlíme.
           </p>
           <a
-            href={`tel:${SHOP_PHONE_HREF}`}
+            href={`tel:${phoneHref}`}
             className="mt-3 inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[hsl(142_71%_45%)] px-5 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-2xs hover:bg-[hsl(142_71%_35%)] active:scale-98"
           >
-            <span>Zavolat na {SHOP_PHONE}</span>
+            <span>Zavolat na {phone}</span>
           </a>
         </div>
       </div>

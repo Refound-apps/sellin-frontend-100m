@@ -315,6 +315,102 @@ export type Database = {
         }
         Relationships: []
       }
+      shops: {
+        Row: {
+          id: string
+          user_id: string | null
+          owner_email: string
+          slug: string
+          custom_domain: string | null
+          is_active: boolean
+          linked_credential_emails: string[]
+          shop_name: string
+          tagline: string | null
+          phone: string | null
+          phone_href: string | null
+          email: string | null
+          owner_name: string | null
+          ico: string | null
+          address_line: string | null
+          address_city: string | null
+          region: string | null
+          opening_hours: string | null
+          shipping_price: string | null
+          shipping_price_tires: string | null
+          shipping_price_rims: string | null
+          map_link: string | null
+          google_maps_link: string | null
+          caravan_url: string | null
+          template_id: string
+          primary_color: string | null
+          logo_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          owner_email: string
+          slug: string
+          custom_domain?: string | null
+          is_active?: boolean
+          linked_credential_emails?: string[]
+          shop_name: string
+          tagline?: string | null
+          phone?: string | null
+          phone_href?: string | null
+          email?: string | null
+          owner_name?: string | null
+          ico?: string | null
+          address_line?: string | null
+          address_city?: string | null
+          region?: string | null
+          opening_hours?: string | null
+          shipping_price?: string | null
+          shipping_price_tires?: string | null
+          shipping_price_rims?: string | null
+          map_link?: string | null
+          google_maps_link?: string | null
+          caravan_url?: string | null
+          template_id?: string
+          primary_color?: string | null
+          logo_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          owner_email?: string
+          slug?: string
+          custom_domain?: string | null
+          is_active?: boolean
+          linked_credential_emails?: string[]
+          shop_name?: string
+          tagline?: string | null
+          phone?: string | null
+          phone_href?: string | null
+          email?: string | null
+          owner_name?: string | null
+          ico?: string | null
+          address_line?: string | null
+          address_city?: string | null
+          region?: string | null
+          opening_hours?: string | null
+          shipping_price?: string | null
+          shipping_price_tires?: string | null
+          shipping_price_rims?: string | null
+          map_link?: string | null
+          google_maps_link?: string | null
+          caravan_url?: string | null
+          template_id?: string
+          primary_color?: string | null
+          logo_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

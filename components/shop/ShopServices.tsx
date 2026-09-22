@@ -1,6 +1,9 @@
-import { SHOP_PHONE, SHOP_PHONE_HREF } from './shopConfig';
+'use client';
+
+import { useShop } from './ShopContext';
 
 export default function ShopServices() {
+  const { phoneHref, addressLine } = useShop();
   const services = [
     {
       title: 'Přezutí na počkání',
@@ -33,7 +36,7 @@ export default function ShopServices() {
               Kompletní zázemí
             </p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight text-[hsl(222_47%_11%)] sm:text-3xl">
-              Pneuservis & Služby Plzeň Jih
+              Pneuservis & Služby {addressLine || 'Plzeň Jih'}
             </h2>
             <p className="mt-2 max-w-xl text-xs sm:text-base text-[hsl(215_16%_47%)]">
               Nejsme jen virtuální prodejce. Máme zázemí pneuservisu, kde vám vybrané pneumatiky rádi obujeme a zkontrolujeme.
@@ -41,7 +44,7 @@ export default function ShopServices() {
           </div>
           <div className="shrink-0 w-full sm:w-auto">
             <a
-              href={`tel:${SHOP_PHONE_HREF}`}
+              href={`tel:${phoneHref}`}
               className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[hsl(222_47%_11%)] px-5 py-3 text-sm font-semibold text-white shadow-xs hover:bg-[hsl(222_47%_18%)] active:scale-98 text-center"
             >
               <svg className="h-4 w-4 text-[hsl(142_71%_45%)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -97,7 +97,7 @@ export default function Navigation() {
     { href: '/', label: 'Moje nabídka', exact: true },
     { href: '/create', label: 'Vytvořit inzerát', exact: false },
     { href: '/accounts', label: 'Napojení účtů', exact: false },
-    { href: '/shop', label: 'E-shop', exact: false },
+    { href: '/eshop', label: 'Můj E-shop', exact: false },
   ];
 
   // Navigační položky pro administrátorské rozhraní (pouze čisté admin sekce)

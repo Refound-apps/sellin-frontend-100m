@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { SHOP_PHONE, SHOP_PHONE_HREF, SHOP_EMAIL } from './shopConfig';
+import { useShop } from './ShopContext';
 
 export default function ShopInquiry() {
   const [sizeInput, setSizeInput] = useState('');
   const [contactInput, setContactInput] = useState('');
   const [sent, setSent] = useState(false);
+  const { phone, phoneHref } = useShop();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,10 +56,10 @@ export default function ShopInquiry() {
                     Děkujeme. Ozveme se vám zpět s dostupnými možnostmi. Pokud spěcháte, zavolejte nám.
                   </p>
                   <a
-                    href={`tel:${SHOP_PHONE_HREF}`}
+                    href={`tel:${phoneHref}`}
                     className="mt-4 inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[hsl(142_71%_35%)] hover:underline"
                   >
-                    <span>Zavolat {SHOP_PHONE}</span>
+                    <span>Zavolat {phone}</span>
                   </a>
                 </div>
               ) : (
@@ -102,8 +103,8 @@ export default function ShopInquiry() {
 
                   <p className="text-center text-[11px] text-[hsl(215_16%_55%)]">
                     Nebo rovnou volejte na{' '}
-                    <a href={`tel:${SHOP_PHONE_HREF}`} className="font-semibold text-[hsl(222_47%_11%)] hover:underline">
-                      {SHOP_PHONE}
+                    <a href={`tel:${phoneHref}`} className="font-semibold text-[hsl(222_47%_11%)] hover:underline">
+                      {phone}
                     </a>
                   </p>
                 </form>

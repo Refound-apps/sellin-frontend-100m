@@ -3,17 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  SHOP_NAME,
-  SHOP_PHONE,
-  SHOP_PHONE_HREF,
-  SHOP_NAV_ITEMS,
-} from './shopConfig';
+import { SHOP_NAV_ITEMS } from './shopConfig';
+import { useShop } from './ShopContext';
 import { scrollToShopSection } from './shopScroll';
 
 export default function ShopHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const { shopName, phone, phoneHref, addressLine } = useShop();
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (href.startsWith('/shop#') && pathname === '/shop') {
@@ -37,7 +34,7 @@ export default function ShopHeader() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-1.5 sm:px-6 sm:py-2">
           <div className="flex items-center gap-2 truncate text-[hsl(215_16%_47%)]">
             <span className="inline-block h-2 w-2 rounded-full bg-[hsl(142_71%_45%)] shrink-0" />
-            <span className="font-medium text-[hsl(222_47%_11%)] truncate">Osobní odběr Plzeň Jih</span>
+            <span className="font-medium text-[hsl(222_47%_11%)] truncate">Osobní odběr {addressLine || 'Plzeň Jih'}</span>
           </div>
           <div className="flex items-center gap-1.5 font-medium text-[hsl(215_16%_47%)] shrink-0">
             <svg className="h-3.5 w-3.5 text-[hsl(142_71%_45%)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,10 +68,10 @@ export default function ShopHeader() {
             </div>
             <div>
               <span className="text-base sm:text-lg font-bold tracking-tight text-[hsl(222_47%_11%)] leading-tight block">
-                Duplux <span className="font-semibold text-[hsl(142_71%_45%)]">Pneu</span>
+                {shopName}
               </span>
               <p className="hidden text-[10px] uppercase tracking-wider text-[hsl(215_16%_47%)] sm:block">
-                Pneuservis & Bazar Plzeň
+                Pneuservis & Bazar
               </p>
             </div>
           </Link>
@@ -101,25 +98,25 @@ export default function ShopHeader() {
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Desktop direct call button */}
             <a
-              href={`tel:${SHOP_PHONE_HREF}`}
+              href={`tel:${phoneHref}`}
               className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-[hsl(142_71%_45%)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[hsl(142_71%_35%)] hover:shadow active:scale-95"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
-              <span>{SHOP_PHONE}</span>
+              <span>{phone}</span>
             </a>
 
             {/* Mobile quick call button */}
             <a
-              href={`tel:${SHOP_PHONE_HREF}`}
+              href={`tel:${phoneHref}`}
               className="sm:hidden flex h-9 items-center gap-1.5 rounded-xl bg-[hsl(142_71%_45%)] px-2.5 text-white shadow-xs active:scale-95 text-xs font-bold"
-              aria-label={`Zavolat ${SHOP_PHONE}`}
+              aria-label={`Zavolat ${phone}`}
             >
               <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
-              <span>{SHOP_PHONE}</span>
+              <span>{phone}</span>
             </a>
 
             {/* Mobile menu toggle button */}
@@ -171,13 +168,13 @@ export default function ShopHeader() {
               })}
               <div className="mt-3 border-t border-[hsl(214_32%_91%)] pt-3">
                 <a
-                  href={`tel:${SHOP_PHONE_HREF}`}
+                  href={`tel:${phoneHref}`}
                   className="flex items-center justify-center gap-2 rounded-xl bg-[hsl(142_71%_45%)] py-3 text-center text-sm font-semibold text-white shadow-xs active:scale-98"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
-                  <span>Zavolat {SHOP_PHONE}</span>
+                  <span>Zavolat {phone}</span>
                 </a>
               </div>
             </div>

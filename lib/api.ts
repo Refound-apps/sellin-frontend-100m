@@ -1,4 +1,4 @@
-import { Offer, OfferDetail, ShopInfo, ShopOffer, User, ApiResponse, TransactionsApiResponse } from './types';
+import { Offer, OfferDetail, ShopInfo, ShopOffer, User, ApiResponse, TransactionsApiResponse, ShopConfigData, ShopConfigSummary } from './types';
 
 export const SHOP_SBAZAR_EMAIL = 'duplux@seznam.cz';
 
@@ -197,15 +197,23 @@ export async function getShopOffers(
   limit: number = 24,
   offset: number = 0,
   search?: string,
-  sbazarEmail: string = SHOP_SBAZAR_EMAIL,
+  sbazarEmailOrEmails: string | string[] = SHOP_SBAZAR_EMAIL,
   filters: ShopOfferFilters = {}
 ): Promise<ShopOffersResponse> {
   try {
     const params = new URLSearchParams({
-      sbazar_email: sbazarEmail,
       limit: String(limit),
       offset: String(offset),
     });
+
+    if (Array.isArray(sbazarEmailOrEmails)) {
+      if (sbazarEmailOrEmails.length > 0) {
+        params.set('emails', sbazarEmailOrEmails.join(','));
+      }
+    } else if (sbazarEmailOrEmails) {
+      params.set('sbazar_email', sbazarEmailOrEmails);
+    }
+
     if (search && search.trim()) params.set('search', search.trim());
     if (filters.type) params.set('type', filters.type);
     if (filters.season) params.set('season', filters.season);
@@ -227,6 +235,73 @@ export async function getShopOffers(
     return { offers, total };
   } catch (error) {
     console.error('Error fetching shop offers:', error);
+    throw error;
+  }
+}
+
+export async function resolveShopConfig(domainOrSlug?: string): Promise<ShopConfigData | null> {
+  try {
+    const params = new URLSearchParams();
+    if (domainOrSlug) {
+      if (domainOrSlug.includes('.')) {
+        params.set('domain', domainOrSlug);
+      } else {
+        params.set('slug', domainOrSlug);
+      }
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await apiFetch(`/api/shop/resolve${query}`);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = await response.json();
+    return json.data || null;
+  } catch (error) {
+    console.error('Error resolving shop config:', error);
+    return null;
+  }
+}
+
+export async function getUserShop(shopId?: string): Promise<{
+  shop: ShopConfigData | null;
+  allShops: ShopConfigSummary[];
+  isAdmin: boolean;
+  availableCredentials: User[];
+}> {
+  try {
+    const query = shopId ? `?shop_id=${encodeURIComponent(shopId)}` : '';
+    const response = await apiFetch(`/api/user/shop${query}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch user shop');
+    }
+    const json = await response.json();
+    return json.data || { shop: null, allShops: [], isAdmin: false, availableCredentials: [] };
+  } catch (error) {
+    console.error('Error fetching user shop:', error);
+    throw error;
+  }
+}
+
+export async function saveUserShop(payload: Partial<ShopConfigData>): Promise<ShopConfigData> {
+  try {
+    const response = await apiFetch('/api/user/shop', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to save shop configuration');
+    }
+    const json = await response.json();
+    return json.data;
+  } catch (error) {
+    console.error('Error saving user shop:', error);
     throw error;
   }
 }

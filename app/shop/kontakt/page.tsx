@@ -4,25 +4,28 @@ import { useState } from 'react';
 import Link from 'next/link';
 import ShopHeader from '@/components/shop/ShopHeader';
 import ShopFooter from '@/components/shop/ShopFooter';
-import {
-  SHOP_NAME,
-  SHOP_ADDRESS_LINE,
-  SHOP_ADDRESS_CITY,
-  SHOP_HOURS,
-  SHOP_EMAIL,
-  SHOP_PHONE,
-  SHOP_PHONE_HREF,
-  SHOP_OWNER,
-  SHOP_ICO,
-  SHOP_GOOGLE_MAPS_LINK,
-  SHOP_MAP_LINK,
-} from '@/components/shop/shopConfig';
+import { useShop } from '@/components/shop/ShopContext';
 
 export default function KontaktPage() {
   const [formSent, setFormSent] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
+
+  const {
+    shopName,
+    addressLine,
+    addressCity,
+    region,
+    hours,
+    email: shopEmail,
+    phone: shopPhone,
+    phoneHref: shopPhoneHref,
+    ownerName,
+    ico,
+    googleMapsLink,
+    mapLink,
+  } = useShop();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,10 +73,10 @@ export default function KontaktPage() {
                   <dt className="text-xs text-[hsl(215_16%_47%)]">Telefon (nejrychlejší domluva)</dt>
                   <dd>
                     <a
-                      href={`tel:${SHOP_PHONE_HREF}`}
+                      href={`tel:${shopPhoneHref}`}
                       className="text-xl font-bold text-[hsl(142_71%_35%)] hover:underline"
                     >
-                      +420 {SHOP_PHONE}
+                      +420 {shopPhone}
                     </a>
                   </dd>
                 </div>
@@ -82,10 +85,10 @@ export default function KontaktPage() {
                   <dt className="text-xs text-[hsl(215_16%_47%)]">E-mail</dt>
                   <dd>
                     <a
-                      href={`mailto:${SHOP_EMAIL}`}
+                      href={`mailto:${shopEmail}`}
                       className="font-medium text-[hsl(222_47%_11%)] hover:text-[hsl(142_71%_35%)]"
                     >
-                      {SHOP_EMAIL}
+                      {shopEmail}
                     </a>
                   </dd>
                 </div>
@@ -93,8 +96,8 @@ export default function KontaktPage() {
                 <div>
                   <dt className="text-xs text-[hsl(215_16%_47%)]">Adresa provozovny</dt>
                   <dd className="font-medium text-[hsl(222_47%_11%)]">
-                    {SHOP_ADDRESS_LINE}<br />
-                    {SHOP_ADDRESS_CITY}<br />
+                    {addressLine}<br />
+                    {addressCity}<br />
                     <span className="text-xs text-[hsl(215_16%_47%)]">Plzeň Jih (pár minut autem z Plzně)</span>
                   </dd>
                 </div>
@@ -102,21 +105,21 @@ export default function KontaktPage() {
                 <div>
                   <dt className="text-xs text-[hsl(215_16%_47%)]">Otevírací doba</dt>
                   <dd className="font-medium text-[hsl(222_47%_11%)]">
-                    {SHOP_HOURS}
+                    {hours}
                   </dd>
                 </div>
 
                 <div className="border-t border-[hsl(214_32%_91%)] pt-3">
                   <dt className="text-xs text-[hsl(215_16%_47%)]">Fakturační údaje</dt>
                   <dd className="text-xs text-[hsl(215_16%_47%)] mt-0.5">
-                    {SHOP_OWNER} · IČO: {SHOP_ICO}
+                    {ownerName} · IČO: {ico}
                   </dd>
                 </div>
               </dl>
 
               <div className="mt-6 flex flex-wrap gap-2.5">
                 <a
-                  href={SHOP_GOOGLE_MAPS_LINK}
+                  href={googleMapsLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-xl bg-[hsl(222_47%_11%)] px-4 py-2 text-xs font-semibold text-white hover:bg-[hsl(222_47%_18%)]"
@@ -128,7 +131,7 @@ export default function KontaktPage() {
                   <span>Google Mapy</span>
                 </a>
                 <a
-                  href={SHOP_MAP_LINK}
+                  href={mapLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-xl border border-[hsl(214_32%_91%)] bg-white px-4 py-2 text-xs font-semibold text-[hsl(222_47%_11%)] hover:bg-[hsl(210_40%_96%)]"
@@ -170,10 +173,10 @@ export default function KontaktPage() {
                   Děkujeme! Ozveme se vám zpět co nejdříve.
                 </p>
                 <a
-                  href={`tel:${SHOP_PHONE_HREF}`}
+                  href={`tel:${shopPhoneHref}`}
                   className="mt-4 inline-block text-xs font-semibold text-[hsl(142_71%_35%)] hover:underline"
                 >
-                  Nebo volejte přímo na {SHOP_PHONE}
+                  Nebo volejte přímo na {shopPhone}
                 </a>
               </div>
             ) : (
@@ -234,8 +237,8 @@ export default function KontaktPage() {
 
                 <p className="text-center text-[11px] text-[hsl(215_16%_55%)]">
                   Rychlejší odpověď získáte telefonicky na čísle{' '}
-                  <a href={`tel:${SHOP_PHONE_HREF}`} className="font-semibold text-[hsl(222_47%_11%)] hover:underline">
-                    {SHOP_PHONE}
+                  <a href={`tel:${shopPhoneHref}`} className="font-semibold text-[hsl(222_47%_11%)] hover:underline">
+                    {shopPhone}
                   </a>
                 </p>
               </form>

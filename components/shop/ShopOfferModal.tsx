@@ -5,15 +5,7 @@ import Image from 'next/image';
 import { ShopOffer } from '@/lib/types';
 import { getShopOfferImages } from '@/lib/api';
 import { formatCzk, getOfferPricingInfo, getOfferSpecsList, getOfferTags } from './offerMeta';
-import {
-  SHOP_PHONE,
-  SHOP_PHONE_HREF,
-  SHOP_ADDRESS_LINE,
-  SHOP_ADDRESS_CITY,
-  SHOP_HOURS,
-  SHOP_GOOGLE_MAPS_LINK,
-  SHOP_SHIPPING_PRICE,
-} from './shopConfig';
+import { useShop } from './ShopContext';
 
 interface ShopOfferModalProps {
   offer: ShopOffer;
@@ -51,6 +43,16 @@ function renderTextWithPhoneLinks(text: string) {
 }
 
 export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) {
+  const {
+    phone,
+    phoneHref,
+    addressLine,
+    addressCity,
+    hours,
+    googleMapsLink,
+    shippingPrice,
+  } = useShop();
+
   const [images, setImages] = useState<string[]>(
     offer.preview_image ? [offer.preview_image] : []
   );
@@ -185,7 +187,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600" />
             </span>
             <span className="text-xs font-bold text-slate-800 truncate">
-              Skladem · Osobní odběr {SHOP_ADDRESS_LINE}
+              Skladem · Osobní odběr {addressLine || 'Plzeň Jih'}
             </span>
           </div>
 
@@ -409,13 +411,13 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   </button>
 
                   <a
-                    href={`tel:${SHOP_PHONE_HREF}`}
+                    href={`tel:${phoneHref}`}
                     className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs sm:text-[13px] font-bold text-slate-800 hover:bg-slate-100/80 active:scale-98 transition-all shadow-2xs text-center whitespace-nowrap"
                   >
                     <svg className="h-4 w-4 shrink-0 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
-                    <span className="whitespace-nowrap">Zavolat {SHOP_PHONE.replace(/\s+/g, '\u00A0')}</span>
+                    <span className="whitespace-nowrap">Zavolat {phone.replace(/\s+/g, '\u00A0')}</span>
                   </a>
                 </div>
               </div>
@@ -457,28 +459,30 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                 <div className="flex items-center gap-2 truncate pr-1">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
                   <span className="font-bold text-slate-800 truncate">
-                    {SHOP_ADDRESS_LINE}, {SHOP_ADDRESS_CITY}
+                    {addressLine}{addressCity ? `, ${addressCity}` : ''}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <a
-                    href={`tel:${SHOP_PHONE_HREF}`}
+                    href={`tel:${phoneHref}`}
                     className="font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 active:scale-95 transition-transform"
-                    title={`Zavolat ${SHOP_PHONE}`}
+                    title={`Zavolat ${phone}`}
                   >
                     <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
-                    <span>{SHOP_PHONE}</span>
+                    <span>{phone}</span>
                   </a>
-                  <a
-                    href={SHOP_GOOGLE_MAPS_LINK}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-slate-500 hover:text-emerald-700 hover:underline"
-                  >
-                    Mapa ↗
-                  </a>
+                  {googleMapsLink && (
+                    <a
+                      href={googleMapsLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-500 hover:text-emerald-700 hover:underline"
+                    >
+                      Mapa ↗
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -515,13 +519,13 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
               </button>
 
               <a
-                href={`tel:${SHOP_PHONE_HREF}`}
+                href={`tel:${phoneHref}`}
                 className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 active:scale-95 shadow-2xs whitespace-nowrap"
               >
                 <svg className="h-3.5 w-3.5 shrink-0 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                <span>Zavolat {SHOP_PHONE}</span>
+                <span>Zavolat {phone}</span>
               </a>
             </div>
           </div>
@@ -578,10 +582,10 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                 </p>
                 <div className="mt-5 sm:mt-6 flex flex-col gap-2">
                   <a
-                    href={`tel:${SHOP_PHONE_HREF}`}
+                    href={`tel:${phoneHref}`}
                     className="rounded-xl bg-[hsl(142_71%_45%)] py-3 text-xs sm:text-sm font-bold text-white hover:bg-[hsl(142_71%_35%)] active:scale-98 shadow-xs"
                   >
-                    Nebo zavolat ihned ({SHOP_PHONE})
+                    Nebo zavolat ihned ({phone})
                   </a>
                   <button
                     type="button"
@@ -685,8 +689,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   </button>
                   <p className="mt-2 text-center text-[11px] text-slate-500">
                     Nebo rovnou volejte na{' '}
-                    <a href={`tel:${SHOP_PHONE_HREF}`} className="font-bold text-slate-900 hover:underline">
-                      {SHOP_PHONE}
+                    <a href={`tel:${phoneHref}`} className="font-bold text-slate-900 hover:underline">
+                      {phone}
                     </a>
                   </p>
                 </div>
