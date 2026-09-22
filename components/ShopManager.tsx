@@ -322,7 +322,7 @@ export default function ShopManager() {
             >
               {allShops.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.shop_name} ({s.custom_domain ? s.custom_domain : `${s.slug}.sellin.cz`})
+                  {s.shop_name} ({s.custom_domain ? s.custom_domain : `${s.slug}.prodejomat.cz`})
                   {!s.is_active ? ' [Pozastaven]' : ''}
                 </option>
               ))}
@@ -368,7 +368,7 @@ export default function ShopManager() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
           <span className="font-medium">
-            Konfigurace e-shopu byla úspěšně uložena a propisuje se do storefrontu na doméně {customDomain || `${slug}.sellin.cz`}.
+            Konfigurace e-shopu byla úspěšně uložena a propisuje se do storefrontu na doméně {customDomain || `${slug}.prodejomat.cz`}.
           </span>
         </div>
       )}
@@ -414,7 +414,7 @@ export default function ShopManager() {
           <div>
             <h2 className="text-base font-bold text-slate-900">Vlastní doména & Adresa e-shopu</h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              Propojte e-shop se svou vlastní doménou (např. <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono">alubazarplzen.cz</code>), nebo použijte systémovou subdoménu Sellin.
+              Propojte e-shop se svou vlastní doménou (např. <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono">alubazarplzen.cz</code>), nebo použijte systémovou subdoménu Prodejomat.
             </p>
           </div>
 
@@ -453,7 +453,7 @@ export default function ShopManager() {
                   className="w-full rounded-l-xl border-0 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 <span className="inline-flex items-center rounded-r-xl bg-slate-50 px-3 text-xs text-slate-500 border-l border-slate-200">
-                  .sellin.cz
+                  .prodejomat.cz
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-slate-400">

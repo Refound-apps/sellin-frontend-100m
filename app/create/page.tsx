@@ -315,7 +315,10 @@ export default function CreateOfferPage() {
   const selectedCred = credentials.find(c => c.email === formData.bb_email);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="relative mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Ambient glow in background for subtle depth */}
+      <div className="pointer-events-none absolute -top-32 left-1/2 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-emerald-500/5 blur-3xl" />
+
       {/* Top Header matching Moje nabídka */}
       <div className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -333,7 +336,7 @@ export default function CreateOfferPage() {
 
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 active:scale-95 transition-all shadow-2xs self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/90 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-white hover:text-slate-950 active:scale-95 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] self-start sm:self-auto"
         >
           <span>←</span>
           <span>Zpět na nabídku</span>
@@ -341,7 +344,7 @@ export default function CreateOfferPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-xs sm:text-sm font-semibold text-rose-800 shadow-2xs flex items-center justify-between gap-3">
+        <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50/90 p-4 text-xs sm:text-sm font-semibold text-rose-800 shadow-[0_4px_16px_rgba(244,63,94,0.08)] flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span>⚠️</span>
             <span>{error}</span>
@@ -358,7 +361,8 @@ export default function CreateOfferPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Card 1: Základní informace */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-2xs">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 sm:p-8 shadow-[0_16px_36px_-12px_rgba(15,23,42,0.06),0_2px_10px_rgba(15,23,42,0.03)] ring-1 ring-black/[0.02] backdrop-blur-xs">
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
           <div className="border-b border-slate-100 pb-4 mb-5">
             <h2 className="text-base font-bold text-slate-950">Základní informace</h2>
             <p className="text-xs text-slate-500 mt-0.5">Výstižný název a detailní popis pro zákazníky.</p>
@@ -379,7 +383,7 @@ export default function CreateOfferPage() {
                 id="title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-sm font-medium text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all placeholder:text-slate-400"
+                className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-4 py-3 text-sm font-medium text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)] placeholder:text-slate-400"
                 placeholder="Např. Sada letních pneu Michelin 225/45 R17 nebo Alu disky Škoda 16&quot;"
                 required
               />
@@ -399,7 +403,7 @@ export default function CreateOfferPage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={6}
-                className="w-full resize-y rounded-xl border border-slate-200/90 bg-white p-4 text-xs sm:text-sm leading-relaxed text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all placeholder:text-slate-400"
+                className="w-full resize-y rounded-xl border border-slate-200/90 bg-white/90 p-4 text-xs sm:text-sm leading-relaxed text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)] placeholder:text-slate-400"
                 placeholder="Podrobný popis zboží, rozměry, stav vzorku, možnost osobního předání v Plzni či zaslání poštou..."
                 required
               />
@@ -408,7 +412,8 @@ export default function CreateOfferPage() {
         </div>
 
         {/* Card 2: Cena a přiřazený prodejní účet */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-2xs">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 sm:p-8 shadow-[0_16px_36px_-12px_rgba(15,23,42,0.06),0_2px_10px_rgba(15,23,42,0.03)] ring-1 ring-black/[0.02] backdrop-blur-xs">
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
           <div className="border-b border-slate-100 pb-4 mb-5">
             <h2 className="text-base font-bold text-slate-950">Cena a prodejní účet</h2>
             <p className="text-xs text-slate-500 mt-0.5">Finanční částka a účet prodejce, ke kterému bude položka vázána.</p>
@@ -425,7 +430,7 @@ export default function CreateOfferPage() {
                   id="price"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200/90 bg-white py-3 pl-4 pr-12 text-sm font-bold text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all placeholder:text-slate-400"
+                  className="w-full rounded-xl border border-slate-200/90 bg-white/90 py-3 pl-4 pr-12 text-sm font-bold text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)] placeholder:text-slate-400"
                   placeholder="5000"
                   min="0"
                   step="1"
@@ -454,7 +459,7 @@ export default function CreateOfferPage() {
                   id="bb_email"
                   value={formData.bb_email}
                   onChange={(e) => setFormData({ ...formData, bb_email: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all"
+                  className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
                   required
                 >
                   {credentials.map((cred) => (
@@ -466,7 +471,7 @@ export default function CreateOfferPage() {
               )}
 
               {selectedCred && (
-                <div className="mt-2.5 flex items-center gap-3 text-xs text-slate-600 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200/70">
+                <div className="mt-2.5 flex items-center gap-3 text-xs text-slate-600 bg-slate-50/80 rounded-xl px-3 py-2 border border-slate-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                   {selectedCred.telephone1 && (
                     <span className="inline-flex items-center gap-1 font-bold text-slate-900">
                       <svg className="h-3 w-3 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,7 +493,8 @@ export default function CreateOfferPage() {
         </div>
 
         {/* Card 3: Kategorie a Prodejní kanály */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-2xs">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 sm:p-8 shadow-[0_16px_36px_-12px_rgba(15,23,42,0.06),0_2px_10px_rgba(15,23,42,0.03)] ring-1 ring-black/[0.02] backdrop-blur-xs">
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
           <div className="border-b border-slate-100 pb-4 mb-5">
             <h2 className="text-base font-bold text-slate-950">Kategorie a cílové kanály</h2>
             <p className="text-xs text-slate-500 mt-0.5">Kam všude bude inzerát automaticky propisován a synchronizován.</p>
@@ -503,7 +509,7 @@ export default function CreateOfferPage() {
                 id="category"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: parseInt(e.target.value, 10) })}
-                className="w-full rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all"
+                className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
                 required
               >
                 {CATEGORIES.map((cat, index) => (
@@ -526,10 +532,10 @@ export default function CreateOfferPage() {
                       key={marketplace.id}
                       type="button"
                       onClick={() => handleMarketplaceToggle(marketplace.id)}
-                      className={`flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all ${
+                      className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all active:scale-[0.99] ${
                         isChecked
-                          ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
-                          : 'border-slate-200/90 bg-white text-slate-900 hover:border-slate-300 shadow-2xs'
+                          ? 'border-slate-950 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white shadow-[0_8px_20px_-4px_rgba(15,23,42,0.25),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950'
+                          : 'border-slate-200/90 bg-white/90 text-slate-900 hover:border-slate-300 hover:bg-slate-50/70 shadow-[0_1px_3px_rgba(0,0,0,0.03)]'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -543,9 +549,9 @@ export default function CreateOfferPage() {
                           </p>
                         </div>
                       </div>
-                      <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold border ${
+                      <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold border transition-colors ${
                         isChecked
-                          ? 'bg-emerald-500 text-white border-emerald-400'
+                          ? 'bg-emerald-500 text-white border-emerald-400 shadow-xs'
                           : 'border-slate-300 text-transparent'
                       }`}>
                         ✓
@@ -556,11 +562,11 @@ export default function CreateOfferPage() {
               </div>
 
               {/* Informative strip about E-shop channel */}
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-3 text-xs text-emerald-900">
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-3.5 text-xs text-emerald-950 shadow-[0_1px_2px_rgba(16,185,129,0.04)]">
                 <div className="flex items-center gap-2">
                   <span className="text-base">🛍️</span>
                   <span>
-                    <strong>E-shop Duplux / Sellin:</strong> Každý inzerát je automaticky zařazen i do centrálního katalogu prodeje pro zákazníky.
+                    <strong>Vlastní E-shop / Prodejomat:</strong> Každý inzerát je automaticky zařazen i do vašeho e-shopu a katalogu prodeje.
                   </span>
                 </div>
                 <span className="shrink-0 rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
@@ -572,14 +578,15 @@ export default function CreateOfferPage() {
         </div>
 
         {/* Card 4: Média a Automatická obnova */}
-        <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-2xs">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 sm:p-8 shadow-[0_16px_36px_-12px_rgba(15,23,42,0.06),0_2px_10px_rgba(15,23,42,0.03)] ring-1 ring-black/[0.02] backdrop-blur-xs">
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
           <div className="border-b border-slate-100 pb-4 mb-5">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-950">Média a plánování obnovy</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Fotografie produktu (Cloudflare R2) a automatické TOPování.</p>
               </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              <span className="rounded-full bg-slate-100 border border-slate-200/70 px-3 py-1 text-xs font-semibold text-slate-700 shadow-xs">
                 {imageList.length} / 9 fotek
               </span>
             </div>
@@ -603,12 +610,12 @@ export default function CreateOfferPage() {
                   onChange={handleFilesSelected}
                   className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                 />
-                <div className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 transition-all ${
+                <div className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-7 transition-all group ${
                   uploadingImages
-                    ? 'border-blue-400 bg-blue-50/50'
+                    ? 'border-blue-400 bg-blue-50/50 shadow-inner'
                     : imageList.length >= 9
                     ? 'border-slate-200 bg-slate-50 opacity-60'
-                    : 'border-slate-300 hover:border-slate-500 bg-slate-50/50 hover:bg-slate-50'
+                    : 'border-slate-200/90 hover:border-slate-400 bg-slate-50/60 hover:bg-slate-50/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]'
                 }`}>
                   {uploadingImages ? (
                     <div className="flex flex-col items-center gap-2 text-blue-600">
@@ -617,10 +624,10 @@ export default function CreateOfferPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-2xs text-lg mb-2">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl shadow-[0_4px_12px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.04] mb-2 group-hover:scale-105 transition-transform">
                         ☁️
                       </div>
-                      <p className="text-xs font-bold text-slate-800">
+                      <p className="text-xs font-bold text-slate-900">
                         {imageList.length >= 9
                           ? 'Dosažen maximální limit 9 fotografií'
                           : 'Klikněte nebo přetáhněte fotografie'}
@@ -640,8 +647,8 @@ export default function CreateOfferPage() {
                     {imageList.map((url, idx) => (
                       <div
                         key={idx}
-                        className={`group relative aspect-4/3 rounded-xl overflow-hidden border bg-slate-100 shadow-2xs transition-all ${
-                          idx === 0 ? 'ring-2 ring-slate-900 border-transparent' : 'border-slate-200'
+                        className={`group relative aspect-4/3 rounded-xl overflow-hidden border bg-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-all ${
+                          idx === 0 ? 'ring-2 ring-slate-900 border-transparent shadow-[0_4px_14px_rgba(15,23,42,0.18)]' : 'border-slate-200/80'
                         }`}
                       >
                         <Image
@@ -715,13 +722,13 @@ export default function CreateOfferPage() {
                       }
                     }}
                     placeholder="Nebo zadejte přímou URL adresu obrázku..."
-                    className="flex-1 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs font-medium text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all placeholder:text-slate-400"
+                    className="flex-1 rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2.5 text-xs font-medium text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 placeholder:text-slate-400"
                   />
                   <button
                     type="button"
                     onClick={handleAddImageUrl}
                     disabled={!customImageUrl.trim() || imageList.length >= 9}
-                    className="rounded-xl bg-slate-100 hover:bg-slate-200 px-3.5 py-2 text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
+                    className="rounded-xl border border-slate-200/90 bg-white/90 hover:bg-white hover:border-slate-300 px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all disabled:opacity-40"
                   >
                     + Přidat URL
                   </button>
@@ -737,7 +744,7 @@ export default function CreateOfferPage() {
                 id="autorenew_freq"
                 value={formData.autorenew_freq}
                 onChange={(e) => setFormData({ ...formData, autorenew_freq: e.target.value })}
-                className="w-full rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all"
+                className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
               >
                 {AUTORENEW_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -757,14 +764,14 @@ export default function CreateOfferPage() {
           <button
             type="button"
             onClick={() => router.push('/')}
-            className="w-full sm:w-auto rounded-xl border border-slate-200/90 bg-white px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 active:scale-95 transition-all shadow-2xs"
+            className="w-full sm:w-auto rounded-xl border border-slate-200/90 bg-white/90 px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-white hover:text-slate-950 active:scale-[0.99] transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
           >
             Zrušit
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="w-full sm:w-auto rounded-xl bg-slate-950 px-8 py-3 text-sm font-bold text-white shadow-xs hover:bg-slate-800 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto rounded-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-8 py-3.5 text-sm font-bold text-white shadow-[0_4px_16px_rgba(15,23,42,0.22),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950/80 hover:from-slate-800 hover:to-slate-900 hover:shadow-[0_6px_22px_rgba(15,23,42,0.28)] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Publikuji inzerát…' : 'Vytvořit inzerát'}
           </button>

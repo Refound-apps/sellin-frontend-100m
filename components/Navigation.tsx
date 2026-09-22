@@ -112,14 +112,20 @@ export default function Navigation() {
     return (
       <header className="sticky top-0 z-40 border-b border-[hsl(214_24%_88%)] bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[hsl(222_47%_11%)] text-sm font-bold text-white shadow-xs">
-              S
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-xs group-hover:scale-105 transition-transform">
+              P
             </div>
-            <span className="text-lg font-bold tracking-tight text-[hsl(222_47%_11%)]">
-              Sellin
-            </span>
+            <div className="flex items-baseline">
+              <span className="text-lg font-black tracking-tight text-slate-950">
+                Prodej<span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">omat</span>
+              </span>
+              <span className="text-[11px] font-bold text-slate-400 ml-0.5">.cz</span>
+            </div>
           </Link>
+          <span className="text-xs font-semibold text-slate-400">
+            Centrála & Sklad
+          </span>
         </div>
       </header>
     );
@@ -153,13 +159,19 @@ export default function Navigation() {
           <div className="flex items-center gap-6 lg:gap-8">
             <Link
               href={isAdminSection ? '/admin/offers' : '/'}
-              className="flex items-center gap-2 shrink-0"
+              className="flex items-center gap-2.5 shrink-0 group"
             >
-              <span className="text-lg font-bold tracking-tight text-[hsl(222_47%_11%)]">
-                Sellin
-              </span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-xs group-hover:scale-105 transition-transform">
+                P
+              </div>
+              <div className="flex items-baseline">
+                <span className="text-lg font-black tracking-tight text-slate-950">
+                  Prodej<span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">omat</span>
+                </span>
+                <span className="text-[11px] font-bold text-slate-400 ml-0.5">.cz</span>
+              </div>
               {isAdminSection && (
-                <span className="rounded bg-[hsl(222_47%_11%)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                <span className="rounded bg-[hsl(222_47%_11%)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white ml-1">
                   Admin
                 </span>
               )}

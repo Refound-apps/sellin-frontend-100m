@@ -41,19 +41,22 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
     <button
       type="button"
       onClick={onClick}
-      className="group flex h-full flex-col rounded-3xl bg-white p-3 text-left border border-slate-200/90 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_16px_36px_-6px_rgba(15,23,42,0.13),0_2px_8px_rgba(15,23,42,0.06)] hover:border-slate-300 hover:-translate-y-1 active:scale-[0.99] transition-all duration-300 touch-manipulation cursor-pointer"
+      className="group relative flex h-full flex-col rounded-3xl bg-white/95 p-3 text-left border border-slate-200/80 shadow-[0_10px_28px_-6px_rgba(15,23,42,0.06),0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_22px_45px_-8px_rgba(15,23,42,0.13),0_4px_16px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:-translate-y-1 active:scale-[0.99] transition-all duration-300 touch-manipulation cursor-pointer ring-1 ring-black/[0.02] backdrop-blur-xs overflow-hidden"
     >
+      {/* Subtilní horní světelná linka */}
+      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent group-hover:via-emerald-500/40 transition-colors" />
+
       {/* Image Container with grounding border and zoom */}
-      <div className="relative h-48 sm:h-52 w-full overflow-hidden rounded-2xl bg-slate-100/80 border border-slate-200/70">
+      <div className="relative h-48 sm:h-52 w-full overflow-hidden rounded-2xl bg-slate-100/90 border border-slate-200/80 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]">
         {/* Top-left status badge */}
-        <div className="absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold shadow-xs border backdrop-blur-xs bg-white/95 border-slate-200/80 text-slate-800">
+        <div className="absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold shadow-[0_2px_6px_rgba(0,0,0,0.06)] border backdrop-blur-md bg-white/95 border-slate-200/90 text-slate-800">
           <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
           <span>{statusInfo.label}</span>
         </div>
 
         {/* Top-right product type badge */}
         {typeBadge && (
-          <div className="absolute right-2.5 top-2.5 z-10 inline-flex items-center rounded-full bg-slate-900/80 px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-xs backdrop-blur-xs">
+          <div className="absolute right-2.5 top-2.5 z-10 inline-flex items-center rounded-full bg-slate-950/85 border border-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(0,0,0,0.2)] backdrop-blur-md">
             <span>{typeBadge}</span>
           </div>
         )}
@@ -90,7 +93,7 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
             {displaySpecs.map((spec, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-800"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-50/80 px-2 py-0.5 text-[11px] font-semibold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
               >
                 <span className="text-slate-400 font-normal">{spec.label}:</span>
                 <span>{spec.value}</span>
@@ -107,7 +110,7 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
             </p>
           </div>
 
-          <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs group-hover:bg-slate-900 group-hover:text-white group-hover:border-transparent transition-all duration-200">
+          <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] group-hover:bg-gradient-to-b group-hover:from-slate-900 group-hover:to-slate-950 group-hover:text-white group-hover:border-transparent group-hover:shadow-[0_4px_12px_rgba(15,23,42,0.18)] transition-all duration-200">
             <span>Detail</span>
             <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
           </span>

@@ -869,7 +869,7 @@ export default function TransactionsView() {
                                     type="button"
                                     onClick={() => handleOpenOffer(tx)}
                                     className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-700 hover:bg-slate-200 transition-colors"
-                                    title="Otevřít detail nabídky v Sellin"
+                                    title="Otevřít detail nabídky v Prodejomat"
                                   >
                                     Nabídka #{tx.offer_id}
                                   </button>

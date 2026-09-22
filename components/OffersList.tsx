@@ -333,7 +333,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
 
           <Link
             href="/create"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-slate-800 active:scale-95 transition-all"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-[0_4px_14px_rgba(15,23,42,0.18),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950/80 hover:from-slate-800 hover:to-slate-900 active:scale-[0.98] transition-all"
           >
             <span>+</span>
             <span>Nový inzerát</span>
@@ -341,11 +341,11 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         </div>
       </div>
 
-      {/* Search Input Bar */}
+      {/* Search Input Bar with layered depth */}
       <form onSubmit={(e) => e.preventDefault()} className="mb-6">
-        <div className="relative">
+        <div className="group relative rounded-2xl bg-white/95 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.07),0_2px_8px_rgba(15,23,42,0.03)] ring-1 ring-slate-200/80 transition-all focus-within:shadow-[0_16px_36px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.05)] focus-within:ring-slate-900/20 backdrop-blur-xs">
           <svg
-            className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+            className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-950 transition-colors"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -362,16 +362,16 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Hledat podle rozměru, značky, telefonu, popisu nebo e-mailu..."
-            className="w-full rounded-2xl border border-slate-200/90 bg-white py-3.5 pl-12 pr-12 text-sm font-medium text-slate-950 shadow-2xs outline-none ring-0 placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all"
+            className="w-full rounded-2xl border-0 bg-transparent py-3.5 pl-12 pr-12 text-sm font-medium text-slate-950 outline-none placeholder:text-slate-400"
           />
           {searchInput && (
             <button
               type="button"
               onClick={handleClearSearch}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              className="absolute right-4 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
               aria-label="Vymazat hledání"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -400,7 +400,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
       </div>
 
       {error && page === 0 ? (
-        <div className="rounded-3xl bg-white p-8 text-center border border-rose-200 shadow-2xs">
+        <div className="rounded-3xl bg-white/95 p-8 text-center border border-rose-200 shadow-[0_16px_36px_-12px_rgba(244,63,94,0.12),0_4px_16px_rgba(0,0,0,0.02)] ring-1 ring-black/[0.02]">
           <p className="font-semibold text-rose-700 text-sm">{error}</p>
           <button
             onClick={() => loadOffers()}
@@ -414,7 +414,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           {Array.from({ length: 8 }).map((_, index) => (
             <div
               key={index}
-              className="h-[22.5rem] animate-pulse rounded-3xl bg-white border border-slate-200/90 p-3 flex flex-col justify-between"
+              className="h-[22.5rem] animate-pulse rounded-3xl bg-white/90 border border-slate-200/80 p-3 flex flex-col justify-between shadow-[0_8px_24px_-4px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.02]"
             >
               <div className="h-48 sm:h-52 rounded-2xl bg-slate-100" />
               <div className="space-y-2 px-1 py-2.5">
@@ -432,8 +432,8 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           ))}
         </div>
       ) : offers.length === 0 ? (
-        <div className="rounded-3xl bg-white p-12 text-center border border-slate-200/90 shadow-2xs">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+        <div className="rounded-3xl bg-white/95 p-12 text-center border border-slate-200/80 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.06),0_2px_10px_rgba(15,23,42,0.02)] ring-1 ring-black/[0.02]">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -487,7 +487,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           ) : (
             <button
               onClick={() => setPage((prev) => prev + 1)}
-              className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-xs sm:text-sm font-bold text-slate-800 shadow-2xs hover:bg-slate-50 active:scale-95 transition-all"
+              className="rounded-2xl border border-slate-200/90 bg-white/95 px-8 py-3.5 text-xs sm:text-sm font-bold text-slate-900 shadow-[0_8px_20px_-4px_rgba(15,23,42,0.06),0_2px_6px_rgba(15,23,42,0.03)] hover:bg-white hover:border-slate-300 hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1)] active:scale-[0.98] transition-all disabled:opacity-50 ring-1 ring-black/[0.02]"
             >
               Načíst další nabídky
             </button>

@@ -219,7 +219,7 @@ const ALL_CHANNELS: ChannelItem[] = [
     status: 'ready',
     statusLabel: 'Připraveno k napojení',
     tagline: 'Obousměrné propojení skladu',
-    shortDesc: 'Sellin centrálně řídí zásoby a automaticky synchronizuje počty kusů i ceny do vašeho Shoptetu.',
+    shortDesc: 'Prodejomat centrálně řídí zásoby a automaticky synchronizuje počty kusů i ceny do vašeho Shoptetu.',
     tags: ['Obousměrný sklad', 'API doplněk', 'Import objednávek'],
     config: {
       shopUrl: 'https://vas-obchod.myshoptet.cz',
@@ -615,7 +615,7 @@ export default function AccountsView() {
               Jeden sklad pro všechny prodejní kanály bez duplicit
             </h3>
             <p className="mt-1 text-xs text-slate-300 leading-relaxed">
-              Položku zadáte jednou. Sellin ji propíše na vybrané kanály a jakmile se prodá, okamžitě ji odepíše ze skladu a stáhne z ostatních portálů.
+              Položku zadáte jednou. Prodejomat ji propíše na vybrané kanály a jakmile se prodá, okamžitě ji odepíše ze skladu a stáhne z ostatních portálů.
             </p>
           </div>
 
@@ -1115,7 +1115,7 @@ function ChannelModal({
               <div className="pt-2 border-t border-emerald-200/80 text-emerald-900 space-y-1">
                 <div className="flex justify-between font-mono text-[11px]">
                   <span>Adresa:</span>
-                  <span className="font-bold">https://sellin.cz/shop</span>
+                  <span className="font-bold">https://prodejomat.cz/shop</span>
                 </div>
                 <div className="flex justify-between font-mono text-[11px]">
                   <span>Provize platformě:</span>

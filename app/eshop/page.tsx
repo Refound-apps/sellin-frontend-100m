@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import ShopManager from '@/components/ShopManager';
 
 export const metadata: Metadata = {
-  title: 'Správa e-shopu | Sellin.cz',
+  title: 'Správa e-shopu | Prodejomat.cz',
   description: 'Správa a konfigurace vašeho klientského e-shopu, propojení vlastní domény a výběr napojených účtů.',
 };
 

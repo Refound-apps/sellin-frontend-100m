@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sellin.cz - Správa nabídek",
-  description: "Moderní rozhraní pro správu vašich nabídek na bazarech",
+  title: "Prodejomat.cz - Automat na inzerci a prodej",
+  description: "Centrální sklad a automatická inzerce nabídek na Bazoš, Sbazar i vlastní e-shopy pro prodejce",
 };
 
 const MAIN_DOMAINS = new Set([

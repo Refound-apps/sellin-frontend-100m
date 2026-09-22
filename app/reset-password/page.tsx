@@ -53,28 +53,41 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-6 rounded-3xl border border-[hsl(214_24%_88%)] bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-10">
-        <div>
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(222_47%_11%)] text-2xl font-bold text-white shadow-md">
-            S
+    <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12 sm:px-6 lg:px-8 overflow-hidden">
+      {/* Decentní ambientní podsvícení pro hloubku pozadí */}
+      <div className="pointer-events-none absolute -top-44 left-1/2 -z-10 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-emerald-500/8 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 left-1/2 -z-10 h-[26rem] w-[26rem] -translate-x-1/2 rounded-full bg-slate-400/10 blur-3xl" />
+
+      <div className="relative w-full max-w-md space-y-6 rounded-3xl border border-slate-200/80 bg-white/95 p-8 shadow-[0_24px_50px_-12px_rgba(15,23,42,0.12),0_4px_16px_rgba(15,23,42,0.04)] backdrop-blur-md sm:p-10 ring-1 ring-black/[0.03]">
+        {/* Subtilní horní světelná linka (sheen) */}
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent" />
+
+        <div className="text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 text-white shadow-[0_10px_25px_-5px_rgba(15,23,42,0.35),0_4px_10px_-2px_rgba(15,23,42,0.2),inset_0_1px_1px_rgba(255,255,255,0.25)] ring-1 ring-white/15 transition-transform hover:scale-105">
+            <span className="text-2xl font-black tracking-tight text-white drop-shadow-xs">P</span>
           </div>
-          <h2 className="mt-5 text-center text-2xl font-bold tracking-tight text-[hsl(222_47%_11%)]">
+          <div className="mt-3.5 flex items-baseline justify-center">
+            <span className="text-2xl font-black tracking-tight text-slate-950">
+              Prodej<span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">omat</span>
+            </span>
+            <span className="text-xs font-bold text-slate-400 ml-0.5">.cz</span>
+          </div>
+          <h2 className="mt-2.5 text-base font-bold tracking-tight text-slate-900">
             Nastavení nového hesla
           </h2>
-          <p className="mt-1.5 text-center text-xs text-[hsl(222_20%_48%)]">
-            Zadejte své nové heslo pro přihlášení do Sellin.cz
+          <p className="mt-0.5 text-xs text-slate-500">
+            Zadejte své nové heslo pro přihlášení do Prodejomat.cz
           </p>
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800 leading-relaxed">
+          <div className="rounded-2xl border border-rose-200 bg-rose-50/90 p-4 text-xs font-medium text-rose-800 leading-relaxed shadow-xs">
             {error}
           </div>
         )}
 
         {success ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center text-xs font-medium text-emerald-800 leading-relaxed">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-center text-xs font-medium text-emerald-800 leading-relaxed shadow-xs">
             <p className="font-bold text-sm mb-1">Heslo bylo úspěšně změněno!</p>
             <p>Přesměrováváme vás do aplikace...</p>
           </div>
@@ -83,7 +96,7 @@ function ResetPasswordForm() {
             <div>
               <label
                 htmlFor="new-password"
-                className="block text-xs font-semibold uppercase tracking-wider text-[hsl(222_20%_40%)]"
+                className="block text-[11px] font-bold uppercase tracking-wider text-slate-600"
               >
                 Nové heslo
               </label>
@@ -96,14 +109,14 @@ function ResetPasswordForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimálně 6 znaků"
-                className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[hsl(222_47%_11%)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[hsl(222_47%_11%)]/20"
+                className="mt-1.5 block w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
               />
             </div>
 
             <div>
               <label
                 htmlFor="confirm-password"
-                className="block text-xs font-semibold uppercase tracking-wider text-[hsl(222_20%_40%)]"
+                className="block text-[11px] font-bold uppercase tracking-wider text-slate-600"
               >
                 Potvrzení nového hesla
               </label>
@@ -116,14 +129,14 @@ function ResetPasswordForm() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Zopakujte nové heslo"
-                className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[hsl(222_47%_11%)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[hsl(222_47%_11%)]/20"
+                className="mt-1.5 block w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.03),inset_0_1px_1px_rgba(0,0,0,0.02)] transition-all focus:border-slate-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full justify-center rounded-xl bg-[hsl(222_47%_11%)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[hsl(222_47%_18%)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(222_47%_11%)] disabled:opacity-50"
+              className="flex w-full justify-center rounded-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(15,23,42,0.22),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950/80 transition-all hover:from-slate-800 hover:to-slate-900 hover:shadow-[0_6px_20px_rgba(15,23,42,0.28)] active:scale-[0.99] active:shadow-[0_2px_8px_rgba(15,23,42,0.2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-50 disabled:hover:scale-100"
             >
               {loading ? 'Ukládám...' : 'Uložit nové heslo'}
             </button>

@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | Administrace Sellin.cz',
-    default: 'Administrace | Sellin.cz',
+    template: '%s | Administrace Prodejomat.cz',
+    default: 'Administrace | Prodejomat.cz',
   },
-  description: 'Centrální administrátorské rozhraní systému Sellin.cz',
+  description: 'Centrální administrátorské rozhraní systému Prodejomat.cz',
 };
 
 export default function AdminLayout({
