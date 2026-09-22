@@ -144,3 +144,61 @@ export interface ShopConfigData {
   created_at?: string;
   updated_at?: string;
 }
+
+export type CronActionType =
+  | 'renew_sbazar'
+  | 'renew_bazos'
+  | 'renew_bazos_sk'
+  | 'recreate_bazos'
+  | 'recreate_sbazar'
+  | 'api_request';
+
+export type CronTriggerType = 'cron' | 'manual';
+
+export interface CronJobSettings {
+  with_delay?: boolean;
+  autotop?: boolean;
+  endpoint?: string;
+  method?: 'GET' | 'POST';
+  custom_body?: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface CronJob {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  trigger_type: CronTriggerType;
+  schedule_cron: string;
+  schedule_preset: string | null;
+  schedule_human: string | null;
+  action_type: CronActionType;
+  target_emails: string[];
+  max_items: number;
+  settings: CronJobSettings;
+  last_run_at: string | null;
+  last_run_status: 'idle' | 'running' | 'success' | 'error' | null;
+  last_run_message: string | null;
+  last_run_duration_ms: number | null;
+  next_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronJobLog {
+  id: string;
+  job_id: string;
+  job_name: string;
+  action_type: CronActionType;
+  triggered_by: 'cron' | 'manual_admin' | 'webhook';
+  status: 'running' | 'success' | 'error';
+  started_at: string;
+  finished_at: string | null;
+  duration_ms: number | null;
+  processed_count: number;
+  message: string | null;
+  details: Record<string, any>;
+  created_at: string;
+}
+

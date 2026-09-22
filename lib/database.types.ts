@@ -411,6 +411,120 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_jobs: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          is_active: boolean
+          trigger_type: string
+          schedule_cron: string
+          schedule_preset: string | null
+          schedule_human: string | null
+          action_type: string
+          target_emails: string[]
+          max_items: number
+          settings: Json
+          last_run_at: string | null
+          last_run_status: string | null
+          last_run_message: string | null
+          last_run_duration_ms: number | null
+          next_run_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          is_active?: boolean
+          trigger_type?: string
+          schedule_cron?: string
+          schedule_preset?: string | null
+          schedule_human?: string | null
+          action_type: string
+          target_emails?: string[]
+          max_items?: number
+          settings?: Json
+          last_run_at?: string | null
+          last_run_status?: string | null
+          last_run_message?: string | null
+          last_run_duration_ms?: number | null
+          next_run_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          is_active?: boolean
+          trigger_type?: string
+          schedule_cron?: string
+          schedule_preset?: string | null
+          schedule_human?: string | null
+          action_type?: string
+          target_emails?: string[]
+          max_items?: number
+          settings?: Json
+          last_run_at?: string | null
+          last_run_status?: string | null
+          last_run_message?: string | null
+          last_run_duration_ms?: number | null
+          next_run_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cron_job_logs: {
+        Row: {
+          id: string
+          job_id: string
+          job_name: string
+          action_type: string
+          triggered_by: string
+          status: string
+          started_at: string
+          finished_at: string | null
+          duration_ms: number | null
+          processed_count: number
+          message: string | null
+          details: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          job_id: string
+          job_name: string
+          action_type: string
+          triggered_by?: string
+          status: string
+          started_at?: string
+          finished_at?: string | null
+          duration_ms?: number | null
+          processed_count?: number
+          message?: string | null
+          details?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          job_id?: string
+          job_name?: string
+          action_type?: string
+          triggered_by?: string
+          status?: string
+          started_at?: string
+          finished_at?: string | null
+          duration_ms?: number | null
+          processed_count?: number
+          message?: string | null
+          details?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -15,24 +15,34 @@ export default function Navigation() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    async function fetchUserRole(authUser: { id: string; email?: string | null }) {
+      try {
+        const cleanEmail = (authUser.email || '').toLowerCase().trim();
+        const { data: credential } = await supabase
+          .from('credential_pg')
+          .select('role')
+          .or(`user_id.eq.${authUser.id},email.ilike.${cleanEmail}`)
+          .limit(1)
+          .maybeSingle();
+
+        const resolvedRole = (credential?.role as 'admin' | 'seller') ?? 'seller';
+        setRole(resolvedRole);
+      } catch (err) {
+        console.error('Error fetching user role:', err);
+        setRole('seller');
+      }
+    }
+
     async function getUserAndRole() {
       try {
+        setLoading(true);
         const {
           data: { user: authUser },
         } = await supabase.auth.getUser();
 
         if (authUser) {
           setUser({ email: authUser.email, id: authUser.id });
-
-          // Fetch user role from credential_pg
-          const { data: credential } = await supabase
-            .from('credential_pg')
-            .select('role')
-            .or(`user_id.eq.${authUser.id},email.ilike.${authUser.email}`)
-            .limit(1)
-            .maybeSingle();
-
-          setRole((credential?.role as 'admin' | 'seller') ?? 'seller');
+          await fetchUserRole(authUser);
         } else {
           setUser(null);
           setRole(null);
@@ -48,9 +58,10 @@ export default function Navigation() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setUser({ email: session.user.email, id: session.user.id });
+        await fetchUserRole(session.user);
       } else {
         setUser(null);
         setRole(null);
@@ -76,14 +87,13 @@ export default function Navigation() {
     return (
       <header className="sticky top-0 z-40 border-b border-[hsl(214_24%_88%)] bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="text-lg font-bold tracking-tight text-[hsl(222_47%_11%)]">
-            Sellin
-          </Link>
-          <Link
-            href="/shop"
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900"
-          >
-            Přejít do E-shopu →
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[hsl(222_47%_11%)] text-sm font-bold text-white shadow-xs">
+              S
+            </div>
+            <span className="text-lg font-bold tracking-tight text-[hsl(222_47%_11%)]">
+              Sellin
+            </span>
           </Link>
         </div>
       </header>
@@ -92,18 +102,19 @@ export default function Navigation() {
 
   const isAdminSection = pathname.startsWith('/admin');
 
-  // Navigační položky pro běžné prodejce (včetně Napojení účtů a E-shopu)
+  // Navigační položky pro běžné prodejce (včetně Napojení účtů a Správy e-shopu)
   const sellerNavItems = [
     { href: '/', label: 'Moje nabídka', exact: true },
     { href: '/create', label: 'Vytvořit inzerát', exact: false },
     { href: '/accounts', label: 'Napojení účtů', exact: false },
-    { href: '/eshop', label: 'Můj E-shop', exact: false },
+    { href: '/eshop', label: 'Správa e-shopu', exact: false },
   ];
 
   // Navigační položky pro administrátorské rozhraní (pouze čisté admin sekce)
   const adminNavItems = [
     { href: '/admin/offers', label: 'Nabídka', exact: false },
     { href: '/admin/transactions', label: 'Transakce', exact: false },
+    { href: '/admin/automations', label: 'Automatizace & Cron', exact: false },
     { href: '/admin/users', label: 'Uživatelé', exact: false },
   ];
 
@@ -191,7 +202,13 @@ export default function Navigation() {
               <div className="flex items-center gap-3">
                 <div className="hidden flex-col items-end sm:flex">
                   <span className="text-xs font-medium text-slate-800">{user.email}</span>
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase text-slate-600">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${
+                      role === 'admin'
+                        ? 'bg-indigo-100 text-indigo-800'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
                     {role === 'admin' ? 'Administrátor' : 'Prodejce'}
                   </span>
                 </div>
@@ -215,7 +232,15 @@ export default function Navigation() {
         </div>
 
         {/* Mobilní menu */}
-        <div className="flex gap-1 overflow-x-auto pb-3 pt-1 md:hidden">
+        <div className="flex items-center gap-1 overflow-x-auto pb-3 pt-1 md:hidden">
+          {role === 'admin' && (
+            <Link
+              href={isAdminSection ? '/' : '/admin/offers'}
+              className="shrink-0 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-900 shadow-2xs mr-1"
+            >
+              {isAdminSection ? '↔ Přepnout na Prodejce' : '↔ Přepnout na Admin'}
+            </Link>
+          )}
           {currentNavItems.map((item) => {
             const isActive = item.exact
               ? pathname === item.href

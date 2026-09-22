@@ -1,4 +1,16 @@
-import { Offer, OfferDetail, ShopInfo, ShopOffer, User, ApiResponse, TransactionsApiResponse, ShopConfigData, ShopConfigSummary } from './types';
+import {
+  Offer,
+  OfferDetail,
+  ShopInfo,
+  ShopOffer,
+  User,
+  ApiResponse,
+  TransactionsApiResponse,
+  ShopConfigData,
+  ShopConfigSummary,
+  CronJob,
+  CronJobLog,
+} from './types';
 
 export const SHOP_SBAZAR_EMAIL = 'duplux@seznam.cz';
 
@@ -455,4 +467,88 @@ export async function uploadImagesToR2(images: { data: string; filename?: string
   const data = await response.json();
   return data.urls || (data.url ? [data.url] : []);
 }
+
+// ================= Cron Jobs & Automations API ================= //
+
+export async function getCronJobs(): Promise<CronJob[]> {
+  const response = await fetch('/api/admin/cron-jobs', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Nepodařilo se načíst automatizace');
+  }
+  const data = await response.json();
+  return data.data || [];
+}
+
+export async function createCronJob(job: Partial<CronJob>): Promise<CronJob> {
+  const response = await fetch('/api/admin/cron-jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(job),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Nepodařilo se vytvořit automatizaci');
+  }
+  const data = await response.json();
+  return data.data;
+}
+
+export async function updateCronJob(id: string, updates: Partial<CronJob>): Promise<CronJob> {
+  const response = await fetch('/api/admin/cron-jobs', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...updates }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Nepodařilo se aktualizovat automatizaci');
+  }
+  const data = await response.json();
+  return data.data;
+}
+
+export async function deleteCronJob(id: string): Promise<boolean> {
+  const response = await fetch(`/api/admin/cron-jobs?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Nepodařilo se smazat automatizaci');
+  }
+  return true;
+}
+
+export async function runCronJobNow(id: string): Promise<{ success: boolean; message: string; count?: number; details?: any }> {
+  const response = await fetch('/api/admin/cron-jobs/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Chyba při spouštění automatizace');
+  }
+  return data;
+}
+
+export async function getCronJobLogs(jobId?: string): Promise<CronJobLog[]> {
+  const url = jobId ? `/api/admin/cron-jobs/logs?jobId=${encodeURIComponent(jobId)}` : '/api/admin/cron-jobs/logs';
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Nepodařilo se načíst logy');
+  }
+  const data = await response.json();
+  return data.data || [];
+}
+
 

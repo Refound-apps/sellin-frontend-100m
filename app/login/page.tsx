@@ -42,7 +42,22 @@ function AuthForm() {
         return;
       }
 
-      router.push(redirectTo);
+      // Pokud je uživatel administrátor a nebyl explicitně vyžádán jiný cíl (výchozí '/'), přesměrovat do /admin/offers
+      let targetPath = redirectTo;
+      if (targetPath === '/') {
+        const { data: credential } = await supabase
+          .from('credential_pg')
+          .select('role')
+          .ilike('email', email.trim())
+          .limit(1)
+          .maybeSingle();
+
+        if (credential?.role === 'admin') {
+          targetPath = '/admin/offers';
+        }
+      }
+
+      router.push(targetPath);
       router.refresh();
     } catch (err: any) {
       setError(err?.message || 'Nastala neočekávaná chyba při přihlašování.');

@@ -53,10 +53,18 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Pokud je přihlášen a jde na /login -> přesměrovat na dashboard /
+  // Pokud je přihlášen a jde na /login -> přesměrovat podle role
   if (user && pathname === '/login') {
+    const { data: credential } = await supabase
+      .from('credential_pg')
+      .select('role')
+      .or(`user_id.eq.${user.id},email.ilike.${user.email}`)
+      .limit(1)
+      .maybeSingle();
+
+    const role = credential?.role ?? 'seller';
     const url = request.nextUrl.clone();
-    url.pathname = '/';
+    url.pathname = role === 'admin' ? '/admin/offers' : '/';
     return NextResponse.redirect(url);
   }
 

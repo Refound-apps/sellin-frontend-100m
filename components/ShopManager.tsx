@@ -267,13 +267,13 @@ export default function ShopManager() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-600">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span>Storefront Engine · Multi-Tenant</span>
+            <span>Storefront · Multi-Tenant</span>
           </div>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Správa & Generátor E-shopu
+            Správa e-shopu
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Vygenerujte si vlastní značkový e-shop z vaší nabídky inzerátů a napojte ho na vlastní doménu.
+            Nastavení vašeho e-shopu, propojení vlastní domény a výběr napojených inzertních účtů.
           </p>
         </div>
 
