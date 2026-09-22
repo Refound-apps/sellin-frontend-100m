@@ -58,9 +58,16 @@ function ResetPasswordForm() {
       <div className="pointer-events-none absolute -top-44 left-1/2 -z-10 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-emerald-500/8 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 left-1/2 -z-10 h-[26rem] w-[26rem] -translate-x-1/2 rounded-full bg-slate-400/10 blur-3xl" />
 
-      <div className="relative w-full max-w-md space-y-6 rounded-3xl border border-slate-200/80 bg-white/95 p-8 shadow-[0_24px_50px_-12px_rgba(15,23,42,0.12),0_4px_16px_rgba(15,23,42,0.04)] backdrop-blur-md sm:p-10 ring-1 ring-black/[0.03]">
-        {/* Subtilní horní světelná linka (sheen) */}
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent" />
+      <div className="relative w-full max-w-md space-y-6 rounded-3xl border border-slate-200/80 bg-white/95 p-8 shadow-[0_24px_50px_-12px_rgba(15,23,42,0.12),0_4px_16px_rgba(15,23,42,0.04)] backdrop-blur-md sm:p-10 ring-1 ring-black/[0.03] overflow-hidden">
+        {/* Subtilní horní načítací linka (progress pulse) */}
+        {loading ? (
+          <div className="absolute inset-x-0 top-0 h-[2.5px] overflow-hidden bg-slate-100 z-20">
+            <div className="h-full w-full bg-gradient-to-r from-emerald-500 via-slate-900 to-emerald-500 animate-progress-pulse" />
+          </div>
+        ) : (
+          /* Subtilní horní světelná linka (sheen) */
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent" />
+        )}
 
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 text-white shadow-[0_10px_25px_-5px_rgba(15,23,42,0.35),0_4px_10px_-2px_rgba(15,23,42,0.2),inset_0_1px_1px_rgba(255,255,255,0.25)] ring-1 ring-white/15 transition-transform hover:scale-105">
@@ -136,9 +143,19 @@ function ResetPasswordForm() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full justify-center rounded-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(15,23,42,0.22),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950/80 transition-all hover:from-slate-800 hover:to-slate-900 hover:shadow-[0_6px_20px_rgba(15,23,42,0.28)] active:scale-[0.99] active:shadow-[0_2px_8px_rgba(15,23,42,0.2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-50 disabled:hover:scale-100"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(15,23,42,0.22),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950/80 transition-all hover:from-slate-800 hover:to-slate-900 hover:shadow-[0_6px_20px_rgba(15,23,42,0.28)] active:scale-[0.99] active:shadow-[0_2px_8px_rgba(15,23,42,0.2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-60 disabled:cursor-wait"
             >
-              {loading ? 'Ukládám...' : 'Uložit nové heslo'}
+              {loading ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin text-white/90" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  <span>Ukládám nové heslo…</span>
+                </>
+              ) : (
+                <span>Uložit nové heslo</span>
+              )}
             </button>
           </form>
         )}

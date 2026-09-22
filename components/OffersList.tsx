@@ -343,20 +343,29 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
 
       {/* Search Input Bar with layered depth */}
       <form onSubmit={(e) => e.preventDefault()} className="mb-6">
-        <div className="group relative rounded-2xl bg-white/95 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.07),0_2px_8px_rgba(15,23,42,0.03)] ring-1 ring-slate-200/80 transition-all focus-within:shadow-[0_16px_36px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.05)] focus-within:ring-slate-900/20 backdrop-blur-xs">
-          <svg
-            className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-950 transition-colors"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.8}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+        <div className="group relative rounded-2xl bg-white/95 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.07),0_2px_8px_rgba(15,23,42,0.03)] ring-1 ring-slate-200/80 transition-all focus-within:shadow-[0_16px_36px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.05)] focus-within:ring-slate-900/20 backdrop-blur-xs overflow-hidden">
+          {loading ? (
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
+              <svg className="h-5 w-5 animate-spin text-slate-700" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            </div>
+          ) : (
+            <svg
+              className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-950 transition-colors"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.8}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          )}
           <input
             type="search"
             value={searchInput}
@@ -376,6 +385,13 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
               </svg>
             </button>
           )}
+
+          {/* Subtilní spodní indikátor načítání */}
+          {loading && (
+            <div className="absolute inset-x-0 bottom-0 h-[2px] overflow-hidden bg-slate-100">
+              <div className="h-full w-full bg-gradient-to-r from-emerald-500 via-slate-900 to-emerald-500 animate-progress-pulse" />
+            </div>
+          )}
         </div>
       </form>
 
@@ -385,6 +401,12 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           <span>
             {searchQuery ? `Výsledky pro „${searchQuery}“` : 'Nejnovější inzeráty'}
           </span>
+          {loading && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 animate-pulse">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Načítám…
+            </span>
+          )}
           {isFiltered && activeAccountDisplay && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800">
               <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
@@ -414,18 +436,23 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           {Array.from({ length: 8 }).map((_, index) => (
             <div
               key={index}
-              className="h-[22.5rem] animate-pulse rounded-3xl bg-white/90 border border-slate-200/80 p-3 flex flex-col justify-between shadow-[0_8px_24px_-4px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.02]"
+              className="relative overflow-hidden h-[22.5rem] rounded-3xl bg-white/90 border border-slate-200/80 p-3 flex flex-col justify-between shadow-[0_8px_24px_-4px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.02]"
             >
-              <div className="h-48 sm:h-52 rounded-2xl bg-slate-100" />
+              {/* Subtilní světelná shimmer vlna */}
+              <div className="pointer-events-none absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+
+              <div className="relative h-48 sm:h-52 rounded-2xl bg-slate-100/90 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-100/50 to-slate-200/40" />
+              </div>
               <div className="space-y-2 px-1 py-2.5">
-                <div className="h-4 w-4/5 rounded-md bg-slate-100" />
+                <div className="h-4 w-4/5 rounded-md bg-slate-200/70" />
                 <div className="flex gap-1.5 pt-1">
                   <div className="h-5 w-16 rounded-lg bg-slate-100" />
                   <div className="h-5 w-14 rounded-lg bg-slate-100" />
                 </div>
               </div>
               <div className="border-t border-slate-100 pt-3 flex justify-between items-center">
-                <div className="h-6 w-20 rounded bg-slate-100" />
+                <div className="h-6 w-20 rounded-md bg-slate-200/70" />
                 <div className="h-6 w-16 rounded-xl bg-slate-100" />
               </div>
             </div>
@@ -479,19 +506,23 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
       {/* Pagination Load More Button */}
       {hasMore && offers.length > 0 && (
         <div className="mt-10 text-center">
-          {loading ? (
-            <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
-              <span>Načítám další inzeráty…</span>
-            </div>
-          ) : (
-            <button
-              onClick={() => setPage((prev) => prev + 1)}
-              className="rounded-2xl border border-slate-200/90 bg-white/95 px-8 py-3.5 text-xs sm:text-sm font-bold text-slate-900 shadow-[0_8px_20px_-4px_rgba(15,23,42,0.06),0_2px_6px_rgba(15,23,42,0.03)] hover:bg-white hover:border-slate-300 hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1)] active:scale-[0.98] transition-all disabled:opacity-50 ring-1 ring-black/[0.02]"
-            >
-              Načíst další nabídky
-            </button>
-          )}
+          <button
+            onClick={() => setPage((prev) => prev + 1)}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white/95 px-8 py-3.5 text-xs sm:text-sm font-bold text-slate-900 shadow-[0_8px_20px_-4px_rgba(15,23,42,0.06),0_2px_6px_rgba(15,23,42,0.03)] hover:bg-white hover:border-slate-300 hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1)] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-wait ring-1 ring-black/[0.02]"
+          >
+            {loading ? (
+              <>
+                <svg className="h-4 w-4 animate-spin text-slate-800" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                <span>Načítám další inzeráty…</span>
+              </>
+            ) : (
+              <span>Načíst další nabídky</span>
+            )}
+          </button>
         </div>
       )}
     </div>

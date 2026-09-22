@@ -14,6 +14,7 @@ interface OfferCardProps {
 
 export default function OfferCard({ offer, onClick, priority = false }: OfferCardProps) {
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const specs = getOfferSpecsList(offer);
   const statusInfo = getOfferStatusInfo(offer.state);
 
@@ -61,14 +62,24 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
           </div>
         )}
 
+        {/* Subtilní shimmer placeholder než se obrázek načte */}
+        {!imgLoaded && !imgError && Boolean(offer.preview_image) && (
+          <div className="absolute inset-0 bg-slate-200/50 overflow-hidden z-0">
+            <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+          </div>
+        )}
+
         {offer.preview_image && !imgError ? (
           <Image
             src={offer.preview_image}
             alt={offer.title}
             fill
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            className={`object-cover transition-all duration-500 ease-out group-hover:scale-105 ${
+              imgLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
             priority={priority}
+            onLoad={() => setImgLoaded(true)}
             onError={() => setImgError(true)}
           />
         ) : (

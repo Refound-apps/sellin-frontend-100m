@@ -878,9 +878,19 @@ export default function ShopManager() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-xl bg-slate-900 px-7 py-3 text-sm font-bold text-white shadow-xs hover:bg-slate-800 active:scale-98 disabled:opacity-50 transition-all"
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-7 py-3 text-sm font-bold text-white shadow-xs hover:bg-slate-800 active:scale-98 disabled:opacity-60 disabled:cursor-wait transition-all"
           >
-            {saving ? 'Ukládám nastavení...' : 'Uložit konfiguraci e-shopu'}
+            {saving ? (
+              <>
+                <svg className="h-4 w-4 animate-spin text-white/90" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                <span>Ukládám konfiguraci…</span>
+              </>
+            ) : (
+              <span>Uložit konfiguraci e-shopu</span>
+            )}
           </button>
         </div>
       </form>

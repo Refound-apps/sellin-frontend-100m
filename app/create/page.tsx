@@ -316,6 +316,13 @@ export default function CreateOfferPage() {
 
   return (
     <main className="relative mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Top subtle progress bar during creation */}
+      {loading && (
+        <div className="fixed top-0 left-0 right-0 h-[2.5px] z-50 overflow-hidden bg-slate-200">
+          <div className="h-full w-full bg-gradient-to-r from-emerald-500 via-slate-900 to-emerald-500 animate-progress-pulse" />
+        </div>
+      )}
+
       {/* Ambient glow in background for subtle depth */}
       <div className="pointer-events-none absolute -top-32 left-1/2 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-emerald-500/5 blur-3xl" />
 
@@ -618,9 +625,15 @@ export default function CreateOfferPage() {
                     : 'border-slate-200/90 hover:border-slate-400 bg-slate-50/60 hover:bg-slate-50/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]'
                 }`}>
                   {uploadingImages ? (
-                    <div className="flex flex-col items-center gap-2 text-blue-600">
-                      <div className="h-7 w-7 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                      <p className="text-xs font-bold">Optimalizuji a nahrávám do Cloudflare R2...</p>
+                    <div className="flex flex-col items-center gap-2.5 text-blue-600 py-2">
+                      <div className="relative flex h-8 w-8 items-center justify-center">
+                        <span className="absolute h-8 w-8 rounded-full bg-blue-100 animate-ping opacity-75" />
+                        <svg className="h-6 w-6 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                          <path className="opacity-85" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                      </div>
+                      <p className="text-xs font-bold text-blue-700">Optimalizuji a nahrávám do Cloudflare R2…</p>
                     </div>
                   ) : (
                     <>
@@ -771,9 +784,19 @@ export default function CreateOfferPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full sm:w-auto rounded-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-8 py-3.5 text-sm font-bold text-white shadow-[0_4px_16px_rgba(15,23,42,0.22),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950/80 hover:from-slate-800 hover:to-slate-900 hover:shadow-[0_6px_22px_rgba(15,23,42,0.28)] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-8 py-3.5 text-sm font-bold text-white shadow-[0_4px_16px_rgba(15,23,42,0.22),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950/80 hover:from-slate-800 hover:to-slate-900 hover:shadow-[0_6px_22px_rgba(15,23,42,0.28)] active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-wait"
           >
-            {loading ? 'Publikuji inzerát…' : 'Vytvořit inzerát'}
+            {loading ? (
+              <>
+                <svg className="h-4 w-4 animate-spin text-white/90" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                <span>Publikuji inzerát…</span>
+              </>
+            ) : (
+              <span>Vytvořit inzerát</span>
+            )}
           </button>
         </div>
       </form>

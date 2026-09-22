@@ -841,7 +841,9 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
 
                   {/* Marketplace Channels */}
                   {loadingDetails ? (
-                    <div className="h-9 animate-pulse rounded-xl bg-slate-200/60" />
+                    <div className="relative overflow-hidden h-10 rounded-xl bg-slate-100 border border-slate-200/80">
+                      <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+                    </div>
                   ) : (
                     details.map((detail, idx) => {
                       const portal = getPortalInfo(detail.bb_marketplace_id);
