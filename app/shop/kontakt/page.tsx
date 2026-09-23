@@ -56,7 +56,7 @@ export default function KontaktPage() {
             Kontakt & Odběrné místo
           </h1>
           <p className="mt-3 text-base sm:text-lg text-[hsl(215_16%_47%)]">
-            Rádi vás uvítáme v naší provozovně (Plzeň Jih). Před příjezdem prosíme o krátké zavolání pro ověření dostupnosti na dílně.
+            Rádi vás uvítáme v naší provozovně{addressLine ? ` (${addressLine})` : ''}. Před příjezdem prosíme o krátké zavolání pro ověření dostupnosti na dílně.
           </p>
         </div>
 
@@ -72,12 +72,16 @@ export default function KontaktPage() {
                 <div>
                   <dt className="text-xs text-[hsl(215_16%_47%)]">Telefon (nejrychlejší domluva)</dt>
                   <dd>
-                    <a
-                      href={`tel:${shopPhoneHref}`}
-                      className="text-xl font-bold text-[hsl(142_71%_35%)] hover:underline"
-                    >
-                      +420 {shopPhone}
-                    </a>
+                    {shopPhone ? (
+                      <a
+                        href={`tel:${shopPhoneHref}`}
+                        className="text-xl font-bold text-[hsl(142_71%_35%)] hover:underline"
+                      >
+                        {shopPhone.startsWith('+') ? shopPhone : `+420 ${shopPhone}`}
+                      </a>
+                    ) : (
+                      <span className="text-sm text-slate-500">—</span>
+                    )}
                   </dd>
                 </div>
 
@@ -97,8 +101,8 @@ export default function KontaktPage() {
                   <dt className="text-xs text-[hsl(215_16%_47%)]">Adresa provozovny</dt>
                   <dd className="font-medium text-[hsl(222_47%_11%)]">
                     {addressLine}<br />
-                    {addressCity}<br />
-                    <span className="text-xs text-[hsl(215_16%_47%)]">Plzeň Jih (pár minut autem z Plzně)</span>
+                    {addressCity && <>{addressCity}<br /></>}
+                    <span className="text-xs text-[hsl(215_16%_47%)]">{region || 'Snadná dostupnost autem'}</span>
                   </dd>
                 </div>
 
@@ -144,10 +148,10 @@ export default function KontaktPage() {
             {/* How to get there */}
             <div className="rounded-2xl border border-[hsl(214_32%_91%)] bg-white p-6">
               <h3 className="text-base font-bold text-[hsl(222_47%_11%)]">
-                Kudy k nám z Plzně?
+                Kudy k nám?
               </h3>
               <p className="mt-2 text-sm text-[hsl(215_16%_47%)] leading-relaxed">
-                Z Plzně vyjedete na jih (směr Plzeň Jih). Naše dílna a sklad jsou snadno dostupné za pár minut jízdy s bezproblémovým parkováním přímo před vjezdem.
+                Naše dílna a sklad jsou snadno dostupné autem s bezproblémovým parkováním přímo před vjezdem.
               </p>
             </div>
           </div>

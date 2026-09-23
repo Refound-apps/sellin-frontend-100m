@@ -1,21 +1,21 @@
-export const SHOP_NAME = 'Duplux Pneu';
-export const SHOP_TAGLINE = 'Pneu a disky Plzeň';
-export const SHOP_PHONE = '602 390 038';
-export const SHOP_PHONE_HREF = '+420602390038';
-export const SHOP_EMAIL = 'duplux@seznam.cz';
-export const SHOP_ADDRESS_LINE = 'Plzeň Jih';
-export const SHOP_ADDRESS_CITY = 'okres Plzeň-jih';
-export const SHOP_REGION = 'Plzeň Jih (pár minut z Plzně)';
-export const SHOP_HOURS = 'Po–Pá: 8:00 – 17:00, So: dle telefonické domluvy';
-export const SHOP_OWNER = 'František Vašek';
-export const SHOP_ICO = '03401545';
-export const SHOP_CARAVAN_URL = 'https://pujckaravanplzen.cz/';
+export const SHOP_NAME = 'E-shop kol a pneu';
+export const SHOP_TAGLINE = 'Prověřené pneumatiky a disky';
+export const SHOP_PHONE = '';
+export const SHOP_PHONE_HREF = '';
+export const SHOP_EMAIL = '';
+export const SHOP_ADDRESS_LINE = 'Osobní odběr na provozovně';
+export const SHOP_ADDRESS_CITY = '';
+export const SHOP_REGION = '';
+export const SHOP_HOURS = 'Po–Pá: 8:00 – 17:00';
+export const SHOP_OWNER = '';
+export const SHOP_ICO = '';
+export const SHOP_CARAVAN_URL = '';
 export const SHOP_SHIPPING_PRICE = '500 – 600 Kč';
 export const SHOP_SHIPPING_PRICE_TIRES = '600 Kč';
 export const SHOP_SHIPPING_PRICE_RIMS = '500 Kč';
 
-export const SHOP_MAP_LINK = 'https://mapy.cz/s/plzen-jih';
-export const SHOP_GOOGLE_MAPS_LINK = 'https://www.google.com/maps/search/?api=1&query=Plze%C5%88-jih';
+export const SHOP_MAP_LINK = '';
+export const SHOP_GOOGLE_MAPS_LINK = '';
 
 export const SHOP_NAV_ITEMS = [
   { href: '/shop#nabidka', label: 'Nabídka kol' },

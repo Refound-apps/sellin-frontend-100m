@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const requestedShopId = searchParams.get('shop_id');
+    const requestedSeller = searchParams.get('seller') || searchParams.get('account') || searchParams.get('owner_email');
 
     let shop: ShopRecord | null = null;
     let allShops: Array<{
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
       owner_email: string;
       is_active: boolean;
     }> = [];
+    let sellerAccounts: Array<{ email: string; name: string | null; phone: string | null }> = [];
 
     if (isAdmin) {
       // 1. Admin can see all shops in the system
@@ -84,6 +86,16 @@ export async function GET(request: NextRequest) {
           .limit(1);
         if (requestedShop && requestedShop.length > 0) {
           shop = requestedShop[0];
+        }
+      } else if (requestedSeller) {
+        const cleanSeller = requestedSeller.toLowerCase().trim();
+        const { data: requestedShopBySeller } = await supabase
+          .from('shops')
+          .select('*')
+          .or(`owner_email.ilike.${cleanSeller},slug.ilike.${cleanSeller}`)
+          .limit(1);
+        if (requestedShopBySeller && requestedShopBySeller.length > 0) {
+          shop = requestedShopBySeller[0];
         }
       }
 
@@ -109,6 +121,49 @@ export async function GET(request: NextRequest) {
           }
         }
       }
+
+      // Collect distinct seller accounts from credential_pg and shops
+      const { data: distinctCreds } = await supabase
+        .from('credential_pg')
+        .select('email, sbazar_email, bazos_name, telephone1')
+        .order('email', { ascending: true });
+
+      const sellersMap = new Map<string, { email: string; name: string | null; phone: string | null }>();
+
+      for (const s of allShops) {
+        if (s.owner_email && !sellersMap.has(s.owner_email.toLowerCase())) {
+          sellersMap.set(s.owner_email.toLowerCase(), {
+            email: s.owner_email,
+            name: s.shop_name,
+            phone: null,
+          });
+        }
+      }
+
+      for (const c of (distinctCreds || [])) {
+        if (c.email) {
+          const em = c.email.toLowerCase().trim();
+          if (!sellersMap.has(em)) {
+            sellersMap.set(em, {
+              email: c.email,
+              name: c.bazos_name || null,
+              phone: c.telephone1 || null,
+            });
+          }
+        }
+        if (c.sbazar_email) {
+          const sem = c.sbazar_email.toLowerCase().trim();
+          if (!sellersMap.has(sem)) {
+            sellersMap.set(sem, {
+              email: c.sbazar_email,
+              name: c.bazos_name || null,
+              phone: c.telephone1 || null,
+            });
+          }
+        }
+      }
+
+      sellerAccounts = Array.from(sellersMap.values());
     } else {
       // Non-admin seller: fetch only their shop
       const { data: userShops, error: shopError } = await supabase
@@ -161,6 +216,7 @@ export async function GET(request: NextRequest) {
         allShops,
         isAdmin,
         availableCredentials: credentials,
+        sellerAccounts,
       },
     });
   } catch (err: unknown) {
@@ -211,15 +267,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!existingShop) {
-      const { data: userShops } = await supabase
-        .from('shops')
-        .select('*')
-        .or(`user_id.eq.${user.id},owner_email.ilike.${userEmail}`)
-        .limit(1);
+    if (!existingShop && !body.is_new) {
+      if (!isAdmin) {
+        const { data: userShops } = await supabase
+          .from('shops')
+          .select('*')
+          .or(`user_id.eq.${user.id},owner_email.ilike.${userEmail}`)
+          .limit(1);
 
-      if (userShops && userShops.length > 0) {
-        existingShop = userShops[0];
+        if (userShops && userShops.length > 0) {
+          existingShop = userShops[0];
+        }
+      } else if (body.owner_email) {
+        const cleanOwner = body.owner_email.trim().toLowerCase();
+        const { data: clientShops } = await supabase
+          .from('shops')
+          .select('*')
+          .ilike('owner_email', cleanOwner)
+          .limit(1);
+        if (clientShops && clientShops.length > 0) {
+          existingShop = clientShops[0];
+        }
       }
     }
 
@@ -281,7 +349,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: `Systémová subdoména "${slug}.sellin.cz" je již obsazena e-shopem "${slugConflicts[0].shop_name}". Zvolte prosím jinou.`,
+            error: `Systémová subdoména "${slug}.prodejomat.cz" je již obsazena e-shopem "${slugConflicts[0].shop_name}". Zvolte prosím jinou.`,
           },
           { status: 400 }
         );
@@ -290,7 +358,9 @@ export async function POST(request: NextRequest) {
 
     // 5. Construct payload
     const targetUserId = existingShop ? existingShop.user_id : (isAdmin ? null : user.id);
-    const targetOwnerEmail = body.owner_email?.trim() || existingShop?.owner_email || userEmail;
+    const targetOwnerEmail = (isAdmin && body.owner_email?.trim())
+      ? body.owner_email.trim().toLowerCase()
+      : (existingShop?.owner_email || userEmail);
 
     const payload = {
       user_id: targetUserId,

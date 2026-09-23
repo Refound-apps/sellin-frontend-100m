@@ -10,13 +10,12 @@ interface FaqItem {
 
 export default function ShopFaq() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
-  const { phone, phoneHref } = useShop();
+  const { phone, phoneHref, addressLine, shippingPriceRims, shippingPriceTires } = useShop();
 
   const faqs: FaqItem[] = [
     {
       question: 'Jak poznám, že použitá pneumatika nemá skrytý defekt?',
-      answer:
-        'Každou pneumatiku před zařazením do nabídky důkladně vizuálně i mechanicky kontrolujeme. Prověřujeme neporušenost patek, bočnice bez boulí a rovnoměrnost sjetí vzorku. Navíc si každý kus můžete před koupí osobně na provozovně Plzeň Jih sami detailně prohlédnout.',
+      answer: `Každou pneumatiku před zařazením do nabídky důkladně vizuálně i mechanicky kontrolujeme. Prověřujeme neporušenost patek, bočnice bez boulí a rovnoměrnost sjetí vzorku. Navíc si každý kus můžete před koupí osobně${addressLine ? ` na provozovně (${addressLine})` : ' na naší provozovně'} sami detailně prohlédnout.`,
     },
     {
       question: 'Je uvedená cena za 1 kus, nebo za celou sadu?',
@@ -36,18 +35,17 @@ export default function ShopFaq() {
     },
     {
       question: 'Můžete mi kola na místě rovnou přezout a vyvážit?',
-      answer:
-        'Ano! V naší provozovně (Plzeň Jih) máme plně vybavený pneuservis. Po předchozí telefonické domluvě vám pneu rádi přezujeme, nasadíme na disky a precizně vyvážíme.',
+      answer: `Ano! V naší provozovně${addressLine ? ` (${addressLine})` : ''} máme plně vybavený pneuservis. Po předchozí telefonické domluvě vám pneu rádi přezujeme, nasadíme na disky a precizně vyvážíme.`,
     },
     {
       question: 'Zasíláte pneu i poštou po celé ČR a kolik stojí doprava?',
       answer: (
         <>
           <p>
-            Preferujeme osobní odběr v lokalitě Plzeň Jih, kde si stav můžete ověřit na vlastní oči. Po domluvě však pneumatiky i disky bez problémů pečlivě zabalíme do kartonu a stretch fólie a odešleme Českou poštou na dobírku jako balík do ruky kamkoliv po ČR.
+            Preferujeme osobní odběr{addressLine ? ` v lokalitě ${addressLine}` : ' na provozovně'}, kde si stav můžete ověřit na vlastní oči. Po domluvě však pneumatiky i disky bez problémů pečlivě zabalíme do kartonu a stretch fólie a odešleme poštou na dobírku jako balík do ruky kamkoliv po ČR.
           </p>
           <p className="mt-1.5 font-medium text-slate-800">
-            Dopravné vychází nejčastěji na <strong>500 Kč za sadu ALU disků</strong> a <strong>600 Kč za sadu pneumatik</strong> (přesnou částku vždy uvádíme přímo v inzerátu).
+            Dopravné vychází nejčastěji na <strong>{shippingPriceRims || '500 Kč'} za sadu ALU disků</strong> a <strong>{shippingPriceTires || '600 Kč'} za sadu pneumatik</strong> (přesnou částku vždy uvádíme přímo v inzerátu).
           </p>
         </>
       ),

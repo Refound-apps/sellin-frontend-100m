@@ -32,7 +32,7 @@ export default function ShopFeatures() {
     {
       num: '03',
       title: 'Osobní odběr / Pošta',
-      desc: `Přijeďte si zboží prohlédnout do lokality ${addressLine || 'Plzeň Jih'} s možností okamžitého obutí, nebo vám sadu pošleme poštou.`,
+      desc: `Přijeďte si zboží prohlédnout do lokality ${addressLine || 'naší provozovny'} s možností okamžitého obutí, nebo vám sadu pošleme poštou.`,
       tag: 'Převzetí',
     },
   ];
@@ -58,7 +58,7 @@ export default function ShopFeatures() {
       ),
     },
     {
-      title: 'Osobní prohlídka Plzeň Jih',
+      title: addressLine ? `Osobní prohlídka (${addressLine})` : 'Osobní prohlídka na provozovně',
       desc: 'Před zaplacením si kola nebo pneu osobně prohlédnete a zkontrolujete. Nic nekupujete naslepo ani bez záruky.',
       icon: (
         <svg className="h-5 w-5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -187,7 +187,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600" />
             </span>
             <span className="text-xs font-bold text-slate-800 truncate">
-              Skladem · Osobní odběr {addressLine || 'Plzeň Jih'}
+              Skladem · Osobní odběr {addressLine || 'na provozovně'}
             </span>
           </div>
 
@@ -649,7 +649,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                       }`}
                     >
                       <p className="font-bold">Osobní odběr</p>
-                      <p className="text-[10px] text-slate-500">Plzeň Jih (zdarma)</p>
+                      <p className="text-[10px] text-slate-500">{addressLine || 'Na provozovně'} (zdarma)</p>
                     </button>
                     <button
                       type="button"

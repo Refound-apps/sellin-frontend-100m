@@ -177,7 +177,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
       setEditedImages((prev) => [...prev, ...uploadedUrls].slice(0, 9));
     } catch (err: any) {
       console.error('Upload to R2 failed in modal:', err);
-      setSaveError('Nepodařilo se nahrát obrázky do Cloudflare R2: ' + (err.message || ''));
+      setSaveError('Nepodařilo se nahrát fotografie: ' + (err.message || ''));
     } finally {
       setUploadingImages(false);
       e.target.value = '';
@@ -634,7 +634,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                         <span>Fotografie inzerátu</span>
                       </h3>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Nahrávání do Cloudflare R2 • Max. 9 fotek
+                        Nahrávání fotografií • Max. 9 fotek
                       </p>
                     </div>
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
@@ -646,7 +646,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                     </span>
                   </div>
 
-                  {/* Dropzone for R2 upload */}
+                  {/* Dropzone for upload */}
                   <div className="relative">
                     <input
                       type="file"
@@ -658,20 +658,20 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                     />
                     <div className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-4 text-center transition-all ${
                       uploadingImages
-                        ? 'border-blue-400 bg-blue-50/50'
+                        ? 'border-emerald-500 bg-emerald-50/50'
                         : editedImages.length >= 9
                         ? 'border-slate-200 bg-slate-50 opacity-60'
                         : 'border-slate-300 hover:border-slate-500 bg-slate-50/60 hover:bg-slate-50'
                     }`}>
                       {uploadingImages ? (
-                        <div className="flex flex-col items-center gap-1.5 text-blue-600 py-1">
-                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                          <p className="text-xs font-bold">Nahrávám a optimalizuji v Cloudflare R2…</p>
+                        <div className="flex flex-col items-center gap-1.5 text-emerald-600 py-1">
+                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                          <p className="text-xs font-bold">Nahrávám a optimalizuji fotografie…</p>
                         </div>
                       ) : (
                         <>
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-2xs text-base mb-1">
-                            ☁️
+                            📷
                           </div>
                           <p className="text-xs font-bold text-slate-800">
                             {editedImages.length >= 9
@@ -679,7 +679,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                               : 'Klikněte nebo přetáhněte nové fotografie'}
                           </p>
                           <p className="text-[10px] text-slate-400 mt-0.5">
-                            JPEG, PNG, WebP • Automatické uložení na Cloudflare R2
+                            JPEG, PNG, WebP • Automatická optimalizace rozlišení
                           </p>
                         </>
                       )}

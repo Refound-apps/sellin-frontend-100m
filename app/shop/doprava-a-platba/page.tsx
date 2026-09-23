@@ -1,24 +1,25 @@
-import type { Metadata } from 'next';
+'use client';
+
 import Link from 'next/link';
 import ShopHeader from '@/components/shop/ShopHeader';
 import ShopFooter from '@/components/shop/ShopFooter';
-import {
-  SHOP_ADDRESS_LINE,
-  SHOP_ADDRESS_CITY,
-  SHOP_HOURS,
-  SHOP_PHONE,
-  SHOP_PHONE_HREF,
-  SHOP_SHIPPING_PRICE,
-  SHOP_SHIPPING_PRICE_TIRES,
-  SHOP_SHIPPING_PRICE_RIMS,
-} from '@/components/shop/shopConfig';
-
-export const metadata: Metadata = {
-  title: 'Doprava a platba | Duplux Pneu Plzeň',
-  description: 'Možnosti dopravy a platby za pneumatiky a disky. Osobní odběr Plzeň Jih zdarma nebo přeprava Českou poštou po celé ČR (500 Kč za ALU, 600 Kč za pneu).',
-};
+import { useShop } from '@/components/shop/ShopContext';
 
 export default function DopravaAPlatbaPage() {
+  const {
+    addressLine,
+    addressCity,
+    hours,
+    phone,
+    phoneHref,
+    shippingPriceTires,
+    shippingPriceRims,
+  } = useShop();
+
+  const pickupLocation = addressLine
+    ? `${addressLine}${addressCity ? `, ${addressCity}` : ''}`
+    : 'na naší provozovně';
+
   return (
     <div className="min-h-screen bg-white">
       <ShopHeader />
@@ -42,7 +43,7 @@ export default function DopravaAPlatbaPage() {
             Doprava a možnosti platby
           </h1>
           <p className="mt-2 sm:mt-3 text-sm sm:text-lg text-[hsl(215_16%_47%)]">
-            Kola a pneumatiky si můžete osobně vyzvednout u nás v lokalitě Plzeň Jih, nebo vám je pečlivě zabalené pošleme poštou.
+            Kola a pneumatiky si můžete osobně vyzvednout {pickupLocation}, nebo vám je pečlivě zabalené pošleme poštou.
           </p>
         </div>
 
@@ -64,10 +65,10 @@ export default function DopravaAPlatbaPage() {
                 </span>
               </div>
               <h3 className="mt-3 sm:mt-4 text-base sm:text-lg font-bold text-[hsl(222_47%_11%)]">
-                Osobní odběr Plzeň Jih
+                Osobní odběr na provozovně
               </h3>
               <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-[hsl(215_16%_47%)]">
-                {SHOP_ADDRESS_LINE}, {SHOP_ADDRESS_CITY} (pár minut od Plzně).
+                {pickupLocation}
               </p>
               <ul className="mt-3 sm:mt-4 space-y-2 text-xs sm:text-sm text-[hsl(222_20%_28%)]">
                 <li className="flex items-center gap-2">
@@ -78,10 +79,12 @@ export default function DopravaAPlatbaPage() {
                   <span className="text-[hsl(142_71%_45%)] font-bold">✓</span>
                   <span>Možnost okamžitého obutí na vůz</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-[hsl(142_71%_45%)] font-bold">✓</span>
-                  <span>{SHOP_HOURS}</span>
-                </li>
+                {hours && (
+                  <li className="flex items-center gap-2">
+                    <span className="text-[hsl(142_71%_45%)] font-bold">✓</span>
+                    <span>{hours}</span>
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -92,7 +95,7 @@ export default function DopravaAPlatbaPage() {
                   ČESKÁ POŠTA
                 </span>
                 <span className="text-xs sm:text-sm font-bold text-[hsl(222_47%_11%)]">
-                  500 Kč ALU / 600 Kč pneu
+                  {shippingPriceRims || '500 Kč'} ALU / {shippingPriceTires || '600 Kč'} pneu
                 </span>
               </div>
               <h3 className="mt-3 sm:mt-4 text-base sm:text-lg font-bold text-[hsl(222_47%_11%)]">
@@ -112,7 +115,7 @@ export default function DopravaAPlatbaPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-[hsl(142_71%_45%)] font-bold">✓</span>
-                  <span>Cena dopravy sady: 500 Kč za ALU disky, 600 Kč za pneumatiky</span>
+                  <span>Cena dopravy sady: {shippingPriceRims || '500 Kč'} za ALU disky, {shippingPriceTires || '600 Kč'} za pneumatiky</span>
                 </li>
               </ul>
             </div>
@@ -130,12 +133,12 @@ export default function DopravaAPlatbaPage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs">
               <div className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs">
                 <span className="font-semibold text-slate-500 block">Sada ALU disků (4 ks)</span>
-                <span className="text-lg sm:text-xl font-black text-slate-950 block mt-0.5">500 Kč</span>
+                <span className="text-lg sm:text-xl font-black text-slate-950 block mt-0.5">{shippingPriceRims || '500 Kč'}</span>
                 <span className="text-[10px] text-slate-500">nejčastější cena za sadu</span>
               </div>
               <div className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs">
                 <span className="font-semibold text-slate-500 block">Sada pneumatik (4 ks)</span>
-                <span className="text-lg sm:text-xl font-black text-slate-950 block mt-0.5">600 Kč</span>
+                <span className="text-lg sm:text-xl font-black text-slate-950 block mt-0.5">{shippingPriceTires || '600 Kč'}</span>
                 <span className="text-[10px] text-slate-500">nejčastější cena za sadu</span>
               </div>
               <div className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs">
@@ -162,7 +165,7 @@ export default function DopravaAPlatbaPage() {
                 Hotově při převzetí
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-[hsl(215_16%_47%)]">
-                Nejčastější způsob při osobním odběru (Plzeň Jih). Bez jakýchkoliv poplatků.
+                Nejčastější způsob při osobním odběru na provozovně. Bez jakýchkoliv poplatků.
               </p>
             </div>
 
@@ -202,17 +205,19 @@ export default function DopravaAPlatbaPage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-4 border-t border-[hsl(214_32%_91%)] pt-6">
             <Link
-              href="/shop"
+              href="/shop#nabidka"
               className="inline-flex rounded-xl bg-[hsl(142_71%_45%)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[hsl(142_71%_35%)]"
             >
               Přejít do nabídky
             </Link>
-            <a
-              href={`tel:${SHOP_PHONE_HREF}`}
-              className="inline-flex rounded-xl border border-[hsl(214_32%_91%)] bg-white px-5 py-2.5 text-sm font-semibold text-[hsl(222_47%_11%)] hover:bg-[hsl(210_40%_96%)]"
-            >
-              Dotaz na dopravu: {SHOP_PHONE}
-            </a>
+            {phone && (
+              <a
+                href={`tel:${phoneHref}`}
+                className="inline-flex rounded-xl border border-[hsl(214_32%_91%)] bg-white px-5 py-2.5 text-sm font-semibold text-[hsl(222_47%_11%)] hover:bg-[hsl(210_40%_96%)]"
+              >
+                Dotaz na dopravu: {phone}
+              </a>
+            )}
           </div>
         </div>
       </main>

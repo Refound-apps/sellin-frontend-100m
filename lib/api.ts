@@ -90,7 +90,8 @@ export async function getOffers(
   limit: number = 50,
   offset: number = 0,
   search?: string,
-  emails?: string[]
+  emails?: string[],
+  exact_bb_email?: string
 ): Promise<OffersResponse> {
   try {
     const query = new URLSearchParams();
@@ -99,7 +100,11 @@ export async function getOffers(
     if (search && search.trim()) {
       query.set('search', search.trim());
     }
-    if (emails && emails.length > 0) {
+    if (exact_bb_email && exact_bb_email.trim()) {
+      query.set('exact_bb_email', exact_bb_email.trim());
+      query.set('exact', '1');
+      query.set('emails', exact_bb_email.trim());
+    } else if (emails && emails.length > 0) {
       const clean = emails.map((e) => e.toLowerCase().trim()).filter(Boolean);
       if (clean.length > 0) {
         query.set('emails', clean.join(','));
@@ -331,20 +336,28 @@ export async function resolveShopConfig(domainOrSlug?: string, forceRefresh: boo
   }
 }
 
-export async function getUserShop(shopId?: string): Promise<{
+export async function getUserShop(shopIdOrParams?: string): Promise<{
   shop: ShopConfigData | null;
   allShops: ShopConfigSummary[];
   isAdmin: boolean;
   availableCredentials: User[];
+  sellerAccounts?: Array<{ email: string; name: string | null; phone: string | null }>;
 }> {
   try {
-    const query = shopId ? `?shop_id=${encodeURIComponent(shopId)}` : '';
+    let query = '';
+    if (shopIdOrParams) {
+      if (shopIdOrParams.startsWith('?') || shopIdOrParams.startsWith('&')) {
+        query = shopIdOrParams;
+      } else {
+        query = `?shop_id=${encodeURIComponent(shopIdOrParams)}`;
+      }
+    }
     const response = await apiFetch(`/api/user/shop${query}`);
     if (!response.ok) {
       throw new Error('Failed to fetch user shop');
     }
     const json = await response.json();
-    return json.data || { shop: null, allShops: [], isAdmin: false, availableCredentials: [] };
+    return json.data || { shop: null, allShops: [], isAdmin: false, availableCredentials: [], sellerAccounts: [] };
   } catch (error) {
     console.error('Error fetching user shop:', error);
     throw error;

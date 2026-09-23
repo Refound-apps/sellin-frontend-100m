@@ -1,22 +1,21 @@
-import type { Metadata } from 'next';
+'use client';
+
 import Link from 'next/link';
 import ShopHeader from '@/components/shop/ShopHeader';
 import ShopFooter from '@/components/shop/ShopFooter';
-import {
-  SHOP_ADDRESS_LINE,
-  SHOP_ADDRESS_CITY,
-  SHOP_EMAIL,
-  SHOP_OWNER,
-  SHOP_PHONE,
-  SHOP_PHONE_HREF,
-} from '@/components/shop/shopConfig';
-
-export const metadata: Metadata = {
-  title: 'Garance a reklamace | Duplux Pneu Plzeň',
-  description: 'Záruční podmínky, garance technického stavu pneumatik a disků, postup při uplatnění reklamace a vrácení zboží.',
-};
+import { useShop } from '@/components/shop/ShopContext';
 
 export default function ReklamacePage() {
+  const {
+    ownerName,
+    shopName,
+    addressLine,
+    addressCity,
+    phone,
+    phoneHref,
+    email,
+  } = useShop();
+
   return (
     <div className="min-h-screen bg-white">
       <ShopHeader />
@@ -79,12 +78,12 @@ export default function ReklamacePage() {
           <h2 className="text-xl font-bold tracking-tight text-[hsl(222_47%_11%)] sm:text-2xl">
             Odstoupení od smlouvy do 14 dnů (nákup na dálku)
           </h2>
-          <div className="mt-4 rounded-2xl border border-[hsl(214_32%_91%)] bg-white p-6 text-sm text-[hsl(222_20%_28%)] leading-relaxed space-y-3">
+          <div className="mt-4 rounded-2xl border border-[hsl(214_32%_91%)] bg-white p-4 sm:p-6 text-xs sm:text-sm text-[hsl(222_20%_28%)] leading-relaxed space-y-2">
             <p>
-              Pokud jste zboží zakoupili na dálku (prostřednictvím internetu / telefonu s doručením poštou), máte podle § 1829 občanského zákoníku právo odstoupit od kupní smlouvy <strong>do 14 kalendářních dnů</strong> od převzetí zboží bez udání důvodu.
+              Při nákupu na dálku (s doručením přepravní službou) máte jako spotřebitel ze zákona právo odstoupit od kupní smlouvy do <strong>14 dnů od převzetí zboží</strong> bez udání důvodu.
             </p>
             <p>
-              Zboží musí být vráceno v původním stavu, nepoškozené a bez stop používání (nesmí být namontováno na vozidlo a provozováno v silničním provozu po zkušební montáži).
+              Zboží musí být vráceno v původním nepoškozeném stavu, bez známek montáže na vozidlo a bez poškození patek či ráfků.
             </p>
           </div>
         </div>
@@ -101,7 +100,8 @@ export default function ReklamacePage() {
                 Kontaktujte nás
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-[hsl(215_16%_47%)]">
-                Zavolejte na <strong>{SHOP_PHONE}</strong> nebo napište na <strong>{SHOP_EMAIL}</strong> a popište zjištěnou závadu.
+                {phone ? <>Zavolejte na <strong>{phone}</strong></> : 'Kontaktujte nás'}
+                {email ? <> nebo napište na <strong>{email}</strong></> : ''} a popište zjištěnou závadu.
               </p>
             </div>
 
@@ -111,7 +111,7 @@ export default function ReklamacePage() {
                 Posouzení zboží
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-[hsl(215_16%_47%)]">
-                Zboží osobně prohlédneme v dílně (Plzeň Jih), případně ověříme na vyvažovačce nebo tlakové zkoušce.
+                Zboží osobně prohlédneme v dílně{addressLine ? ` (${addressLine})` : ''}, případně ověříme na vyvažovačce nebo tlakové zkoušce.
               </p>
             </div>
 
@@ -133,11 +133,19 @@ export default function ReklamacePage() {
             Adresa pro zaslání reklamovaného zboží a osobní vyřízení:
           </h3>
           <p className="mt-2 text-sm text-[hsl(222_20%_28%)]">
-            <strong>{SHOP_OWNER}</strong><br />
-            {SHOP_ADDRESS_LINE}<br />
-            {SHOP_ADDRESS_CITY}<br />
-            Tel: <a href={`tel:${SHOP_PHONE_HREF}`} className="font-semibold text-[hsl(142_71%_35%)] hover:underline">{SHOP_PHONE}</a><br />
-            E-mail: <a href={`mailto:${SHOP_EMAIL}`} className="hover:underline">{SHOP_EMAIL}</a>
+            <strong>{ownerName || shopName}</strong><br />
+            {addressLine}<br />
+            {addressCity && <>{addressCity}<br /></>}
+            {phone && (
+              <>
+                Tel: <a href={`tel:${phoneHref}`} className="font-semibold text-[hsl(142_71%_35%)] hover:underline">{phone.startsWith('+') ? phone : `+420 ${phone}`}</a><br />
+              </>
+            )}
+            {email && (
+              <>
+                E-mail: <a href={`mailto:${email}`} className="hover:underline">{email}</a>
+              </>
+            )}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link

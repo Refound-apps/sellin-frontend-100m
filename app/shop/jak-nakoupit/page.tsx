@@ -1,15 +1,13 @@
-import type { Metadata } from 'next';
+'use client';
+
 import Link from 'next/link';
 import ShopHeader from '@/components/shop/ShopHeader';
 import ShopFooter from '@/components/shop/ShopFooter';
-import { SHOP_PHONE, SHOP_PHONE_HREF } from '@/components/shop/shopConfig';
-
-export const metadata: Metadata = {
-  title: 'Jak vybrat pneu a jak nakoupit | Duplux Pneu Plzeň',
-  description: 'Kompletní průvodce výběrem správného rozměru pneumatik a disků podle technického průkazu. Značení pneu, indexy, rozteče a DOT kód.',
-};
+import { useShop } from '@/components/shop/ShopContext';
 
 export default function JakNakoupitPage() {
+  const { phone, phoneHref, addressLine } = useShop();
+
   return (
     <div className="min-h-screen bg-white">
       <ShopHeader />
@@ -58,13 +56,13 @@ export default function JakNakoupitPage() {
                 Vyberte sadu a zavolejte
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-[hsl(215_16%_47%)]">
-                Zvolte sadu v katalogu a zavolejte nám na{' '}
+                Zvolte sadu v katalogu{phone ? <> a zavolejte nám na{' '}
                 <a
-                  href={`tel:${SHOP_PHONE_HREF}`}
+                  href={`tel:${phoneHref}`}
                   className="font-bold text-[hsl(142_71%_35%)] hover:underline inline-block"
                 >
-                  {SHOP_PHONE}
-                </a>{' '}
+                  {phone}
+                </a>{' '}</> : ' '}
                 pro okamžitou rezervaci.
               </p>
             </div>
@@ -74,7 +72,7 @@ export default function JakNakoupitPage() {
                 Zkontrolujte a převezměte
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-[hsl(215_16%_47%)]">
-                Zboží si osobně prohlédnete u nás (Plzeň Jih), změříte a po domluvě vám ho na místě přezujeme.
+                Zboží si osobně prohlédnete {addressLine ? `u nás (${addressLine})` : 'na provozovně'}, změříte a po domluvě vám ho na místě přezujeme.
               </p>
             </div>
           </div>
@@ -205,12 +203,14 @@ export default function JakNakoupitPage() {
             Zavolejte nám, řekněte značku a model svého auta a my vám rádi pomůžeme s kontrolou kompatibility.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <a
-              href={`tel:${SHOP_PHONE_HREF}`}
-              className="rounded-xl bg-[hsl(142_71%_45%)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[hsl(142_71%_35%)]"
-            >
-              Zavolat {SHOP_PHONE}
-            </a>
+            {phone && (
+              <a
+                href={`tel:${phoneHref}`}
+                className="rounded-xl bg-[hsl(142_71%_45%)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[hsl(142_71%_35%)]"
+              >
+                Zavolat {phone}
+              </a>
+            )}
             <Link
               href="/shop#nabidka"
               className="rounded-xl border border-[hsl(214_32%_91%)] bg-white px-5 py-2.5 text-sm font-semibold text-[hsl(222_47%_11%)] hover:bg-[hsl(210_40%_96%)]"

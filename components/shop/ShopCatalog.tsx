@@ -209,7 +209,7 @@ export default function ShopCatalog() {
     return () => document.removeEventListener('click', handleDocumentClick);
   }, []);
 
-  const { linkedEmails, shop } = useShop();
+  const { linkedEmails, shop, addressLine, addressCity } = useShop();
 
   const activeRequestIdRef = useRef(0);
   const filtersSerialized = useMemo(() => JSON.stringify(filters), [filters]);
@@ -285,6 +285,13 @@ export default function ShopCatalog() {
     setHasMore(true);
     setSearchQuery('');
     setFilters({});
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const toDelete = ['sort', 'type', 'season', 'rim', 'brand', 'search', 'q', 'width', 'profile'];
+      toDelete.forEach((p) => url.searchParams.delete(p));
+      const remaining = url.searchParams.toString();
+      window.history.replaceState(null, '', url.pathname + (remaining ? `?${remaining}` : '') + url.hash);
+    }
   };
 
   const updateFilter = (key: keyof ShopOfferFilters, value: string) => {
@@ -346,7 +353,7 @@ export default function ShopCatalog() {
               Aktuální nabídka kol a pneu
             </h2>
             <p className="mt-2 sm:mt-3 text-xs sm:text-base text-[hsl(215_16%_47%)]">
-              Všechny položky jsou fyzicky skladem v lokalitě Plzeň Jih s možností osobní prohlídky.
+              Všechny položky jsou fyzicky skladem{addressLine ? ` v lokalitě ${addressLine}` : ' na naší provozovně'} s možností osobní prohlídky.
             </p>
           </div>
 

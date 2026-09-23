@@ -42,7 +42,7 @@ export default function ShopFooter() {
             </span>
             <div className="text-[11px] sm:text-xs">
               <p className="font-semibold text-white">Osobní prohlídka</p>
-              <p className="text-white/60">{addressLine || 'Plzeň Jih'}</p>
+              <p className="text-white/60">{addressLine || 'Osobní odběr'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 sm:gap-3">
@@ -86,7 +86,7 @@ export default function ShopFooter() {
             <span className="text-lg font-bold tracking-tight text-white">{shopName}</span>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-white/70">
-            Rodinný prodej prověřených pneumatik a disků v lokalitě {addressLine || 'Plzeň Jih'}. Osobní přístup, férové jednání a možnost vyzkoušení i přezutí.
+            Rodinný prodej prověřených pneumatik a disků{addressLine ? ` v lokalitě ${addressLine}` : ''}. Osobní přístup, férové jednání a možnost vyzkoušení i přezutí.
           </p>
           {caravanUrl && (
             <div className="mt-4 pt-3 border-t border-white/10">
@@ -97,7 +97,7 @@ export default function ShopFooter() {
                 rel="noopener noreferrer"
                 className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[hsl(142_71%_45%)] hover:underline"
               >
-                <span>Půjč Karavan Plzeň</span>
+                <span>{caravanUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '')}</span>
                 <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
@@ -154,19 +154,23 @@ export default function ShopFooter() {
           <h4 className="text-sm font-semibold uppercase tracking-wider text-white">Kontakt & Odběr</h4>
           <div className="mt-4 space-y-2 text-sm text-white/70">
             {ownerName && <p className="font-medium text-white">{ownerName}</p>}
-            <p>
-              <a
-                href={`tel:${phoneHref}`}
-                className="font-semibold text-[hsl(142_71%_45%)] hover:underline"
-              >
-                +420 {phone}
-              </a>
-            </p>
-            <p>
-              <a href={`mailto:${email}`} className="hover:text-white">
-                {email}
-              </a>
-            </p>
+            {phone && (
+              <p>
+                <a
+                  href={`tel:${phoneHref}`}
+                  className="font-semibold text-[hsl(142_71%_45%)] hover:underline"
+                >
+                  {phone.startsWith('+') ? phone : `+420 ${phone}`}
+                </a>
+              </p>
+            )}
+            {email && (
+              <p>
+                <a href={`mailto:${email}`} className="hover:text-white">
+                  {email}
+                </a>
+              </p>
+            )}
             <p className="pt-2 text-white/90">
               {addressLine}{addressCity ? `, ${addressCity}` : ''}
             </p>

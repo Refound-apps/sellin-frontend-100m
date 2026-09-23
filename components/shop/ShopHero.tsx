@@ -177,7 +177,7 @@ export default function ShopHero({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[hsl(142_71%_45%)] opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(142_71%_45%)]" />
           </span>
-          <span className="truncate">Osobní odběr {addressLine || 'Plzeň Jih'}</span>
+          <span className="truncate">Osobní odběr {addressLine || 'na provozovně'}</span>
           <span className="text-[hsl(214_32%_75%)]">·</span>
           <span className="hidden xs:inline font-medium text-[hsl(215_16%_47%)]">Aktuální nabídka na skladě</span>
           <span className="xs:hidden font-medium text-[hsl(215_16%_47%)]">Skladem</span>
@@ -193,7 +193,7 @@ export default function ShopHero({
 
         {/* Subtitle */}
         <p className="mt-3.5 sm:mt-5 max-w-2xl text-sm sm:text-lg leading-relaxed text-[hsl(215_16%_47%)]">
-          Rodinný prodej zánovních i prověřených použitých pneumatik a disků v lokalitě {region || addressLine || 'Plzeň Jih'}. Každou sadu pečlivě měříme, kontrolujeme a nabízíme osobní prohlídku.
+          Rodinný prodej zánovních i prověřených použitých pneumatik a disků{region || addressLine ? ` v lokalitě ${region || addressLine}` : ''}. Každou sadu pečlivě měříme, kontrolujeme a nabízíme osobní prohlídku.
         </p>
 
         {/* Action buttons - Stacked & Full Width on Mobile, Inline on Tablet+ */}
@@ -211,15 +211,17 @@ export default function ShopHero({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
           </a>
-          <a
-            href={`tel:${phoneHref}`}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[hsl(214_32%_88%)] bg-white px-6 py-3.5 text-sm sm:text-base font-semibold text-[hsl(222_47%_11%)] shadow-xs transition-all hover:bg-[hsl(210_40%_96%)] active:scale-98 text-center"
-          >
-            <svg className="h-4 w-4 text-[hsl(142_71%_45%)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
-            <span>Zavolat {phone}</span>
-          </a>
+          {phone && (
+            <a
+              href={`tel:${phoneHref}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[hsl(214_32%_88%)] bg-white px-6 py-3.5 text-sm sm:text-base font-semibold text-[hsl(222_47%_11%)] shadow-xs transition-all hover:bg-[hsl(210_40%_96%)] active:scale-98 text-center"
+            >
+              <svg className="h-4 w-4 text-[hsl(142_71%_45%)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+              <span>Zavolat {phone}</span>
+            </a>
+          )}
         </div>
 
         {/* Quick dimension selector chips - Horizontally swipeable on mobile */}
@@ -309,8 +311,8 @@ export default function ShopHero({
             <p className="text-[11px] sm:text-xs text-[hsl(215_16%_47%)] mt-0.5">Přesná hloubka dezénu v mm</p>
           </div>
           <div className="rounded-xl bg-white/70 p-2.5 sm:p-3.5 backdrop-blur-xs border border-[hsl(214_32%_91%)]">
-            <p className="text-lg sm:text-xl font-bold text-[hsl(222_47%_11%)]">Pár minut</p>
-            <p className="text-[11px] sm:text-xs text-[hsl(215_16%_47%)] mt-0.5">Z centra Plzně (Plzeň Jih)</p>
+            <p className="text-lg sm:text-xl font-bold text-[hsl(222_47%_11%)]">Dostupnost</p>
+            <p className="text-[11px] sm:text-xs text-[hsl(215_16%_47%)] mt-0.5">{region || addressLine || 'Snadný příjezd autem'}</p>
           </div>
           <div className="rounded-xl bg-white/70 p-2.5 sm:p-3.5 backdrop-blur-xs border border-[hsl(214_32%_91%)]">
             <p className="text-lg sm:text-xl font-bold text-[hsl(222_47%_11%)]">Přezutí</p>

@@ -36,7 +36,7 @@ export default function ShopServices() {
               Kompletní zázemí
             </p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight text-[hsl(222_47%_11%)] sm:text-3xl">
-              Pneuservis & Služby {addressLine || 'Plzeň Jih'}
+              Pneuservis & Služby{addressLine ? ` (${addressLine})` : ''}
             </h2>
             <p className="mt-2 max-w-xl text-xs sm:text-base text-[hsl(215_16%_47%)]">
               Nejsme jen virtuální prodejce. Máme zázemí pneuservisu, kde vám vybrané pneumatiky rádi obujeme a zkontrolujeme.

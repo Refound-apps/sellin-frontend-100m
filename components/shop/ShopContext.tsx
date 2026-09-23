@@ -192,19 +192,28 @@ export function ShopProvider({
 
   const value = useMemo<ShopContextType>(() => {
     const s = shop || FALLBACK_SHOP;
+    const cleanPhone = (s.phone || DEFAULT_PHONE || '').trim();
+    const phoneHref = s.phone_href
+      ? s.phone_href
+      : cleanPhone
+      ? cleanPhone.startsWith('+')
+        ? cleanPhone.replace(/\s+/g, '')
+        : `+420${cleanPhone.replace(/\s+/g, '')}`
+      : '';
+
     return {
       shop: s,
       loading,
       shopName: s.shop_name || DEFAULT_NAME,
       tagline: s.tagline || DEFAULT_TAGLINE,
-      phone: s.phone || DEFAULT_PHONE,
-      phoneHref: s.phone_href || (s.phone ? `+420${s.phone.replace(/\s+/g, '')}` : DEFAULT_PHONE_HREF),
+      phone: cleanPhone,
+      phoneHref,
       email: s.email || DEFAULT_EMAIL,
       ownerName: s.owner_name || DEFAULT_OWNER,
       ico: s.ico || DEFAULT_ICO,
       addressLine: s.address_line || DEFAULT_ADDRESS_LINE,
       addressCity: s.address_city || DEFAULT_ADDRESS_CITY,
-      region: s.region || DEFAULT_REGION,
+      region: s.region || s.address_city || s.address_line || DEFAULT_REGION,
       hours: s.opening_hours || DEFAULT_HOURS,
       caravanUrl: s.caravan_url || DEFAULT_CARAVAN_URL,
       shippingPrice: s.shipping_price || DEFAULT_SHIPPING_PRICE,

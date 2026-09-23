@@ -34,7 +34,9 @@ export default function ShopHeader() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-1.5 sm:px-6 sm:py-2">
           <div className="flex items-center gap-2 truncate text-[hsl(215_16%_47%)]">
             <span className="inline-block h-2 w-2 rounded-full bg-[hsl(142_71%_45%)] shrink-0" />
-            <span className="font-medium text-[hsl(222_47%_11%)] truncate">Osobní odběr {addressLine || 'Plzeň Jih'}</span>
+            <span className="font-medium text-[hsl(222_47%_11%)] truncate">
+              Osobní odběr {addressLine ? `· ${addressLine}` : 'na provozovně'}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 font-medium text-[hsl(215_16%_47%)] shrink-0">
             <svg className="h-3.5 w-3.5 text-[hsl(142_71%_45%)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

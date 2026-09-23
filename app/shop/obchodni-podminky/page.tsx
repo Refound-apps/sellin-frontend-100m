@@ -1,23 +1,22 @@
-import type { Metadata } from 'next';
+'use client';
+
 import Link from 'next/link';
 import ShopHeader from '@/components/shop/ShopHeader';
 import ShopFooter from '@/components/shop/ShopFooter';
-import {
-  SHOP_ADDRESS_LINE,
-  SHOP_ADDRESS_CITY,
-  SHOP_EMAIL,
-  SHOP_ICO,
-  SHOP_OWNER,
-  SHOP_PHONE,
-  SHOP_PHONE_HREF,
-} from '@/components/shop/shopConfig';
-
-export const metadata: Metadata = {
-  title: 'Obchodní podmínky | Duplux Pneu Plzeň',
-  description: 'Všeobecné obchodní podmínky pro prodej pneumatik, disků a příslušenství. Identifikace provozovatele, práva a povinnosti kupujícího a prodávajícího.',
-};
+import { useShop } from '@/components/shop/ShopContext';
 
 export default function ObchodniPodminkyPage() {
+  const {
+    shopName,
+    ownerName,
+    ico,
+    addressLine,
+    addressCity,
+    phone,
+    phoneHref,
+    email,
+  } = useShop();
+
   return (
     <div className="min-h-screen bg-white">
       <ShopHeader />
@@ -41,7 +40,7 @@ export default function ObchodniPodminkyPage() {
             Všeobecné obchodní podmínky
           </h1>
           <p className="mt-2 sm:mt-3 text-xs sm:text-base text-[hsl(215_16%_47%)]">
-            Platné a účinné pro nákup zboží a služeb prostřednictvím internetového katalogu a provozovny Duplux Pneu.
+            Platné a účinné pro nákup zboží a služeb prostřednictvím internetového katalogu {shopName}.
           </p>
         </div>
 
@@ -52,33 +51,37 @@ export default function ObchodniPodminkyPage() {
           </h3>
           <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 text-[hsl(222_20%_28%)]">
             <div>
-              <dt className="text-xs text-[hsl(215_16%_47%)]">Jméno a příjmení</dt>
-              <dd className="font-semibold">{SHOP_OWNER}</dd>
+              <dt className="text-xs text-[hsl(215_16%_47%)]">Jméno provozovatele</dt>
+              <dd className="font-semibold">{ownerName || shopName || '—'}</dd>
             </div>
             <div>
               <dt className="text-xs text-[hsl(215_16%_47%)]">IČO</dt>
-              <dd className="font-semibold">{SHOP_ICO}</dd>
+              <dd className="font-semibold">{ico || '—'}</dd>
             </div>
             <div>
               <dt className="text-xs text-[hsl(215_16%_47%)]">Místo podnikání / Provozovna</dt>
-              <dd>{SHOP_ADDRESS_LINE}, {SHOP_ADDRESS_CITY}</dd>
+              <dd>{addressLine}{addressCity ? `, ${addressCity}` : ''}</dd>
             </div>
             <div>
               <dt className="text-xs text-[hsl(215_16%_47%)]">Kontaktní telefon a e-mail</dt>
               <dd>
-                <a
-                  href={`tel:${SHOP_PHONE_HREF}`}
-                  className="font-semibold text-[hsl(142_71%_35%)] hover:underline"
-                >
-                  +420 {SHOP_PHONE}
-                </a>{' '}
-                ·{' '}
-                <a
-                  href={`mailto:${SHOP_EMAIL}`}
-                  className="hover:underline"
-                >
-                  {SHOP_EMAIL}
-                </a>
+                {phone && (
+                  <a
+                    href={`tel:${phoneHref}`}
+                    className="font-semibold text-[hsl(142_71%_35%)] hover:underline"
+                  >
+                    {phone.startsWith('+') ? phone : `+420 ${phone}`}
+                  </a>
+                )}
+                {phone && email && ' · '}
+                {email && (
+                  <a
+                    href={`mailto:${email}`}
+                    className="hover:underline"
+                  >
+                    {email}
+                  </a>
+                )}
               </dd>
             </div>
           </dl>
@@ -129,7 +132,7 @@ export default function ObchodniPodminkyPage() {
               4. Dodání zboží a přeprava
             </h2>
             <p className="mt-2">
-              Standardním a preferovaným způsobem dodání je <strong>osobní odběr na provozovně (Plzeň Jih)</strong>, kde má kupující možnost si zboží před zaplacením fyzicky prohlédnout a zkontrolovat.
+              Standardním a preferovaným způsobem dodání je <strong>osobní odběr na provozovně{addressLine ? ` (${addressLine})` : ''}</strong>, kde má kupující možnost si zboží před zaplacením fyzicky prohlédnout a zkontrolovat.
             </p>
             <p className="mt-2">
               Při zaslání zboží poštou je kupující povinen při převzetí od přepravce zkontrolovat neporušenost obalu a v případě zjevných vad toto neprodleně oznámit dopravci a sepsat škodní zápis.
@@ -197,6 +200,12 @@ export default function ObchodniPodminkyPage() {
             className="rounded-xl border border-[hsl(214_32%_91%)] bg-white px-5 py-2.5 text-sm font-semibold text-[hsl(222_47%_11%)] hover:bg-[hsl(210_40%_96%)]"
           >
             Doprava a platba
+          </Link>
+          <Link
+            href="/shop/kontakt"
+            className="rounded-xl border border-[hsl(214_32%_91%)] bg-white px-5 py-2.5 text-sm font-semibold text-[hsl(222_47%_11%)] hover:bg-[hsl(210_40%_96%)]"
+          >
+            Kontakt
           </Link>
         </div>
       </main>

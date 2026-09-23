@@ -147,6 +147,7 @@ export default function Navigation() {
     { href: '/admin/transactions', label: 'Transakce', exact: false },
     { href: '/admin/automations', label: 'Automatizace & Cron', exact: false },
     { href: '/admin/users', label: 'Uživatelé', exact: false },
+    { href: '/admin/eshop', label: 'E-shopy', exact: false },
   ];
 
   const currentNavItems = isAdminSection ? adminNavItems : sellerNavItems;

@@ -9,65 +9,12 @@ import { createClient } from '@/lib/supabase/client';
 import OfferCard from './OfferCard';
 import OfferModal from './OfferModal';
 import SellerAccountSwitcher from './SellerAccountSwitcher';
+import PairedAccountSwitcher from './PairedAccountSwitcher';
 import { formatPhoneNumber } from './offerStatus';
+import { resolveLinkedEmails, resolvePairedUserAccounts, getSubaccountFilterEmails } from '@/lib/sellerAccounts';
 
 interface OffersListProps {
   mode?: 'user' | 'admin';
-}
-
-function resolveLinkedEmails(target: User | string | null, allUsers: User[]): string[] {
-  if (!target) return [];
-
-  const emailsSet = new Set<string>();
-
-  const targetEmail =
-    typeof target === 'string'
-      ? target.toLowerCase().trim()
-      : target.email?.toLowerCase().trim();
-  const targetSbazar =
-    typeof target === 'string' ? null : target.sbazar_email?.toLowerCase().trim();
-  const targetBazos =
-    typeof target === 'string' ? null : target.bazos_email?.toLowerCase().trim();
-
-  if (targetEmail) emailsSet.add(targetEmail);
-  if (targetSbazar) emailsSet.add(targetSbazar);
-  if (targetBazos) emailsSet.add(targetBazos);
-
-  // 1. Identify any shared sbazar_email among allUsers
-  let activeSbazarEmail = targetSbazar;
-  if (!activeSbazarEmail && targetEmail) {
-    const matched = allUsers.find(
-      (u) =>
-        u.email?.toLowerCase().trim() === targetEmail ||
-        u.sbazar_email?.toLowerCase().trim() === targetEmail ||
-        u.bazos_email?.toLowerCase().trim() === targetEmail
-    );
-    if (matched?.sbazar_email) {
-      activeSbazarEmail = matched.sbazar_email.toLowerCase().trim();
-      emailsSet.add(activeSbazarEmail);
-    }
-  }
-
-  // 2. Gather all accounts connected through activeSbazarEmail or direct email match
-  for (const u of allUsers) {
-    const uSbazar = u.sbazar_email?.toLowerCase().trim();
-    const uEmail = u.email?.toLowerCase().trim();
-    const uBazos = u.bazos_email?.toLowerCase().trim();
-    const uFb = u.facebook_email?.toLowerCase().trim();
-
-    const isLinked =
-      (activeSbazarEmail && (uSbazar === activeSbazarEmail || uEmail === activeSbazarEmail)) ||
-      (targetEmail && (uEmail === targetEmail || uSbazar === targetEmail || uBazos === targetEmail));
-
-    if (isLinked) {
-      if (uEmail) emailsSet.add(uEmail);
-      if (uSbazar) emailsSet.add(uSbazar);
-      if (uBazos) emailsSet.add(uBazos);
-      if (uFb) emailsSet.add(uFb);
-    }
-  }
-
-  return Array.from(emailsSet).filter(Boolean);
 }
 
 export default function OffersList({ mode = 'user' }: OffersListProps) {
@@ -98,6 +45,11 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
 
+  // Paired accounts & subaccount filtering
+  const [pairedAccounts, setPairedAccounts] = useState<User[]>([]);
+  const [selectedSubaccount, setSelectedSubaccount] = useState<User | null>(null);
+  const [exactBbEmail, setExactBbEmail] = useState<string | undefined>(undefined);
+
   // Admin Account Impersonation state (when admin views a specific seller account on seller page)
   const [selectedSeller, setSelectedSeller] = useState<User | null>(null);
   const [selectedCustomEmail, setSelectedCustomEmail] = useState<string | null>(null);
@@ -125,6 +77,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           setUserEmails([]);
           setMyEmail(null);
           setMyEmails([]);
+          setPairedAccounts([]);
           return;
         }
 
@@ -182,20 +135,18 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         const resolvedMyEmails = Array.from(myEmailsSet);
         setMyEmails(resolvedMyEmails);
 
-        // Preload all users for admin switcher
+        // Preload all users so we can resolve paired accounts for regular users and switcher for admins
         let allUsers: User[] = [];
-        if (isUserAdmin) {
-          try {
-            allUsers = await getUsers();
-            if (!isCancelled) {
-              setAvailableUsers(allUsers);
-            }
-          } catch (e) {
-            console.error('Failed to load users for switcher:', e);
+        try {
+          allUsers = await getUsers();
+          if (!isCancelled) {
+            setAvailableUsers(allUsers);
           }
+        } catch (e) {
+          console.error('Failed to load users for switcher:', e);
         }
 
-        // If user is admin and URL contains ?account=..., resolve and select that seller account
+        // Determine target seller and paired accounts
         if (isUserAdmin && urlAccountParam) {
           const cleanTarget = urlAccountParam.toLowerCase().trim();
           const matched = allUsers.find(
@@ -208,18 +159,56 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           if (matched) {
             setSelectedSeller(matched);
             setSelectedCustomEmail(null);
-            const targetEmails = resolveLinkedEmails(matched, allUsers);
-            setUserEmails(targetEmails);
+            const paired = resolvePairedUserAccounts(matched, allUsers);
+            setPairedAccounts(paired);
+
+            // Check if cleanTarget was specifically a subaccount
+            const matchedSub = paired.find(
+              (p) => p.email.toLowerCase().trim() === cleanTarget
+            );
+            if (matchedSub && paired.length > 1 && matched.sbazar_email && matchedSub.email.toLowerCase() !== matched.sbazar_email.toLowerCase()) {
+              setSelectedSubaccount(matchedSub);
+              setExactBbEmail(getSubaccountFilterEmails(matchedSub));
+              setUserEmails([matchedSub.email.toLowerCase().trim()]);
+            } else {
+              const targetEmails = resolveLinkedEmails(matched, allUsers);
+              setSelectedSubaccount(null);
+              setExactBbEmail(undefined);
+              setUserEmails(targetEmails);
+            }
             return;
           } else {
             setSelectedSeller(null);
             setSelectedCustomEmail(cleanTarget);
             const targetEmails = resolveLinkedEmails(cleanTarget, allUsers);
+            const paired = resolvePairedUserAccounts(cleanTarget, allUsers);
+            setPairedAccounts(paired);
+            setSelectedSubaccount(null);
+            setExactBbEmail(undefined);
             setUserEmails(targetEmails.length > 0 ? targetEmails : [cleanTarget]);
             return;
           }
         }
 
+        // Regular user mode (or admin without urlAccountParam)
+        const myPaired = resolvePairedUserAccounts(email, allUsers);
+        setPairedAccounts(myPaired);
+
+        if (urlAccountParam) {
+          const cleanTarget = urlAccountParam.toLowerCase().trim();
+          const matchedSub = myPaired.find(
+            (p) => p.email.toLowerCase().trim() === cleanTarget
+          );
+          if (matchedSub && myPaired.length > 1) {
+            setSelectedSubaccount(matchedSub);
+            setExactBbEmail(getSubaccountFilterEmails(matchedSub));
+            setUserEmails([matchedSub.email.toLowerCase().trim()]);
+            return;
+          }
+        }
+
+        setSelectedSubaccount(null);
+        setExactBbEmail(undefined);
         setUserEmails(resolvedMyEmails);
       } catch (err) {
         console.error('Error resolving user emails:', err);
@@ -238,12 +227,57 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
     };
   }, [mode, supabase, urlAccountParam]);
 
+  // Handler for Paired Account Switcher (switching between Main account / All offers vs specific subaccount)
+  const handleSelectSubaccount = useCallback(
+    (account: User | null) => {
+      setPage(0);
+      setHasMore(true);
+      setTotalOffers(null);
+
+      if (account) {
+        setSelectedSubaccount(account);
+        setExactBbEmail(getSubaccountFilterEmails(account));
+        setUserEmails([account.email.toLowerCase().trim()]);
+
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.set('account', account.email);
+          url.searchParams.delete('seller');
+          window.history.replaceState({}, '', url.toString());
+        }
+      } else {
+        // Reset to Main Account / All paired accounts
+        setSelectedSubaccount(null);
+        setExactBbEmail(undefined);
+
+        const targetEmails = selectedSeller
+          ? resolveLinkedEmails(selectedSeller, availableUsers)
+          : myEmails;
+        setUserEmails(targetEmails);
+
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          if (selectedSeller) {
+            url.searchParams.set('account', selectedSeller.email);
+          } else {
+            url.searchParams.delete('account');
+          }
+          url.searchParams.delete('seller');
+          window.history.replaceState({}, '', url.toString());
+        }
+      }
+    },
+    [availableUsers, myEmails, selectedSeller]
+  );
+
   // Handler for Admin Account Switcher
   const handleSelectAccount = useCallback(
     async (user: User | null, customEmail?: string) => {
       setPage(0);
       setHasMore(true);
       setTotalOffers(null);
+      setSelectedSubaccount(null);
+      setExactBbEmail(undefined);
 
       // Ensure we have availableUsers for resolving linked accounts
       let users = availableUsers;
@@ -260,6 +294,8 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         setSelectedSeller(user);
         setSelectedCustomEmail(null);
         const linkedEmails = resolveLinkedEmails(user, users);
+        const paired = resolvePairedUserAccounts(user, users);
+        setPairedAccounts(paired);
 
         // Update URL query parameter
         if (typeof window !== 'undefined') {
@@ -274,6 +310,8 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         setSelectedSeller(null);
         setSelectedCustomEmail(customEmail);
         const linkedEmails = resolveLinkedEmails(customEmail, users);
+        const paired = resolvePairedUserAccounts(customEmail, users);
+        setPairedAccounts(paired);
 
         if (typeof window !== 'undefined') {
           const url = new URL(window.location.href);
@@ -287,6 +325,8 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         // Reset to my own account
         setSelectedSeller(null);
         setSelectedCustomEmail(null);
+        const paired = resolvePairedUserAccounts(myEmail, users);
+        setPairedAccounts(paired);
 
         if (typeof window !== 'undefined') {
           const url = new URL(window.location.href);
@@ -298,7 +338,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         setUserEmails(myEmails);
       }
     },
-    [availableUsers, myEmails]
+    [availableUsers, myEmails, myEmail]
   );
 
   const handleResetToMe = useCallback(() => {
@@ -350,7 +390,8 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           limit,
           targetPage * limit,
           searchQuery,
-          filterEmails
+          filterEmails,
+          exactBbEmail
         );
 
         if (targetPage === 0) {
@@ -383,7 +424,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         setLoadingMore(false);
       }
     },
-    [mode, userEmails, searchQuery, limit]
+    [mode, userEmails, exactBbEmail, searchQuery, limit]
   );
 
   // Trigger initial / filter reload
@@ -393,7 +434,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
     setPage(0);
     setHasMore(true);
     loadOffers(0);
-  }, [searchQuery, userLoading, userEmails, loadOffers]);
+  }, [searchQuery, userLoading, userEmails, exactBbEmail, loadOffers]);
 
   // Load next page
   const handleLoadMore = useCallback(() => {
@@ -413,9 +454,10 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
 
   const isFiltered = Boolean(
     mode === 'user' &&
-      isAdminUser &&
-      (selectedSeller ||
-        (selectedCustomEmail && selectedCustomEmail.toLowerCase() !== myEmail?.toLowerCase()))
+      ((isAdminUser &&
+        (selectedSeller ||
+          (selectedCustomEmail && selectedCustomEmail.toLowerCase() !== myEmail?.toLowerCase()))) ||
+        selectedSubaccount)
   );
 
   const linkedAccountsCount = useMemo(() => {
@@ -427,7 +469,14 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
   }, [userEmails, availableUsers]);
 
   const activeAccountDisplay =
-    selectedSeller?.bazos_name || selectedSeller?.email || selectedCustomEmail;
+    selectedSubaccount?.bazos_name ||
+    selectedSubaccount?.email ||
+    selectedSeller?.bazos_name ||
+    selectedSeller?.email ||
+    selectedCustomEmail;
+
+  const activeSellerEmail =
+    selectedSeller?.email || selectedCustomEmail || myEmail;
 
   return (
     <div>
@@ -474,8 +523,29 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
             />
           )}
 
+          {/* Paired Accounts Switcher:
+              - For regular user: switches between his own paired accounts
+              - For admin: when viewing a seller with paired accounts, switches between that seller's subaccounts */}
+          {mode === 'user' && pairedAccounts.length > 1 && (
+            <PairedAccountSwitcher
+              mainEmail={activeSellerEmail}
+              pairedAccounts={pairedAccounts}
+              selectedSubaccount={selectedSubaccount}
+              onSelectAccount={handleSelectSubaccount}
+              isAdmin={isAdminUser}
+            />
+          )}
+
           <Link
-            href="/create"
+            href={
+              selectedSubaccount?.email
+                ? `/create?account=${encodeURIComponent(selectedSubaccount.email)}`
+                : selectedSeller?.email
+                ? `/create?account=${encodeURIComponent(selectedSeller.email)}`
+                : selectedCustomEmail
+                ? `/create?account=${encodeURIComponent(selectedCustomEmail)}`
+                : '/create'
+            }
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-[0_4px_14px_rgba(15,23,42,0.18),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-slate-950/80 hover:from-slate-800 hover:to-slate-900 active:scale-[0.98] transition-all"
           >
             <span>+</span>
@@ -551,15 +621,30 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
             </span>
           )}
           {isFiltered && activeAccountDisplay && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
-              Prodejce: {activeAccountDisplay}
-              {linkedAccountsCount > 1 && (
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+              selectedSubaccount
+                ? 'bg-emerald-50 border-emerald-200/90 text-emerald-900'
+                : 'bg-indigo-50 border-indigo-200/80 text-indigo-800'
+            }`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${selectedSubaccount ? 'bg-emerald-600' : 'bg-indigo-600'}`} />
+              {selectedSubaccount ? 'Subúčet:' : 'Prodejce:'} {activeAccountDisplay}
+              {!selectedSubaccount && linkedAccountsCount > 1 && (
                 <span className="ml-1 rounded-md bg-indigo-100 border border-indigo-200/60 px-1.5 py-0.2 text-[10px] font-bold text-indigo-700">
                   {linkedAccountsCount} účtů
                 </span>
               )}
             </span>
+          )}
+          {selectedSubaccount && (
+            <button
+              type="button"
+              onClick={() => handleSelectSubaccount(null)}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded-md transition-colors"
+              title="Zobrazit všechny inzeráty napříč spárovanými účty"
+            >
+              <span>Všechny nabídky</span>
+              <span className="text-xs font-bold">✕</span>
+            </button>
           )}
         </div>
         {!loading && (
