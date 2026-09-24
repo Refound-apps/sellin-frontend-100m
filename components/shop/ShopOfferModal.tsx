@@ -51,6 +51,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
     hours,
     googleMapsLink,
     shippingPrice,
+    shopName,
+    shop,
   } = useShop();
 
   const [images, setImages] = useState<string[]>(
@@ -164,8 +166,45 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
   const tags = getOfferTags(offer);
   const pricing = getOfferPricingInfo(offer);
 
+  const domain = shop.custom_domain
+    ? `https://${shop.custom_domain}`
+    : `https://${shop.slug || 'shop'}.prodejomat.cz`;
+
+  // Schema.org Product JSON-LD for AI crawlers / agents looking at this modal
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    '@id': `${domain}/shop?offer=${offer.id}`,
+    name: offer.title,
+    description: offer.description || offer.title,
+    image: images.length > 0 ? images : [offer.preview_image],
+    sku: `TIRE-${offer.id}`,
+    category: 'Automotive > Tires & Wheels',
+    offers: {
+      '@type': 'Offer',
+      price: offer.price,
+      priceCurrency: 'CZK',
+      availability: 'https://schema.org/InStock',
+      itemCondition: 'https://schema.org/UsedCondition',
+      seller: {
+        '@type': 'AutoPartsStore',
+        name: shopName,
+        telephone: phone,
+      },
+    },
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 lg:p-6">
+    <div
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 lg:p-6"
+      data-ai-modal-product-id={offer.id}
+    >
+      {/* Embedded Schema.org script for AI agents parsing this modal view */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/65 backdrop-blur-xs transition-opacity"
@@ -192,31 +231,33 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Share / Copy link button */}
             <button
               type="button"
               onClick={handleCopyLink}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-950 shadow-2xs transition-colors"
-              title="Zkopírovat odkaz"
+              title="Sdílet odkaz na inzerát"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95 transition-all"
             >
               {copied ? (
                 <>
                   <span className="text-emerald-600 font-bold">✓</span>
-                  <span className="text-emerald-700">Zkopírováno</span>
+                  <span>Zkopírováno</span>
                 </>
               ) : (
                 <>
                   <svg className="h-3.5 w-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                   </svg>
-                  <span className="hidden sm:inline">Sdílet</span>
+                  <span className="hidden xs:inline">Sdílet</span>
                 </>
               )}
             </button>
 
+            {/* Close button with high contrast */}
             <button
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200/80 text-slate-700 hover:bg-slate-300 hover:text-slate-950 transition-colors"
-              aria-label="Zavřít"
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-200/80 text-slate-700 hover:bg-slate-300 active:scale-95 transition-all font-bold"
+              aria-label="Zavřít okno inzerátu"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
@@ -225,8 +266,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
           </div>
         </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-7">
+        {/* Scrollable Body: Image + Information */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 overscroll-contain">
           <div className="grid gap-6 lg:grid-cols-12 lg:gap-8 items-start">
             
             {/* Left Column: Image Gallery (lg: 6 cols) */}
@@ -259,6 +300,11 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                     {/* Photo counter */}
                     <span className="pointer-events-none absolute right-3 top-3 z-20 rounded-md bg-slate-900/80 px-2 py-0.5 text-xs font-bold text-white backdrop-blur-xs shadow-xs">
                       {current + 1} / {count}
+                    </span>
+
+                    {/* Mobile swipe hint */}
+                    <span className="pointer-events-none absolute left-3 bottom-3 z-20 rounded-md bg-white/85 px-2 py-0.5 text-[10px] font-semibold text-slate-700 backdrop-blur-xs border border-slate-200 sm:hidden">
+                      Přejetím prstem listujete
                     </span>
 
                     {/* Carousel navigation arrows */}
@@ -325,61 +371,48 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   )}
                 </div>
               ) : (
-                <div className="flex h-60 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 border border-slate-200">
-                  <span>Fotografie není k dispozici</span>
+                <div className="flex h-64 sm:h-80 w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                  <p className="text-sm">Fotografie není k dispozici</p>
                 </div>
               )}
-
-              {/* Grounded Trust Bar below photo */}
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-2 sm:p-2.5 shadow-2xs">
-                  <p className="font-bold text-xs text-slate-900">100% reálné</p>
-                  <p className="text-[11px] text-slate-500">fotky sady</p>
-                </div>
-                <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-2 sm:p-2.5 shadow-2xs">
-                  <p className="font-bold text-xs text-slate-900">Změřený</p>
-                  <p className="text-[11px] text-slate-500">přesný dezén</p>
-                </div>
-                <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-2 sm:p-2.5 shadow-2xs">
-                  <p className="font-bold text-xs text-slate-900">Přezutí</p>
-                  <p className="text-[11px] text-slate-500">v pneuservisu</p>
-                </div>
-              </div>
             </div>
 
-            {/* Right Column: Title, Anchored Purchase Card & Structured Specs (lg: 6 cols) */}
-            <div className="lg:col-span-6 flex flex-col">
+            {/* Right Column: Title, Price, Specs, CTA & Contacts (lg: 6 cols) */}
+            <div className="lg:col-span-6 flex flex-col space-y-4">
               
-              {/* Category tags with solid contrast */}
+              {/* Category tags */}
               {tags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                  {tags.slice(0, 3).map((tag) => (
+                <div className="flex flex-wrap gap-1.5">
+                  {tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-lg bg-slate-100 border border-slate-200/90 px-2.5 py-0.5 text-[11px] font-semibold text-slate-800"
+                      className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700"
                     >
                       {tag}
                     </span>
                   ))}
+                  <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-bold text-emerald-800">
+                    Skladem
+                  </span>
                 </div>
               )}
 
-              {/* Title */}
-              <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-slate-950 leading-snug">
+              {/* Offer Title */}
+              <h1 className="text-xl sm:text-2xl font-black leading-snug tracking-tight text-slate-950">
                 {offer.title}
               </h1>
 
-              {/* GROUNDED HERO PURCHASE CARD: Clear price, guarantee badge & desktop CTAs */}
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-4.5 shadow-2xs">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
+              {/* Pricing Box - Hero Section of the card */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+                <div className="flex items-baseline justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block leading-none">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       {pricing.priceLabel}
                     </span>
-                    <div className="flex items-baseline gap-1.5 mt-1">
-                      <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 leading-tight">
+                    <div className="flex items-baseline gap-1 mt-0.5">
+                      <p className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950">
                         {formatCzk(offer.price)}
-                      </span>
+                      </p>
                       {pricing.isPerPiece && (
                         <span className="text-sm font-bold text-slate-600">
                           / kus
@@ -387,91 +420,92 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className="rounded-lg bg-emerald-100/90 border border-emerald-300/80 px-2.5 py-1 text-xs font-bold text-emerald-800">
-                      Osobní odběr zdarma
-                    </span>
-                    <span className="text-[11px] font-semibold text-slate-600">
-                      Česká pošta: {pricing.shippingPrice}
-                    </span>
-                  </div>
+
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                    {pricing.priceBadge}
+                  </span>
                 </div>
-                <p className="mt-1.5 text-xs font-medium text-slate-600">
+
+                <p className="mt-2 text-xs text-slate-600">
                   {pricing.summaryNote}
                 </p>
 
-                {/* Desktop / Tablet Action Buttons anchored right in the purchase card */}
-                <div className="mt-3.5 hidden sm:grid grid-cols-2 gap-2">
+                {/* Primary CTA Buttons for Desktop / Tablet */}
+                <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
                   <button
                     type="button"
                     onClick={() => setBuyModalOpen(true)}
-                    className="flex items-center justify-center gap-1.5 rounded-xl bg-[hsl(142_71%_45%)] px-3 py-2.5 text-xs sm:text-[13px] font-bold text-white shadow-xs hover:bg-[hsl(142_71%_36%)] active:scale-98 transition-all text-center whitespace-nowrap"
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[hsl(142_71%_45%)] py-3 px-4 text-sm font-bold text-white shadow-xs hover:bg-[hsl(142_71%_35%)] active:scale-98 transition-all"
                   >
-                    <span>Koupit</span>
+                    <span>Rezervovat tuto sadu</span>
+                    <span>→</span>
                   </button>
 
                   <a
                     href={`tel:${phoneHref}`}
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs sm:text-[13px] font-bold text-slate-800 hover:bg-slate-100/80 active:scale-98 transition-all shadow-2xs text-center whitespace-nowrap"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-3 px-4 text-sm font-bold text-slate-800 shadow-2xs hover:bg-slate-50 active:scale-98 transition-all"
                   >
-                    <svg className="h-4 w-4 shrink-0 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    <svg className="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
-                    <span className="whitespace-nowrap">Zavolat {phone.replace(/\s+/g, '\u00A0')}</span>
+                    <span>Zavolat {phone}</span>
                   </a>
                 </div>
               </div>
 
-              {/* STRUCTURED PARAMETERS: High contrast 2-column key-value tiles */}
+              {/* Technical Specifications Grid */}
               {specsList.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">
-                    Parametry sady
-                  </h4>
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Parametry & specifikace
+                  </h3>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     {specsList.map((spec, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-2xs"
+                        className="flex flex-col justify-center rounded-xl border border-slate-200/90 bg-white p-2.5"
                       >
-                        <span className="text-slate-500 font-medium">{spec.label}</span>
-                        <span className="font-bold text-slate-900">{spec.value}</span>
+                        <span className="text-[11px] font-medium text-slate-500">
+                          {spec.label}
+                        </span>
+                        <span className="font-bold text-slate-900 text-sm mt-0.5 truncate">
+                          {spec.value}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Description - Grounded Box */}
-              <div className="mt-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
-                  Popis položky
-                </h4>
-                <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3 sm:p-3.5 text-xs sm:text-sm text-slate-700 leading-relaxed max-h-28 sm:max-h-36 overflow-y-auto overscroll-contain">
-                  {offer.description
-                    ? renderTextWithPhoneLinks(offer.description)
-                    : 'K této položce není uveden podrobnější textový popis. Pro ověření detailů a rozměrů nám prosím zavolejte.'}
+              {/* Offer Description */}
+              {offer.description && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Popis inzerátu
+                  </h3>
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3.5 text-xs sm:text-sm leading-relaxed text-slate-700 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                    {renderTextWithPhoneLinks(offer.description)}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Location & Contact - Grounded Bar */}
-              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3.5 py-2.5 text-xs">
-                <div className="flex items-center gap-2 truncate pr-1">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span className="font-bold text-slate-800 truncate">
-                    {addressLine}{addressCity ? `, ${addressCity}` : ''}
-                  </span>
+              {/* Delivery, Pickup & Location notes */}
+              <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/40 p-3.5 text-xs text-slate-700 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-slate-900">
+                  <span className="text-emerald-700">📍</span>
+                  <span>Osobní odběr: {addressLine ? `${addressLine}, ${addressCity || 'Plzeň'}` : 'na naší provozovně'}</span>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <p className="text-[11px] text-slate-600">
+                  Otevírací doba: {hours || 'Po–Pá: 8:00 – 17:00'} · Možnost přezutí a vyvážení kol na místě.
+                </p>
+                <div className="flex items-center gap-3 pt-1 text-[11px] font-semibold text-emerald-800">
+                  <span>Poštovné: {pricing.shippingPrice}</span>
+                  <span>·</span>
                   <a
                     href={`tel:${phoneHref}`}
-                    className="font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 active:scale-95 transition-transform"
-                    title={`Zavolat ${phone}`}
+                    className="underline hover:text-emerald-950"
                   >
-                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    <span>{phone}</span>
+                    Dotaz k inzerátu ({phone})
                   </a>
                   {googleMapsLink && (
                     <a
@@ -490,7 +524,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
           </div>
         </div>
 
-        {/* MOBILE-ONLY PINNED BOTTOM ACTION BAR (Hidden on sm+ to prevent duplicate buttons) */}
+        {/* MOBILE-ONLY PINNED BOTTOM ACTION BAR with 48px touch targets & safe area padding */}
         <div className="sm:hidden shrink-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_20px_rgba(0,0,0,0.08)]">
           <div className="flex items-center justify-between gap-2.5">
             <div className="shrink-0 min-w-0">
@@ -513,19 +547,19 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
               <button
                 type="button"
                 onClick={() => setBuyModalOpen(true)}
-                className="flex items-center justify-center rounded-xl bg-[hsl(142_71%_45%)] px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[hsl(142_71%_35%)] active:scale-95 whitespace-nowrap"
+                className="flex items-center justify-center rounded-xl bg-[hsl(142_71%_45%)] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[hsl(142_71%_35%)] active:scale-95 whitespace-nowrap min-h-[44px]"
               >
-                Koupit
+                Rezervovat sadu
               </button>
 
               <a
                 href={`tel:${phoneHref}`}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 active:scale-95 shadow-2xs whitespace-nowrap"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-50 active:scale-95 shadow-2xs whitespace-nowrap min-h-[44px]"
               >
-                <svg className="h-3.5 w-3.5 shrink-0 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                <span>Zavolat {phone}</span>
+                <span>Zavolat</span>
               </a>
             </div>
           </div>
@@ -617,16 +651,18 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                     placeholder="+420 777 000 000"
                     className="mt-1 w-full rounded-xl border-0 bg-slate-50 px-3.5 py-2.5 text-base sm:text-sm text-slate-950 ring-1 ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Na toto číslo vám zavoláme s potvrzením rezervace a domluvou předání.
+                  </p>
                 </div>
 
                 <div>
                   <label htmlFor="reserve-name" className="block text-xs font-bold text-slate-800">
-                    Jméno a příjmení
+                    Vaše jméno
                   </label>
                   <input
                     id="reserve-name"
                     type="text"
-                    autoComplete="name"
                     value={reserveName}
                     onChange={(e) => setReserveName(e.target.value)}
                     placeholder="např. Jan Novák"
@@ -634,64 +670,83 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   />
                 </div>
 
+                {/* Způsob odběru */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                  <span className="block text-xs font-bold text-slate-800 mb-1">
                     Způsob předání
-                  </label>
+                  </span>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setReservePickup('osobni')}
-                      className={`rounded-xl border p-2.5 text-left font-medium transition-all ${
+                    <label
+                      className={`flex flex-col rounded-xl border p-2.5 cursor-pointer transition-all ${
                         reservePickup === 'osobni'
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold'
+                          ? 'border-emerald-600 bg-emerald-50/50 font-bold text-slate-950 ring-1 ring-emerald-500'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      <p className="font-bold">Osobní odběr</p>
-                      <p className="text-[10px] text-slate-500">{addressLine || 'Na provozovně'} (zdarma)</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setReservePickup('posta')}
-                      className={`rounded-xl border p-2.5 text-left font-medium transition-all ${
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="radio"
+                          name="reservePickup"
+                          value="osobni"
+                          checked={reservePickup === 'osobni'}
+                          onChange={() => setReservePickup('osobni')}
+                          className="text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>Osobní odběr</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-normal mt-1 pl-4">
+                        Zdarma · {addressCity || 'Plzeň'}
+                      </span>
+                    </label>
+
+                    <label
+                      className={`flex flex-col rounded-xl border p-2.5 cursor-pointer transition-all ${
                         reservePickup === 'posta'
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold'
+                          ? 'border-emerald-600 bg-emerald-50/50 font-bold text-slate-950 ring-1 ring-emerald-500'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      <p className="font-bold">Poštou po ČR</p>
-                      <p className="text-[10px] text-slate-500">Česká pošta ({pricing.shippingPrice})</p>
-                    </button>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="radio"
+                          name="reservePickup"
+                          value="posta"
+                          checked={reservePickup === 'posta'}
+                          onChange={() => setReservePickup('posta')}
+                          className="text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>Zaslání poštou</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-normal mt-1 pl-4">
+                        Česká pošta ({pricing.shippingPrice})
+                      </span>
+                    </label>
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="reserve-note" className="block text-xs font-bold text-slate-800">
-                    Poznámka (např. zájem o přezutí, model vozu)
+                    Poznámka / Dotaz (volitelné)
                   </label>
-                  <input
+                  <textarea
                     id="reserve-note"
-                    type="text"
+                    rows={2}
                     value={reserveNote}
                     onChange={(e) => setReserveNote(e.target.value)}
-                    placeholder="Mám zájem o obutí na auto v sobotu..."
-                    className="mt-1 w-full rounded-xl border-0 bg-slate-50 px-3.5 py-2.5 text-base sm:text-sm text-slate-950 ring-1 ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="např. chtěl bych i přezout na počkání, nebo upřesnění adresy..."
+                    className="mt-1 w-full rounded-xl border-0 bg-slate-50 px-3.5 py-2 text-xs sm:text-sm text-slate-950 ring-1 ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
 
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-[hsl(142_71%_45%)] py-3 text-sm font-bold text-white shadow-xs hover:bg-[hsl(142_71%_35%)] transition-colors active:scale-98"
+                    className="w-full rounded-xl bg-[hsl(142_71%_45%)] py-3 text-sm font-bold text-white shadow-xs hover:bg-[hsl(142_71%_35%)] active:scale-98 transition-all"
                   >
-                    Potvrdit rezervaci
+                    Odeslat nezávaznou rezervaci
                   </button>
-                  <p className="mt-2 text-center text-[11px] text-slate-500">
-                    Nebo rovnou volejte na{' '}
-                    <a href={`tel:${phoneHref}`} className="font-bold text-slate-900 hover:underline">
-                      {phone}
-                    </a>
+                  <p className="mt-1.5 text-center text-[10px] text-slate-500">
+                    Rezervace je nezávazná. Platba probíhá až při předání či dobírce.
                   </p>
                 </div>
               </form>
@@ -700,39 +755,40 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
         </div>
       )}
 
-      {/* Fullscreen Lightbox View */}
+      {/* FULLSCREEN LIGHTBOX FOR PHOTO ZOOM */}
       {lightboxOpen && currentImage && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/92 p-2 sm:p-4">
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default"
-            onClick={() => setLightboxOpen(false)}
-            aria-label="Zavřít zvětšení"
-          />
-
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-2 sm:p-6 backdrop-blur-md"
+          onClick={() => setLightboxOpen(false)}
+        >
           <button
             type="button"
             onClick={() => setLightboxOpen(false)}
-            className="absolute right-4 top-4 z-20 flex items-center gap-1.5 rounded-full bg-white/20 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur hover:bg-white/30 transition-colors active:scale-95"
+            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-95"
+            aria-label="Zavřít zvětšené foto"
           >
-            <span>Zavřít</span>
-            <span>✕</span>
+            ✕
           </button>
 
-          <div className="relative z-10 h-[80vh] sm:h-[86vh] w-full max-w-6xl">
+          <span className="absolute left-4 top-4 z-10 text-xs font-bold text-white/80">
+            {current + 1} / {count}
+          </span>
+
+          <div
+            className="relative h-full w-full max-w-5xl"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onClick={(e) => e.stopPropagation()}
+          >
             <Image
               src={currentImage}
-              alt={`${offer.title} ${current + 1}`}
+              alt=""
               fill
               className="object-contain"
               sizes="100vw"
               priority
             />
           </div>
-
-          <span className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/60 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur">
-            {current + 1} z {count}
-          </span>
 
           {count > 1 && (
             <>
@@ -742,8 +798,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   e.stopPropagation();
                   handlePrev();
                 }}
-                className="absolute left-2 sm:left-4 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/80 p-2.5 sm:p-3 text-xl sm:text-2xl text-slate-900 shadow-lg backdrop-blur hover:bg-white active:scale-95"
-                aria-label="Předchozí fotka"
+                className="absolute left-3 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 active:scale-95"
+                aria-label="Předchozí"
               >
                 ‹
               </button>
@@ -753,8 +809,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   e.stopPropagation();
                   handleNext();
                 }}
-                className="absolute right-2 sm:right-4 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/80 p-2.5 sm:p-3 text-xl sm:text-2xl text-slate-900 shadow-lg backdrop-blur hover:bg-white active:scale-95"
-                aria-label="Další fotka"
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 active:scale-95"
+                aria-label="Další"
               >
                 ›
               </button>

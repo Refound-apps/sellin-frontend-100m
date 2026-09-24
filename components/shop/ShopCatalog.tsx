@@ -14,6 +14,8 @@ import ShopFeatures from './ShopFeatures';
 import ShopServices from './ShopServices';
 import ShopFaq from './ShopFaq';
 import ShopInquiry from './ShopInquiry';
+import ShopSchema from './ShopSchema';
+import MobileShopBar from './MobileShopBar';
 import { CAR_WHEEL_BRANDS, TIRE_BRANDS, TIRE_PROFILES, TIRE_RIMS, TIRE_WIDTHS } from './offerMeta';
 import { scrollToShopSection } from './shopScroll';
 
@@ -28,6 +30,7 @@ export default function ShopCatalog() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState<ShopOfferFilters>({});
+  const [mobileFiltersExpanded, setMobileFiltersExpanded] = useState(false);
   const limit = 24;
 
   const searchParams = useSearchParams();
@@ -323,11 +326,25 @@ export default function ShopCatalog() {
     (filters.sort && filters.sort !== 'newest')
   );
 
+  const activeDropdownCount = useMemo(() => {
+    let count = 0;
+    if (filters.type) count++;
+    if (filters.brand) count++;
+    if (filters.season) count++;
+    if (filters.width) count++;
+    if (filters.profile) count++;
+    if (filters.rim) count++;
+    return count;
+  }, [filters]);
+
   const selectClass =
     'rounded-xl bg-white px-3 py-2.5 text-base sm:text-sm text-[hsl(222_47%_11%)] shadow-2xs outline-none ring-1 ring-[hsl(214_32%_91%)] focus:ring-2 focus:ring-[hsl(142_71%_45%)]';
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white pb-20 lg:pb-0">
+      {/* Schema.org Structured Data for AI Agents & Search Engines */}
+      <ShopSchema offers={offers} />
+
       {/* Shared Shop Header */}
       <ShopHeader />
 
@@ -342,10 +359,10 @@ export default function ShopCatalog() {
       {/* Catalog & Filter Section */}
       <section
         id="nabidka"
-        className="scroll-mt-20 sm:scroll-mt-24 bg-gradient-to-b from-white via-[hsl(210_40%_98%)] via-[200px] sm:via-[260px] to-[hsl(210_40%_98%)] py-10 sm:py-20"
+        className="scroll-mt-20 sm:scroll-mt-24 bg-gradient-to-b from-white via-[hsl(210_40%_98%)] via-[200px] sm:via-[260px] to-[hsl(210_40%_98%)] py-8 sm:py-20"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto mb-8 sm:mb-10 max-w-2xl text-center">
+          <div className="mx-auto mb-6 sm:mb-10 max-w-2xl text-center">
             <span className="inline-block rounded-md bg-white border border-[hsl(214_32%_91%)] px-3 py-1 text-xs font-semibold text-[hsl(142_71%_35%)]">
               Skladová dostupnost
             </span>
@@ -357,9 +374,13 @@ export default function ShopCatalog() {
             </p>
           </div>
 
-          {/* Search and Filters Bar */}
-          <form onSubmit={handleSearch} className="mx-auto mb-8 sm:mb-10 max-w-4xl">
-            <div className="flex flex-col gap-2.5 sm:flex-row">
+          {/* Search and Filters Bar with AI attributes */}
+          <form
+            onSubmit={handleSearch}
+            data-ai-search-form="true"
+            className="mx-auto mb-6 sm:mb-10 max-w-4xl"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -372,7 +393,7 @@ export default function ShopCatalog() {
               <div className="flex gap-2 w-full sm:w-auto">
                 <button
                   type="submit"
-                  className="flex-1 sm:flex-initial rounded-xl bg-[hsl(142_71%_45%)] px-6 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[hsl(142_71%_35%)] active:scale-95"
+                  className="flex-1 sm:flex-initial rounded-xl bg-[hsl(142_71%_45%)] px-6 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[hsl(142_71%_35%)] active:scale-95 touch-manipulation"
                 >
                   Hledat
                 </button>
@@ -380,7 +401,7 @@ export default function ShopCatalog() {
                   <button
                     type="button"
                     onClick={handleClearSearch}
-                    className="flex-1 sm:flex-initial rounded-xl border border-[hsl(214_32%_91%)] bg-white px-4 py-3 text-sm font-medium text-[hsl(222_47%_11%)] shadow-2xs hover:bg-[hsl(210_40%_96%)] active:scale-95"
+                    className="flex-1 sm:flex-initial rounded-xl border border-[hsl(214_32%_91%)] bg-white px-4 py-3 text-sm font-medium text-[hsl(222_47%_11%)] shadow-2xs hover:bg-[hsl(210_40%_96%)] active:scale-95 touch-manipulation"
                   >
                     Vymazat filtry
                   </button>
@@ -388,8 +409,128 @@ export default function ShopCatalog() {
               </div>
             </div>
 
-            {/* Filter Dropdowns - 2 cols mobile, 3 cols tablet, 6 cols desktop */}
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {/* Quick Filter Horizontal Scroll Pill Bar (1-tap thumbs for mobile & desktop) */}
+            <div className="mt-3 sm:mt-4 flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-none touch-pan-x">
+              <button
+                type="button"
+                onClick={() => {
+                  updateFilter('season', '');
+                  updateFilter('type', '');
+                  updateFilter('rim', '');
+                }}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all touch-manipulation ${
+                  !filters.season && !filters.type && !filters.rim
+                    ? 'bg-slate-950 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                🔥 Všechny nabídky
+              </button>
+
+              <button
+                type="button"
+                onClick={() => updateFilter('season', filters.season === 'zimni' ? '' : 'zimni')}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all touch-manipulation flex items-center gap-1 ${
+                  filters.season === 'zimni'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span>❄</span>
+                <span>Zimní pneu</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => updateFilter('season', filters.season === 'letni' ? '' : 'letni')}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all touch-manipulation flex items-center gap-1 ${
+                  filters.season === 'letni'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span>☀</span>
+                <span>Letní pneu</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => updateFilter('season', filters.season === 'celorocni' ? '' : 'celorocni')}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all touch-manipulation flex items-center gap-1 ${
+                  filters.season === 'celorocni'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span>⭐</span>
+                <span>Celoroční</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => updateFilter('type', filters.type === 'disk' ? '' : 'disk')}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all touch-manipulation flex items-center gap-1 ${
+                  filters.type === 'disk'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span>🛞</span>
+                <span>ALU disky</span>
+              </button>
+
+              {['15', '16', '17', '18', '19', '20'].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => updateFilter('rim', filters.rim === r ? '' : r)}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-all touch-manipulation ${
+                    filters.rim === r
+                      ? 'bg-slate-900 text-white shadow-2xs'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  R{r}
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile Toggle for Detailed Dimension Filters */}
+            <div className="mt-2.5 flex items-center justify-between lg:hidden">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersExpanded((prev) => !prev)}
+                className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-2xs active:scale-95 transition-all touch-manipulation"
+              >
+                <svg className="h-3.5 w-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <span>Podrobné rozměry</span>
+                {activeDropdownCount > 0 && (
+                  <span className="rounded-full bg-emerald-600 px-1.5 py-0.2 text-[10px] font-extrabold text-white">
+                    {activeDropdownCount}
+                  </span>
+                )}
+                <span className="text-slate-400 text-[10px]">{mobileFiltersExpanded ? '▲' : '▼'}</span>
+              </button>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="text-xs font-semibold text-rose-600 hover:underline"
+                >
+                  Vymazat vše
+                </button>
+              )}
+            </div>
+
+            {/* Filter Dropdowns - Collapsible on Mobile, always visible on Desktop */}
+            <div
+              className={`mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 ${
+                mobileFiltersExpanded ? 'grid' : 'hidden lg:grid'
+              }`}
+            >
               <select
                 value={filters.type || ''}
                 onChange={(e) => updateFilter('type', e.target.value)}
@@ -619,6 +760,9 @@ export default function ShopCatalog() {
       {selectedOffer && (
         <ShopOfferModal offer={selectedOffer} onClose={handleCloseModal} />
       )}
+
+      {/* Persistent Mobile Bottom Action Bar (Thumb-friendly 1-tap call, inquiry, map) */}
+      <MobileShopBar totalOffers={totalOffers} />
     </div>
   );
 }
