@@ -77,8 +77,14 @@ export default function PairedAccountSwitcher({
 
   const isSubaccountActive = Boolean(selectedSubaccount);
 
+  const subaccountPhone = selectedSubaccount?.telephone1
+    ? formatPhoneNumber(selectedSubaccount.telephone1)
+    : null;
+
   const displayName = isSubaccountActive
-    ? selectedSubaccount?.bazos_name || selectedSubaccount?.email
+    ? subaccountPhone
+      ? (selectedSubaccount?.bazos_name ? `${subaccountPhone} (${selectedSubaccount.bazos_name})` : subaccountPhone)
+      : (selectedSubaccount?.bazos_name || selectedSubaccount?.email)
     : 'Všechny spárované účty';
 
   const handleSelectSubaccount = (account: User) => {
@@ -280,24 +286,34 @@ export default function PairedAccountSwitcher({
                     onClick={() => handleSelectSubaccount(account)}
                     className={`w-full flex items-center justify-between gap-2.5 rounded-xl p-2.5 text-left text-xs transition-all ${
                       isSelected
-                        ? 'bg-emerald-50 border border-emerald-300 text-slate-950 shadow-2xs font-semibold'
+                        ? 'bg-emerald-50/80 border border-emerald-300 text-slate-950 shadow-2xs font-semibold'
                         : 'border border-transparent hover:border-slate-200 hover:bg-slate-50 text-slate-700'
                     }`}
                   >
                     <div className="min-w-0 flex-1">
+                      {/* Horní řádek: Telefonní číslo jako hlavní identifikátor s decentním zvýrazněním */}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span
-                          className={`font-bold truncate ${
-                            isSelected ? 'text-emerald-950' : 'text-slate-900'
-                          }`}
-                        >
-                          {itemDisplayName}
-                        </span>
-                        {account.bazos_name && (
-                          <span className={`text-[10px] truncate max-w-[130px] ${isSelected ? 'text-emerald-700/80' : 'text-slate-400'}`}>
-                            ({account.email})
+                        {phone ? (
+                          <span
+                            className={`inline-flex items-center gap-1 font-bold font-mono text-xs sm:text-[13px] tracking-tight px-1.5 py-0.5 rounded-md border transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-100/90 border-emerald-300 text-emerald-950 shadow-2xs'
+                                : 'bg-slate-100/90 border-slate-200/90 text-slate-900 group-hover:bg-slate-200/70'
+                            }`}
+                          >
+                            <span className="text-[10px] text-slate-400">📞</span>
+                            <span>{phone}</span>
+                          </span>
+                        ) : (
+                          <span
+                            className={`font-bold truncate text-xs ${
+                              isSelected ? 'text-emerald-950' : 'text-slate-900'
+                            }`}
+                          >
+                            {itemDisplayName}
                           </span>
                         )}
+
                         {isSelected && (
                           <span className="rounded-full bg-emerald-200/80 px-1.5 py-0.2 text-[9px] font-extrabold text-emerald-900 uppercase tracking-wider">
                             Aktivní
@@ -305,18 +321,23 @@ export default function PairedAccountSwitcher({
                         )}
                       </div>
 
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
-                        {phone && (
-                          <span className="inline-flex items-center gap-1 font-medium text-slate-600">
-                            <span>📞</span>
-                            <span>{phone}</span>
-                          </span>
-                        )}
+                      {/* Spodní řádek: Název účtu, e-mail a lokalita */}
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-500">
+                        <span className={`font-semibold truncate max-w-[140px] sm:max-w-[170px] ${isSelected ? 'text-emerald-900 font-bold' : 'text-slate-700'}`}>
+                          {account.bazos_name || 'Bez názvu'}
+                        </span>
+                        <span className="text-slate-300">·</span>
+                        <span className={`truncate max-w-[130px] sm:max-w-[160px] ${isSelected ? 'text-emerald-700/80' : 'text-slate-400'}`}>
+                          {account.email}
+                        </span>
                         {account.location && (
-                          <span className="inline-flex items-center gap-1">
-                            <span>📍</span>
-                            <span>{account.location}</span>
-                          </span>
+                          <>
+                            <span className="text-slate-300">·</span>
+                            <span className="inline-flex items-center gap-0.5 text-slate-500">
+                              <span>📍</span>
+                              <span>{account.location}</span>
+                            </span>
+                          </>
                         )}
                       </div>
                     </div>

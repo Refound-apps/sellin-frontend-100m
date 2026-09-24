@@ -816,15 +816,25 @@ function CreateOfferContent() {
                             }`}
                           >
                             <div className="min-w-0 flex-1">
+                              {/* Horní řádek: Telefonní číslo jako hlavní identifikátor s decentním zvýrazněním */}
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs sm:text-sm font-bold text-slate-950 truncate">
-                                  {displayName}
-                                </span>
-                                {account.bazos_name && (
-                                  <span className="text-[10px] font-medium text-slate-500 truncate">
-                                    ({account.email})
+                                {phone ? (
+                                  <span
+                                    className={`inline-flex items-center gap-1 font-bold font-mono text-xs sm:text-[13px] tracking-tight px-1.5 py-0.5 rounded-md border transition-colors ${
+                                      isSelected
+                                        ? 'bg-emerald-100/90 border-emerald-300 text-emerald-950 shadow-2xs'
+                                        : 'bg-slate-100/90 border-slate-200/90 text-slate-900'
+                                    }`}
+                                  >
+                                    <span className="text-[10px] text-slate-400">📞</span>
+                                    <span>{phone}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs sm:text-sm font-bold text-slate-950 truncate">
+                                    {displayName}
                                   </span>
                                 )}
+
                                 {isSelected && (
                                   <span className="inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-extrabold text-emerald-800 uppercase tracking-wider">
                                     Vybráno
@@ -832,24 +842,32 @@ function CreateOfferContent() {
                                 )}
                               </div>
 
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                                {phone && (
-                                  <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                                    <span>📞</span>
-                                    <span>{phone}</span>
-                                  </span>
-                                )}
+                              {/* Spodní řádek: Název účtu, e-mail a lokalita */}
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                                <span className={`font-semibold truncate max-w-[160px] ${isSelected ? 'text-emerald-900 font-bold' : 'text-slate-700'}`}>
+                                  {account.bazos_name || 'Bez názvu'}
+                                </span>
+                                <span className="text-slate-300">·</span>
+                                <span className={`truncate max-w-[160px] ${isSelected ? 'text-emerald-700/80' : 'text-slate-400'}`}>
+                                  {account.email}
+                                </span>
                                 {account.location && (
-                                  <span className="inline-flex items-center gap-1">
-                                    <span>📍</span>
-                                    <span>{account.location}</span>
-                                  </span>
+                                  <>
+                                    <span className="text-slate-300">·</span>
+                                    <span className="inline-flex items-center gap-0.5 text-slate-500">
+                                      <span>📍</span>
+                                      <span>{account.location}</span>
+                                    </span>
+                                  </>
                                 )}
                                 {account.sbazar_email &&
                                   account.sbazar_email.toLowerCase() !== account.email.toLowerCase() && (
-                                    <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
-                                      <span>🔗 Sbazar: {account.sbazar_email}</span>
-                                    </span>
+                                    <>
+                                      <span className="text-slate-300">·</span>
+                                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                                        <span>🔗 Sbazar: {account.sbazar_email}</span>
+                                      </span>
+                                    </>
                                   )}
                               </div>
                             </div>

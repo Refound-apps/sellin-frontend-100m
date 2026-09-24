@@ -468,9 +468,14 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
     }).length;
   }, [userEmails, availableUsers]);
 
+  const subaccountPhone = selectedSubaccount?.telephone1
+    ? formatPhoneNumber(selectedSubaccount.telephone1)
+    : null;
+
   const activeAccountDisplay =
-    selectedSubaccount?.bazos_name ||
-    selectedSubaccount?.email ||
+    (subaccountPhone
+      ? (selectedSubaccount?.bazos_name ? `${subaccountPhone} (${selectedSubaccount.bazos_name})` : subaccountPhone)
+      : (selectedSubaccount?.bazos_name || selectedSubaccount?.email)) ||
     selectedSeller?.bazos_name ||
     selectedSeller?.email ||
     selectedCustomEmail;
