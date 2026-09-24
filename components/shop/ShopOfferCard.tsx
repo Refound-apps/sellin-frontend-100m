@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { ShopOffer } from '@/lib/types';
-import { formatCzk, getOfferPricingInfo, getOfferSpecsList } from './offerMeta';
+import { formatCzk, getOfferPricingInfo, getOfferSpecsList, isSteelWheelOffer, isWheelOffer } from './offerMeta';
 
 interface ShopOfferCardProps {
   offer: ShopOffer;
@@ -12,36 +12,47 @@ interface ShopOfferCardProps {
 
 export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
   const [imgError, setImgError] = useState(false);
+  const isWheel = isWheelOffer(offer);
+  const isSteel = isSteelWheelOffer(offer);
   const specs = getOfferSpecsList(offer);
   const pricing = getOfferPricingInfo(offer);
 
   // Derive subtle category badge for the image corner
+  // ALU disky jsou zimní i letní, takže nemají mít tag letní pneu ani zimní pneu, pouze tag ALU disky
   const titleAndDesc = `${offer.title} ${offer.description || ''}`;
   let badgeText = 'Skladem';
   let badgeIcon = '✓';
-  if (/zimn/i.test(titleAndDesc)) {
+
+  if (isWheel) {
+    badgeText = isSteel ? 'Plechové disky' : 'ALU disky';
+    badgeIcon = '🛞';
+  } else if (/\bzimn/i.test(titleAndDesc)) {
     badgeText = 'Zimní pneu';
     badgeIcon = '❄';
-  } else if (/letn/i.test(titleAndDesc)) {
+  } else if (/(?<!komp)\bletn/i.test(titleAndDesc)) {
     badgeText = 'Letní pneu';
     badgeIcon = '☀';
   } else if (/celoroč/i.test(titleAndDesc)) {
     badgeText = 'Celoroční';
     badgeIcon = '⭐';
-  } else if (/disky|alu/i.test(titleAndDesc)) {
-    badgeText = 'ALU disky';
+  } else {
+    badgeText = 'Pneumatiky';
     badgeIcon = '🛞';
   }
 
   // Extract key specs for both AI agent parsing and user view
   const dimensionSpec = specs.find((s) => s.label === 'Rozměr');
-  const treadSpec = specs.find((s) => s.label === 'Vzorek');
+  const treadSpec = isWheel ? undefined : specs.find((s) => s.label === 'Vzorek');
   const pcdSpec = specs.find((s) => s.label === 'Rozteč');
-  const seasonSpec = specs.find((s) => s.label === 'Sezóna');
+  const seasonSpec = isWheel ? undefined : specs.find((s) => s.label === 'Sezóna');
 
-  // Filter top 3 most informative specs for the card
+  // U alu disků vzorek není -> nezobrazovat jako pill ani parametr na kartě
   const displaySpecs = specs
-    .filter((s) => ['Rozměr', 'Vzorek', 'Rozteč', 'Značka', 'Typ'].includes(s.label))
+    .filter((s) =>
+      isWheel
+        ? ['Rozteč', 'Průměr', 'Značka', 'Zális (ET)', 'Šířka disku', 'Typ'].includes(s.label)
+        : ['Rozměr', 'Vzorek', 'Rozteč', 'Značka', 'Typ'].includes(s.label)
+    )
     .slice(0, 3);
 
   return (
@@ -73,8 +84,8 @@ export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
             <span>{badgeText}</span>
           </div>
 
-          {/* Top-right tread depth badge if present */}
-          {treadSpec && (
+          {/* Top-right tread depth badge if present (pouze u pneu, nikdy u alu disků) */}
+          {treadSpec && !isWheel && (
             <div className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 z-10 inline-flex items-center gap-1 rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] sm:text-[11px] font-extrabold text-white shadow-xs backdrop-blur-xs">
               <span className="text-emerald-400">Vzorek:</span>
               <span>{treadSpec.value}</span>

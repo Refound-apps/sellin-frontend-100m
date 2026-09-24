@@ -300,19 +300,30 @@ export default function ShopCatalog() {
   const updateFilter = (key: keyof ShopOfferFilters, value: string) => {
     setPage(0);
     setHasMore(true);
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value || undefined,
-    }));
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value || undefined };
+      // ALU disky jsou zimní i letní -> při volbě disků neresetujeme nabídku kvůli filtru sezóny
+      if (key === 'type' && value === 'disk') {
+        delete next.season;
+      } else if (key === 'season' && value && prev.type === 'disk') {
+        delete next.type;
+      }
+      return next;
+    });
   };
 
   const handleQuickFilter = (filterType: 'type' | 'season' | 'rim', value: string) => {
     setPage(0);
     setHasMore(true);
-    setFilters((prev) => ({
-      ...prev,
-      [filterType]: value || undefined,
-    }));
+    setFilters((prev) => {
+      const next = { ...prev, [filterType]: value || undefined };
+      if (filterType === 'type' && value === 'disk') {
+        delete next.season;
+      } else if (filterType === 'season' && value && prev.type === 'disk') {
+        delete next.type;
+      }
+      return next;
+    });
   };
 
   const hasActiveFilters = Boolean(

@@ -113,6 +113,7 @@ export async function GET(request: NextRequest) {
       const etSpec = specs.find((s) => s.label.includes('ET'))?.value || null;
       const widthSpec = specs.find((s) => s.label.includes('Šířka'))?.value || null;
       const typeSpec = specs.find((s) => s.label === 'Typ')?.value || 'Pneumatiky / Disky';
+      const rimVal = specs.find((s) => s.label === 'Průměr')?.value?.replace(/[^0-9]/g, '') || (sizeSpec ? sizeSpec.match(/R(\d+)/i)?.[1] || null : null);
 
       return {
         id: offer.id,
@@ -125,7 +126,7 @@ export async function GET(request: NextRequest) {
         specs: {
           dimension: sizeSpec,
           width: widthSpec,
-          rim: sizeSpec ? sizeSpec.match(/R(\d+)/i)?.[1] || null : null,
+          rim: rimVal,
           tread_depth: treadSpec,
           pcd: pcdSpec,
           et: etSpec,

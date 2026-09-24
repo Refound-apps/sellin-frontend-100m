@@ -4,6 +4,45 @@ export type OfferMetaItem = {
   label: string;
 };
 
+/**
+ * Rozpozná, zda nabídka představuje disky / kola (ALU disky, plechové disky apod.)
+ * nebo čistě pneumatiky.
+ */
+export function isWheelOffer(offer: { title?: string; description?: string }): boolean {
+  const title = (offer.title || '').toLowerCase();
+  const isWheelInTitle = /\b(alu|disky?|elektrony|ráfky?|hliník|plech|ocel)/i.test(title);
+  if (isWheelInTitle) return true;
+  // Pokud název začíná na "pneu" nebo "zimní pneu", jde o pneumatiky
+  if (/^(\d+\s*ks\s+)?(zimní|letní|celoroční)?\s*pneu/i.test(title)) return false;
+  const isPneuTitle = /\bpneu|pneumatik/i.test(title);
+  if (isPneuTitle) return false;
+  // Kontrola v textu pouze pokud název není explicitně pneu
+  const text = `${offer.title || ''} ${offer.description || ''}`.toLowerCase();
+  return /\b(alu\s*disky?|elektrony|hliníkov\w*\s*kola)\b/i.test(text);
+}
+
+export function isSteelWheelOffer(offer: { title?: string; description?: string }): boolean {
+  const title = (offer.title || '').toLowerCase();
+  return /\b(plech|ocel)/i.test(title);
+}
+
+export function isAluDiskyOffer(offer: { title?: string; description?: string }): boolean {
+  return isWheelOffer(offer) && !isSteelWheelOffer(offer);
+}
+
+const BRAND_REGEX = /\b(matador|kleber|hankook|semperit|michelin|continental|barum|nokian|goodyear|dunlop|pirelli|bridgestone|falken|kumho|nexen|toyo|rial|ats|alutec|enkei|bbs|brock|dezent|dotz|ronal|borbet|platin|škoda|skoda|volkswagen|vw|audi|bmw|ford|seat|hyundai|kia|volvo|opel|renault|peugeot|mercedes|mazda|toyota|honda|nissan|mitsubishi|citroen|citroën|dacia|fiat|alfa|suzuki|subaru|jeep|land\s*rover|cupra|mini|porsche)\b/i;
+
+function formatBrandName(raw: string): string {
+  const b = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (b === 'vw' || b === 'volkswagen') return 'Volkswagen';
+  if (b === 'skoda' || b === 'škoda') return 'Škoda';
+  if (b === 'bmw') return 'BMW';
+  if (b === 'citroen' || b === 'citroën') return 'Citroën';
+  if (b === 'land rover') return 'Land Rover';
+  if (b === 'mercedes') return 'Mercedes-Benz';
+  return raw[0].toUpperCase() + raw.slice(1).toLowerCase();
+}
+
 export function formatCzk(price: number) {
   return new Intl.NumberFormat('cs-CZ', {
     style: 'currency',
@@ -21,38 +60,75 @@ export function getOfferExcerpt(offer: ShopOffer, max = 110) {
 export function getOfferMeta(offer: ShopOffer): OfferMetaItem[] {
   const text = `${offer.title} ${offer.description || ''}`;
   const items: OfferMetaItem[] = [];
+  const isWheel = isWheelOffer(offer);
 
-  if (/zimn/i.test(text)) items.push({ label: 'Zimní' });
-  else if (/letn/i.test(text)) items.push({ label: 'Letní' });
-  else if (/celoroč/i.test(text)) items.push({ label: 'Celoroční' });
+  if (isWheel) {
+    const isSteel = isSteelWheelOffer(offer);
+    items.push({ label: isSteel ? 'Plechové disky' : 'ALU disky' });
 
-  const size = text.match(/(\d{3})\s*\/\s*(\d{2})\s*(?:R|\/)?\s*(\d{2})/i);
-  if (size) items.push({ label: `${size[1]}/${size[2]} R${size[3]}` });
+    // Rozteč šroubů
+    const pcd = text.match(/(\d\s*x\s*\d{2,3}(?:\.\d)?)/i);
+    if (pcd) items.push({ label: pcd[1].replace(/\s+/g, '') });
 
-  const count = text.match(/(\d+)\s*ks/i);
-  if (count) items.push({ label: `${count[1]} ks` });
+    // Průměr disku
+    const rim = text.match(/(?:R|")\s*(\d{2})\b/i);
+    if (rim) items.push({ label: `R${rim[1]}` });
 
-  const depth = text.match(/(\d+(?:\s*(?:a|–|-)\s*\d+)?)\s*mm/i);
-  if (depth) items.push({ label: `${depth[1].replace(/\s+/g, ' ')} mm` });
+    // Šířka disku (např. 7J) nebo počet kusů
+    const jWidth = text.match(/\b(\d+(?:[.,]\d+)?)\s*J\b/i);
+    if (jWidth) {
+      items.push({ label: `${jWidth[1].replace('.', ',')}J` });
+    } else {
+      const count = text.match(/(\d+)\s*ks/i);
+      if (count) items.push({ label: `${count[1]} ks` });
+    }
+  } else {
+    // Pneumatiky: sezóna, rozměr, kusy, vzorek
+    if (/\bzimn/i.test(text)) items.push({ label: 'Zimní' });
+    else if (/(?<!komp)\bletn/i.test(text)) items.push({ label: 'Letní' });
+    else if (/celoroč/i.test(text)) items.push({ label: 'Celoroční' });
 
-  if (items.length < 4 && /\bdisky?\b/i.test(text)) items.push({ label: 'ALU disky' });
-  if (items.length < 4 && /pneu|pneumatik/i.test(text)) items.push({ label: 'Pneu' });
+    const size = text.match(/(\d{3})\s*\/\s*(\d{2})\s*(?:R|\/)?\s*(\d{2})/i);
+    if (size) items.push({ label: `${size[1]}/${size[2]} R${size[3]}` });
+
+    const count = text.match(/(\d+)\s*ks/i);
+    if (count) items.push({ label: `${count[1]} ks` });
+
+    const explicitTread = text.match(/(?:vzorek|dezén|hloubka)\s*(?:cca|je|okolo)?\s*[:=]?\s*(\d+(?:[.,]\d+)?(?:\s*(?:a|–|-|\/)\s*\d+(?:[.,]\d+)?)?)\s*mm/i);
+    if (explicitTread) {
+      items.push({ label: `${explicitTread[1].replace(/\s+/g, ' ')} mm` });
+    } else {
+      const depthMatch = text.match(/(?<![0-9.,])\b([3-9]|1[0-2])(?:\s*(?:a|–|-|\/)\s*([3-9]|1[0-2]))?\s*mm\b/i);
+      if (depthMatch) {
+        items.push({ label: depthMatch[0].trim() });
+      }
+    }
+
+    if (items.length < 4 && /pneu|pneumatik/i.test(text)) items.push({ label: 'Pneu' });
+  }
 
   return items.slice(0, 4);
 }
 
-export function getOfferTags(offer: ShopOffer) {
+export function getOfferTags(offer: ShopOffer): string[] {
   const text = `${offer.title} ${offer.description || ''}`;
   const tags: string[] = [];
+  const isWheel = isWheelOffer(offer);
 
-  if (/zimn/i.test(text)) tags.push('Zimní');
-  if (/letn/i.test(text)) tags.push('Letní');
-  if (/celoroč/i.test(text)) tags.push('Celoroční');
-  if (/\bdisky?\b|\balu\b/i.test(text)) tags.push('ALU disky');
-  if (/pneu|pneumatik/i.test(text)) tags.push('Pneu');
-  const brand = text.match(/\b(matador|kleber|hankook|semperit|michelin|continental|barum|nokian|goodyear|dunlop|pirelli|bridgestone|rial|ats|alutec|enkei|bbs|brock|dezent|dotz|ronal|borbet)\b/i);
+  // ALU disky jsou zimní i letní, takže nemají mít tag letní pneu ani zimní pneu, pouze tag alu disky
+  if (isWheel) {
+    const isSteel = isSteelWheelOffer(offer);
+    tags.push(isSteel ? 'Plechové disky' : 'ALU disky');
+  } else {
+    if (/\bzimn/i.test(text)) tags.push('Zimní');
+    else if (/(?<!komp)\bletn/i.test(text)) tags.push('Letní');
+    else if (/celoroč/i.test(text)) tags.push('Celoroční');
+    tags.push('Pneu');
+  }
+
+  const brand = text.match(BRAND_REGEX);
   if (brand) {
-    tags.push(brand[1][0].toUpperCase() + brand[1].slice(1).toLowerCase());
+    tags.push(formatBrandName(brand[1]));
   }
 
   return [...new Set(tags)].slice(0, 4);
@@ -139,23 +215,28 @@ export function getOfferPricingInfo(offer: ShopOffer): OfferPricingInfo {
 export function getOfferSpecsList(offer: ShopOffer): StructuredSpec[] {
   const text = `${offer.title} ${offer.description || ''}`;
   const specs: StructuredSpec[] = [];
+  const isWheel = isWheelOffer(offer);
+  const isSteel = isSteelWheelOffer(offer);
 
-  // 1. Rozměr pneu
+  // 1. Rozměr pneu (pouze pro pneumatiky)
   const size = text.match(/(\d{3})\s*\/\s*(\d{2})\s*(?:R|\/)?\s*(\d{2})/i);
-  if (size) {
+  if (size && !isWheel) {
     specs.push({ label: 'Rozměr', value: `${size[1]}/${size[2]} R${size[3]}` });
   }
 
-  // 2. Sezóna
-  if (/zimn/i.test(text)) {
-    specs.push({ label: 'Sezóna', value: 'Zimní' });
-  } else if (/letn/i.test(text)) {
-    specs.push({ label: 'Sezóna', value: 'Letní' });
-  } else if (/celoroč/i.test(text)) {
-    specs.push({ label: 'Sezóna', value: 'Celoroční' });
+  // 2. Sezóna - "alu disky jsou zimní i letní, takže to nemá mít tag letní pneu, pouze tag alu disky"
+  // ALU disky jsou celoroční / univerzální, parametr Sezóna patří POUZE k pneumatikám
+  if (!isWheel) {
+    if (/\bzimn/i.test(text)) {
+      specs.push({ label: 'Sezóna', value: 'Zimní' });
+    } else if (/(?<!komp)\bletn/i.test(text)) {
+      specs.push({ label: 'Sezóna', value: 'Letní' });
+    } else if (/celoroč/i.test(text)) {
+      specs.push({ label: 'Sezóna', value: 'Celoroční' });
+    }
   }
 
-  // 3. Rozteč šroubů
+  // 3. Rozteč šroubů (např. 5x112, 5x108)
   const pcd = text.match(/(\d\s*x\s*\d{2,3}(?:\.\d)?)/i);
   if (pcd) {
     specs.push({ label: 'Rozteč', value: pcd[1].replace(/\s+/g, '') });
@@ -179,54 +260,40 @@ export function getOfferSpecsList(offer: ShopOffer): StructuredSpec[] {
     specs.push({ label: 'Střed. díra', value: `${centerBore[1].replace('.', ',')} mm` });
   }
 
-  // 7. Hloubka dezénu (Vzorek - pouze reálné hodnoty pneu <= 12 mm, nebo s explicitním slovem vzorek/dezén)
-  const explicitTread = text.match(/(?:vzorek|dezén|hloubka)\s*(?:cca|je|okolo)?\s*[:=]?\s*(\d+(?:[.,]\d+)?(?:\s*(?:a|–|-|\/)\s*\d+(?:[.,]\d+)?)?)\s*mm/i);
-  if (explicitTread) {
-    specs.push({ label: 'Vzorek', value: `${explicitTread[1].replace(/\s+/g, ' ')} mm` });
-  } else {
-    const depthMatch = text.match(/\b([3-9]|1[0-2])(?:\s*(?:a|–|-|\/)\s*([3-9]|1[0-2]))?\s*mm\b/i);
-    if (depthMatch) {
-      specs.push({ label: 'Vzorek', value: depthMatch[0].trim() });
+  // 7. Hloubka dezénu (Vzorek)
+  // "u alu disky většinou žádný vzorek (mm) není, takže to tam nedávej do těch karet jako pill ani do parametru"
+  // U disků se parametr Vzorek nepřidává!
+  if (!isWheel) {
+    const explicitTread = text.match(/(?:vzorek|dezén|hloubka)\s*(?:cca|je|okolo)?\s*[:=]?\s*(\d+(?:[.,]\d+)?(?:\s*(?:a|–|-|\/)\s*\d+(?:[.,]\d+)?)?)\s*mm/i);
+    if (explicitTread) {
+      specs.push({ label: 'Vzorek', value: `${explicitTread[1].replace(/\s+/g, ' ')} mm` });
+    } else {
+      const depthMatch = text.match(/(?<![0-9.,])\b([3-9]|1[0-2])(?:\s*(?:a|–|-|\/)\s*([3-9]|1[0-2]))?\s*mm\b/i);
+      if (depthMatch) {
+        specs.push({ label: 'Vzorek', value: depthMatch[0].trim() });
+      }
     }
   }
 
   // 8. Průměr ráfku (pokud nebyl v rozměru pneu)
-  if (!size) {
-    const rim = text.match(/(?:R|")\s*(\d{2})\b/i);
-    if (rim) {
-      specs.push({ label: 'Průměr', value: `R${rim[1]}` });
-    }
+  const rim = text.match(/(?:R|")\s*(\d{2})\b/i) || (!isWheel && size ? [null, size[3]] : null);
+  if (rim) {
+    specs.push({ label: 'Průměr', value: `R${rim[1]}` });
   }
 
-  // 9. Značka výrobce
-  const brand = text.match(/\b(matador|kleber|hankook|semperit|michelin|continental|barum|nokian|goodyear|dunlop|pirelli|bridgestone|rial|ats|alutec|enkei|bbs|brock|dezent|dotz|ronal|borbet)\b/i);
+  // 9. Značka výrobce (zahrnuje i výrobce disků a značky vozidel)
+  const brand = text.match(BRAND_REGEX);
   if (brand) {
-    specs.push({ label: 'Značka', value: brand[1][0].toUpperCase() + brand[1].slice(1).toLowerCase() });
+    specs.push({ label: 'Značka', value: formatBrandName(brand[1]) });
   }
 
   // 10. Typ položky
   const count = text.match(/(\d+)\s*ks/i);
-  const titleLower = offer.title.toLowerCase();
-  const isWheelTitle = /\bdisky?\b|\balu\b|elektrony/i.test(titleLower);
-  const isTireTitle = /pneu|pneumatik/i.test(titleLower);
-  const isKompletTitle = /komplet/i.test(titleLower) || (isWheelTitle && isTireTitle);
-
-  if (isKompletTitle) {
-    specs.push({ label: 'Typ', value: count ? `Kompletní kola (${count[1]} ks)` : 'Kompletní sada' });
-  } else if (isWheelTitle) {
-    specs.push({ label: 'Typ', value: count ? `ALU disky (${count[1]} ks)` : 'ALU disky' });
-  } else if (isTireTitle) {
-    specs.push({ label: 'Typ', value: count ? `Pneumatiky (${count[1]} ks)` : 'Pneumatiky' });
+  if (isWheel) {
+    const label = isSteel ? 'Plechové disky' : 'ALU disky';
+    specs.push({ label: 'Typ', value: count ? `${label} (${count[1]} ks)` : label });
   } else {
-    const isWheel = /\bdisky?\b|\balu\b|elektrony/i.test(text);
-    const isTire = /pneu|pneumatik/i.test(text);
-    if (isWheel && isTire) {
-      specs.push({ label: 'Typ', value: count ? `Kompletní kola (${count[1]} ks)` : 'Kompletní sada' });
-    } else if (isWheel) {
-      specs.push({ label: 'Typ', value: count ? `ALU disky (${count[1]} ks)` : 'ALU disky' });
-    } else if (isTire) {
-      specs.push({ label: 'Typ', value: count ? `Pneumatiky (${count[1]} ks)` : 'Pneumatiky' });
-    }
+    specs.push({ label: 'Typ', value: count ? `Pneumatiky (${count[1]} ks)` : 'Pneumatiky' });
   }
 
   // 11. Účtování ceny (za kus u pneu, za sadu u alu)

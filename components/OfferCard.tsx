@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Offer } from '@/lib/types';
-import { formatCzk, getOfferSpecsList } from '@/components/shop/offerMeta';
+import { formatCzk, getOfferSpecsList, isSteelWheelOffer, isWheelOffer } from '@/components/shop/offerMeta';
 import { formatOfferDate, formatPhoneNumber, getOfferStatusInfo } from './offerStatus';
 
 interface OfferCardProps {
@@ -15,27 +15,33 @@ interface OfferCardProps {
 export default function OfferCard({ offer, onClick, priority = false }: OfferCardProps) {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const isWheel = isWheelOffer(offer);
+  const isSteel = isSteelWheelOffer(offer);
   const specs = getOfferSpecsList(offer);
   const statusInfo = getOfferStatusInfo(offer.state);
 
   // Derive category badge
   const titleAndDesc = `${offer.title} ${offer.description || ''}`;
   let typeBadge: string | null = null;
-  if (/zimn/i.test(titleAndDesc)) {
+  if (isWheel) {
+    typeBadge = isSteel ? '🛞 Plechové disky' : '🛞 ALU disky';
+  } else if (/\bzimn/i.test(titleAndDesc)) {
     typeBadge = '❄ Zimní';
-  } else if (/letn/i.test(titleAndDesc)) {
+  } else if (/(?<!komp)\bletn/i.test(titleAndDesc)) {
     typeBadge = '☀ Letní';
   } else if (/celoroč/i.test(titleAndDesc)) {
     typeBadge = 'Celoroční';
-  } else if (/disky|alu/i.test(titleAndDesc)) {
-    typeBadge = 'ALU disky';
   } else if (/pneu|pneumatik/i.test(titleAndDesc)) {
     typeBadge = 'Pneu';
   }
 
-  // Filter top 3 most informative specs for the card
+  // Filter top 3 most informative specs for the card (never vzorek for wheels)
   const displaySpecs = specs
-    .filter((s) => ['Rozměr', 'Vzorek', 'Rozteč', 'Značka', 'Typ'].includes(s.label))
+    .filter((s) =>
+      isWheel
+        ? ['Rozteč', 'Průměr', 'Značka', 'Zális (ET)', 'Šířka disku', 'Typ'].includes(s.label)
+        : ['Rozměr', 'Vzorek', 'Rozteč', 'Značka', 'Typ'].includes(s.label)
+    )
     .slice(0, 3);
 
   return (
