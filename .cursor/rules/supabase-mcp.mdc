@@ -1,0 +1,11 @@
+---
+description: Pravidlo pro výběr Supabase MCP serveru pro projekt Sellin.cz
+alwaysApply: true
+---
+
+# Supabase MCP Pravidlo
+
+Pro projekt Sellin.cz VŽDY používej Supabase MCP server **`user-sellin.cz-MCP`** (project_id: `vgyjvkcrcelywibfaqme`).
+
+- NIKDY nepoužívej `user-mai.cz-MCP` ani `user-licencex-os-MCP`.
+- Veškeré operace nad Supabase DB a edge funkcemi volej výhradně přes `user-sellin.cz-MCP`.

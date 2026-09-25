@@ -23,7 +23,7 @@ export default function MobileShopBar({ totalOffers }: MobileShopBarProps) {
   const mapTarget =
     googleMapsLink ||
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      `${addressLine || 'Křimická 134'} ${addressCity || 'Plzeň'}`.trim()
+      `${addressLine || 'Úslavská 32'} ${addressCity || 'Plzeň'}`.trim()
     )}`;
 
   return (

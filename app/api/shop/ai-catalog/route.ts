@@ -52,9 +52,9 @@ export async function GET(request: NextRequest) {
 
     let linkedEmails: string[] = [];
     let shopName = 'Duplux Pneu / Alubazar Plzeň';
-    let address = 'Křimická 134, Plzeň';
-    let phone = '777 229 119';
-    let phoneHref = '+420777229119';
+    let address = 'Úslavská 32, Plzeň';
+    let phone = '602 390 038';
+    let phoneHref = '+420602390038';
     let customDomain = 'alubazarplzen.cz';
 
     try {
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
           const cfg = json.data;
           linkedEmails = cfg.linked_credential_emails || [];
           shopName = cfg.shop_name || shopName;
-          address = `${cfg.address_line || 'Křimická 134'}, ${cfg.address_city || 'Plzeň'}`;
+          address = `${cfg.address_line || 'Úslavská 32'}, ${cfg.address_city || 'Plzeň'}`;
           phone = cfg.phone || phone;
           phoneHref = cfg.phone_href || phoneHref;
           customDomain = cfg.custom_domain || host;

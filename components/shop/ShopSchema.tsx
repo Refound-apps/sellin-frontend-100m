@@ -43,7 +43,7 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
     paymentAccepted: 'Hotově, Převodem, Dobírka',
     address: {
       '@type': 'PostalAddress',
-      streetAddress: addressLine || 'Křimická 134',
+      streetAddress: addressLine || 'Úslavská 32',
       addressLocality: addressCity || 'Plzeň',
       addressRegion: region || 'Plzeňský kraj',
       addressCountry: 'CZ',
@@ -52,8 +52,8 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
       {
         '@type': 'OpeningHoursSpecification',
         dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-        opens: '08:00',
-        closes: '17:00',
+        opens: '10:00',
+        closes: '15:00',
       },
     ],
     hasMerchantReturnPolicy: {

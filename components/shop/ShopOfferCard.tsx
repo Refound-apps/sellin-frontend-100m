@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { ShopOffer } from '@/lib/types';
-import { formatCzk, getOfferPricingInfo, getOfferSpecsList, isSteelWheelOffer, isWheelOffer } from './offerMeta';
+import { formatCzk, getOfferPricingInfo, getOfferSpecsList, isAluDiskyOffer, isSteelWheelOffer, isWheelOffer } from './offerMeta';
 
 interface ShopOfferCardProps {
   offer: ShopOffer;
@@ -12,6 +12,7 @@ interface ShopOfferCardProps {
 
 export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
   const [imgError, setImgError] = useState(false);
+  const isAlu = isAluDiskyOffer(offer);
   const isWheel = isWheelOffer(offer);
   const isSteel = isSteelWheelOffer(offer);
   const specs = getOfferSpecsList(offer);
@@ -23,9 +24,24 @@ export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
   let badgeText = 'Skladem';
   let badgeIcon = '✓';
 
-  if (isWheel) {
-    badgeText = isSteel ? 'Plechové disky' : 'ALU disky';
+  if (isAlu) {
+    badgeText = 'ALU disky';
     badgeIcon = '🛞';
+  } else if (isSteel) {
+    badgeText = 'Plechové disky';
+    badgeIcon = '🛞';
+  } else if (isWheel) {
+    badgeText = 'Disky';
+    badgeIcon = '🛞';
+  } else if (/\bzimn/i.test(offer.title)) {
+    badgeText = 'Zimní pneu';
+    badgeIcon = '❄';
+  } else if (/(?<!komp)\bletn/i.test(offer.title)) {
+    badgeText = 'Letní pneu';
+    badgeIcon = '☀';
+  } else if (/celoroč/i.test(offer.title)) {
+    badgeText = 'Celoroční';
+    badgeIcon = '⭐';
   } else if (/\bzimn/i.test(titleAndDesc)) {
     badgeText = 'Zimní pneu';
     badgeIcon = '❄';

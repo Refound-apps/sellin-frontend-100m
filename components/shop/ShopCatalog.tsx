@@ -16,7 +16,7 @@ import ShopFaq from './ShopFaq';
 import ShopInquiry from './ShopInquiry';
 import ShopSchema from './ShopSchema';
 import MobileShopBar from './MobileShopBar';
-import { CAR_WHEEL_BRANDS, TIRE_BRANDS, TIRE_PROFILES, TIRE_RIMS, TIRE_WIDTHS } from './offerMeta';
+import { CAR_WHEEL_BRANDS, TIRE_BRANDS, TIRE_PROFILES, TIRE_RIMS, TIRE_WIDTHS, WHEEL_PCD_OPTIONS } from './offerMeta';
 import { scrollToShopSection } from './shopScroll';
 
 export default function ShopCatalog() {
@@ -41,9 +41,10 @@ export default function ShopCatalog() {
   const urlSeason = searchParams.get('season') || '';
   const urlRim = searchParams.get('rim') || '';
   const urlBrand = searchParams.get('brand') || '';
+  const urlPcd = searchParams.get('pcd') || '';
   const urlSearch = searchParams.get('search') || searchParams.get('q') || '';
 
-  const filterUrlKey = `${urlSort}|${urlType}|${urlSeason}|${urlRim}|${urlBrand}|${urlSearch}`;
+  const filterUrlKey = `${urlSort}|${urlType}|${urlSeason}|${urlRim}|${urlBrand}|${urlPcd}|${urlSearch}`;
   const lastSyncedFilterUrlKeyRef = useRef<string | null>(null);
 
   // Sync URL search parameters to filter state ONLY when filter-related params actually change
@@ -58,9 +59,16 @@ export default function ShopCatalog() {
     const nextFilters: ShopOfferFilters = {};
     if (urlSort) nextFilters.sort = urlSort;
     if (urlType) nextFilters.type = urlType;
-    if (urlSeason) nextFilters.season = urlSeason;
+    if (urlSeason) {
+      nextFilters.season = urlSeason;
+      if (!urlType) nextFilters.type = 'pneu';
+    }
     if (urlRim) nextFilters.rim = urlRim;
     if (urlBrand) nextFilters.brand = urlBrand;
+    if (urlPcd) {
+      nextFilters.pcd = urlPcd;
+      if (!urlType) nextFilters.type = 'disk';
+    }
 
     if (Object.keys(nextFilters).length > 0 || !isFirstRun) {
       setFilters((prev) => {
@@ -69,7 +77,8 @@ export default function ShopCatalog() {
           (prev.type || '') === (nextFilters.type || '') &&
           (prev.season || '') === (nextFilters.season || '') &&
           (prev.rim || '') === (nextFilters.rim || '') &&
-          (prev.brand || '') === (nextFilters.brand || '');
+          (prev.brand || '') === (nextFilters.brand || '') &&
+          (prev.pcd || '') === (nextFilters.pcd || '');
         return isSame ? prev : nextFilters;
       });
     }
@@ -81,7 +90,7 @@ export default function ShopCatalog() {
       setSearchInput((prev) => (prev === '' ? prev : ''));
       setSearchQuery((prev) => (prev === '' ? prev : ''));
     }
-  }, [filterUrlKey, urlSort, urlType, urlSeason, urlRim, urlBrand, urlSearch]);
+  }, [filterUrlKey, urlSort, urlType, urlSeason, urlRim, urlBrand, urlPcd, urlSearch]);
 
   // Deep-linking: open offer modal when ?offer=ID or ?id=ID is in URL
   const offerParamRaw = searchParams.get('offer') || searchParams.get('id');
@@ -290,7 +299,7 @@ export default function ShopCatalog() {
     setFilters({});
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
-      const toDelete = ['sort', 'type', 'season', 'rim', 'brand', 'search', 'q', 'width', 'profile'];
+      const toDelete = ['sort', 'type', 'season', 'rim', 'brand', 'search', 'q', 'width', 'profile', 'pcd'];
       toDelete.forEach((p) => url.searchParams.delete(p));
       const remaining = url.searchParams.toString();
       window.history.replaceState(null, '', url.pathname + (remaining ? `?${remaining}` : '') + url.hash);
@@ -302,11 +311,22 @@ export default function ShopCatalog() {
     setHasMore(true);
     setFilters((prev) => {
       const next = { ...prev, [key]: value || undefined };
-      // ALU disky jsou zimní i letní -> při volbě disků neresetujeme nabídku kvůli filtru sezóny
       if (key === 'type' && value === 'disk') {
         delete next.season;
-      } else if (key === 'season' && value && prev.type === 'disk') {
-        delete next.type;
+      } else if (key === 'type' && value === 'pneu') {
+        delete next.pcd;
+      } else if (key === 'pcd' && value) {
+        // Pokud uživatel zvolí rozteč, jedná se o ALU disky
+        next.type = 'disk';
+        delete next.season;
+      } else if (key === 'season' && value) {
+        // Pokud uživatel zvolí sezónu (Letní pneu, Zimní pneu, Celoroční), jedná se VÝHRADNĚ o pneu!
+        next.type = 'pneu';
+        delete next.pcd;
+      } else if (key === 'season' && !value) {
+        if (prev.type === 'pneu') {
+          delete next.type;
+        }
       }
       return next;
     });
@@ -319,8 +339,15 @@ export default function ShopCatalog() {
       const next = { ...prev, [filterType]: value || undefined };
       if (filterType === 'type' && value === 'disk') {
         delete next.season;
-      } else if (filterType === 'season' && value && prev.type === 'disk') {
-        delete next.type;
+      } else if (filterType === 'type' && value === 'pneu') {
+        delete next.pcd;
+      } else if (filterType === 'season' && value) {
+        next.type = 'pneu';
+        delete next.pcd;
+      } else if (filterType === 'season' && !value) {
+        if (prev.type === 'pneu') {
+          delete next.type;
+        }
       }
       return next;
     });
@@ -334,6 +361,7 @@ export default function ShopCatalog() {
     filters.width ||
     filters.profile ||
     filters.rim ||
+    filters.pcd ||
     (filters.sort && filters.sort !== 'newest')
   );
 
@@ -345,6 +373,7 @@ export default function ShopCatalog() {
     if (filters.width) count++;
     if (filters.profile) count++;
     if (filters.rim) count++;
+    if (filters.pcd) count++;
     return count;
   }, [filters]);
 
@@ -424,13 +453,9 @@ export default function ShopCatalog() {
             <div className="mt-3 sm:mt-4 flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-none touch-pan-x">
               <button
                 type="button"
-                onClick={() => {
-                  updateFilter('season', '');
-                  updateFilter('type', '');
-                  updateFilter('rim', '');
-                }}
+                onClick={handleClearSearch}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all touch-manipulation ${
-                  !filters.season && !filters.type && !filters.rim
+                  !filters.season && !filters.type && !filters.rim && !filters.pcd
                     ? 'bg-slate-950 text-white shadow-2xs'
                     : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
@@ -479,7 +504,11 @@ export default function ShopCatalog() {
 
               <button
                 type="button"
-                onClick={() => updateFilter('type', filters.type === 'disk' ? '' : 'disk')}
+                onClick={() => {
+                  const nextVal = filters.type === 'disk' ? '' : 'disk';
+                  updateFilter('type', nextVal);
+                  if (!nextVal) updateFilter('pcd', '');
+                }}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all touch-manipulation flex items-center gap-1 ${
                   filters.type === 'disk'
                     ? 'bg-emerald-600 text-white shadow-2xs'
@@ -489,6 +518,23 @@ export default function ShopCatalog() {
                 <span>🛞</span>
                 <span>ALU disky</span>
               </button>
+
+              {/* Rychlé filtry roztečí (PCD) pro disky */}
+              {['5x112', '5x108', '5x114.3', '5x120', '5x100'].map((pcd) => (
+                <button
+                  key={pcd}
+                  type="button"
+                  onClick={() => updateFilter('pcd', filters.pcd === pcd ? '' : pcd)}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-all touch-manipulation ${
+                    filters.pcd === pcd
+                      ? 'bg-emerald-700 text-white shadow-2xs ring-2 ring-emerald-400'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                  title={`Filtrovat rozteč kol ${pcd}`}
+                >
+                  {pcd}
+                </button>
+              ))}
 
               {['15', '16', '17', '18', '19', '20'].map((r) => (
                 <button
@@ -538,7 +584,7 @@ export default function ShopCatalog() {
 
             {/* Filter Dropdowns - Collapsible on Mobile, always visible on Desktop */}
             <div
-              className={`mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 ${
+              className={`mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 ${
                 mobileFiltersExpanded ? 'grid' : 'hidden lg:grid'
               }`}
             >
@@ -550,6 +596,30 @@ export default function ShopCatalog() {
                 <option value="">Typ: vše</option>
                 <option value="pneu">Pneumatiky</option>
                 <option value="disk">ALU disky</option>
+              </select>
+
+              <select
+                value={filters.pcd || ''}
+                onChange={(e) => updateFilter('pcd', e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Rozteč (PCD): vše</option>
+                {WHEEL_PCD_OPTIONS.map((pcd) => (
+                  <option key={pcd.value} value={pcd.value}>
+                    {pcd.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filters.rim || ''}
+                onChange={(e) => updateFilter('rim', e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Průměr (vše)</option>
+                {TIRE_RIMS.map((rim) => (
+                  <option key={rim} value={rim}>R{rim}</option>
+                ))}
               </select>
 
               <select
@@ -604,17 +674,6 @@ export default function ShopCatalog() {
                 <option value="">Profil (vše)</option>
                 {TIRE_PROFILES.map((profile) => (
                   <option key={profile} value={profile}>{profile}</option>
-                ))}
-              </select>
-
-              <select
-                value={filters.rim || ''}
-                onChange={(e) => updateFilter('rim', e.target.value)}
-                className={selectClass}
-              >
-                <option value="">Průměr (vše)</option>
-                {TIRE_RIMS.map((rim) => (
-                  <option key={rim} value={rim}>R{rim}</option>
                 ))}
               </select>
             </div>
@@ -733,16 +792,30 @@ export default function ShopCatalog() {
 
               {/* Load More Button */}
               {hasMore && (
-                <div className="mt-8 sm:mt-12 text-center">
+                <div className="mt-8 sm:mt-14 text-center">
                   {loading && page > 0 ? (
-                    <p className="text-sm text-[hsl(215_16%_47%)]">Načítám další položky…</p>
+                    <div className="inline-flex items-center gap-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 px-6 py-3.5 text-sm font-semibold text-emerald-800 shadow-sm animate-pulse">
+                      <svg className="animate-spin h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      <span>Načítám další položky ze skladu…</span>
+                    </div>
                   ) : (
                     <button
                       onClick={() => setPage((prev) => prev + 1)}
                       disabled={loading}
-                      className="w-full sm:w-auto rounded-xl border border-[hsl(214_32%_91%)] bg-white px-7 py-3 text-sm font-semibold text-[hsl(222_47%_11%)] shadow-2xs hover:bg-[hsl(210_40%_96%)] transition-colors active:scale-98 disabled:opacity-50"
+                      className="group inline-flex w-full sm:w-auto items-center justify-center gap-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-8 sm:px-12 py-4 text-sm sm:text-base font-extrabold text-white shadow-xl shadow-emerald-600/30 ring-2 ring-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 transition-all duration-200 cursor-pointer disabled:opacity-50 touch-manipulation"
                     >
-                      Načíst další nabídky ({offers.length} z {totalOffers ?? offers.length} zobrazeno)
+                      <span>Načíst další nabídky ({offers.length} z {totalOffers ?? offers.length} zobrazeno)</span>
+                      <svg
+                        className="h-5 w-5 transition-transform duration-200 group-hover:translate-y-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </button>
                   )}
                 </div>

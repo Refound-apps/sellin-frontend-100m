@@ -10,9 +10,9 @@ export async function GET(request: NextRequest) {
 > Specializovaný online katalog prověřených pneumatik, ALU disků a kompletních sad kol s fyzickým skladem a pneuservisem.
 
 ## Informace o provozovně
-- **Provozovna:** Křimická 134, Plzeň, Česká republika
-- **Telefon pro dotazy a rezervace:** +420 777 229 119
-- **Otevírací doba:** Pondělí–Pátek 8:00 – 17:00 (nebo dle telefonické domluvy)
+- **Provozovna:** Úslavská 32, Plzeň, Česká republika
+- **Telefon pro dotazy a rezervace:** +420 602 390 038
+- **Otevírací doba:** Pondělí–Pátek 10:00 – 15:00 (nebo dle telefonické domluvy)
 - **Služby:**
   - Osobní odběr všech položek zdarma
   - Možnost odborné montáže a přezutí na počkání

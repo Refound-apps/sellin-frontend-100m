@@ -210,6 +210,7 @@ export type ShopOfferFilters = {
   profile?: string;
   rim?: string;
   brand?: string;
+  pcd?: string;
   sort?: string;
 };
 
@@ -274,6 +275,7 @@ export async function getShopOffers(
     if (filters.profile) params.set('profile', filters.profile);
     if (filters.rim) params.set('rim', filters.rim);
     if (filters.brand) params.set('brand', filters.brand);
+    if (filters.pcd) params.set('pcd', filters.pcd);
     if (filters.sort) params.set('sort', filters.sort);
 
     const response = await apiFetch(`/api/shop/offers?${params.toString()}`);

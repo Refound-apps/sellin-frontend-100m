@@ -16,3 +16,7 @@ Tato aplikace slouží jako **centrální engine, PIM a sklad** (obdoba Shopify)
 - **Inzertní portály:** Backend automaticky synchronizuje a propisuje nabídky na externí inzertní weby (Bazoš.cz, Bazoš.sk, Sbazar.cz atd.).
 - **Marketing a sociální sítě:** Propojení na reklamní a sociální platformy (Facebook Marketplace / Meta Ads, Google Shopping / Ads, TikTok atd.).
 
+## Supabase DB & MCP Pravidlo
+- **VŽDY používat `user-sellin.cz-MCP`**, NIKDY `user-mai.cz-MCP` ani `user-licencex-os-MCP`. Tento projekt je Sellin.cz (`vgyjvkcrcelywibfaqme`).
+- Pro přístup k Supabase databázi a edge funkcím vždy volat výhradně MCP nástroje z namespace `user-sellin.cz-MCP`.
+

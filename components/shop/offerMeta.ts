@@ -5,29 +5,30 @@ export type OfferMetaItem = {
 };
 
 /**
- * Rozpozná, zda nabídka představuje disky / kola (ALU disky, plechové disky apod.)
- * nebo čistě pneumatiky.
+ * Rozpozná, zda nabídka představuje ALU disky.
+ * Pravidlo klienta / projektu:
+ * "alu disky jsou jen ty inzeráty, které začínají na Alu"
  */
-export function isWheelOffer(offer: { title?: string; description?: string }): boolean {
-  const title = (offer.title || '').toLowerCase();
-  const isWheelInTitle = /\b(alu|disky?|elektrony|ráfky?|hliník|plech|ocel)/i.test(title);
-  if (isWheelInTitle) return true;
-  // Pokud název začíná na "pneu" nebo "zimní pneu", jde o pneumatiky
-  if (/^(\d+\s*ks\s+)?(zimní|letní|celoroční)?\s*pneu/i.test(title)) return false;
-  const isPneuTitle = /\bpneu|pneumatik/i.test(title);
-  if (isPneuTitle) return false;
-  // Kontrola v textu pouze pokud název není explicitně pneu
-  const text = `${offer.title || ''} ${offer.description || ''}`.toLowerCase();
-  return /\b(alu\s*disky?|elektrony|hliníkov\w*\s*kola)\b/i.test(text);
+export function isAluDiskyOffer(offer: { title?: string; description?: string }): boolean {
+  const title = (offer.title || '').trim();
+  return /^alu\b/i.test(title);
 }
 
 export function isSteelWheelOffer(offer: { title?: string; description?: string }): boolean {
-  const title = (offer.title || '').toLowerCase();
-  return /\b(plech|ocel)/i.test(title);
+  const title = (offer.title || '').trim();
+  return /^(plech|ocel)/i.test(title) || /\b(plechové\s*disky|plecháče|ocelové\s*disky)\b/i.test(title);
 }
 
-export function isAluDiskyOffer(offer: { title?: string; description?: string }): boolean {
-  return isWheelOffer(offer) && !isSteelWheelOffer(offer);
+/**
+ * Rozpozná, zda nabídka představuje kola / disky (ALU disky, plechové disky, dodávkové disky apod.)
+ * nebo čistě pneumatiky.
+ */
+export function isWheelOffer(offer: { title?: string; description?: string }): boolean {
+  if (isAluDiskyOffer(offer)) return true;
+  if (isSteelWheelOffer(offer)) return true;
+  const title = (offer.title || '').trim();
+  if (/^(dodávkové\s*disky|disky)\b/i.test(title)) return true;
+  return false;
 }
 
 const BRAND_REGEX = /\b(matador|kleber|hankook|semperit|michelin|continental|barum|nokian|goodyear|dunlop|pirelli|bridgestone|falken|kumho|nexen|toyo|rial|ats|alutec|enkei|bbs|brock|dezent|dotz|ronal|borbet|platin|škoda|skoda|volkswagen|vw|audi|bmw|ford|seat|hyundai|kia|volvo|opel|renault|peugeot|mercedes|mazda|toyota|honda|nissan|mitsubishi|citroen|citroën|dacia|fiat|alfa|suzuki|subaru|jeep|land\s*rover|cupra|mini|porsche)\b/i;
@@ -63,8 +64,9 @@ export function getOfferMeta(offer: ShopOffer): OfferMetaItem[] {
   const isWheel = isWheelOffer(offer);
 
   if (isWheel) {
+    const isAlu = isAluDiskyOffer(offer);
     const isSteel = isSteelWheelOffer(offer);
-    items.push({ label: isSteel ? 'Plechové disky' : 'ALU disky' });
+    items.push({ label: isAlu ? 'ALU disky' : (isSteel ? 'Plechové disky' : 'Disky') });
 
     // Rozteč šroubů
     const pcd = text.match(/(\d\s*x\s*\d{2,3}(?:\.\d)?)/i);
@@ -83,8 +85,11 @@ export function getOfferMeta(offer: ShopOffer): OfferMetaItem[] {
       if (count) items.push({ label: `${count[1]} ks` });
     }
   } else {
-    // Pneumatiky: sezóna, rozměr, kusy, vzorek
-    if (/\bzimn/i.test(text)) items.push({ label: 'Zimní' });
+    // Pneumatiky: sezóna z titulku má přednost, rozměr, kusy, vzorek
+    if (/\bzimn/i.test(offer.title)) items.push({ label: 'Zimní' });
+    else if (/(?<!komp)\bletn/i.test(offer.title)) items.push({ label: 'Letní' });
+    else if (/celoroč/i.test(offer.title)) items.push({ label: 'Celoroční' });
+    else if (/\bzimn/i.test(text)) items.push({ label: 'Zimní' });
     else if (/(?<!komp)\bletn/i.test(text)) items.push({ label: 'Letní' });
     else if (/celoroč/i.test(text)) items.push({ label: 'Celoroční' });
 
@@ -117,10 +122,14 @@ export function getOfferTags(offer: ShopOffer): string[] {
 
   // ALU disky jsou zimní i letní, takže nemají mít tag letní pneu ani zimní pneu, pouze tag alu disky
   if (isWheel) {
+    const isAlu = isAluDiskyOffer(offer);
     const isSteel = isSteelWheelOffer(offer);
-    tags.push(isSteel ? 'Plechové disky' : 'ALU disky');
+    tags.push(isAlu ? 'ALU disky' : (isSteel ? 'Plechové disky' : 'Disky'));
   } else {
-    if (/\bzimn/i.test(text)) tags.push('Zimní');
+    if (/\bzimn/i.test(offer.title)) tags.push('Zimní');
+    else if (/(?<!komp)\bletn/i.test(offer.title)) tags.push('Letní');
+    else if (/celoroč/i.test(offer.title)) tags.push('Celoroční');
+    else if (/\bzimn/i.test(text)) tags.push('Zimní');
     else if (/(?<!komp)\bletn/i.test(text)) tags.push('Letní');
     else if (/celoroč/i.test(text)) tags.push('Celoroční');
     tags.push('Pneu');
@@ -290,7 +299,9 @@ export function getOfferSpecsList(offer: ShopOffer): StructuredSpec[] {
   // 10. Typ položky
   const count = text.match(/(\d+)\s*ks/i);
   if (isWheel) {
-    const label = isSteel ? 'Plechové disky' : 'ALU disky';
+    const isAlu = isAluDiskyOffer(offer);
+    const isSteel = isSteelWheelOffer(offer);
+    const label = isAlu ? 'ALU disky' : (isSteel ? 'Plechové disky' : 'Disky');
     specs.push({ label: 'Typ', value: count ? `${label} (${count[1]} ks)` : label });
   } else {
     specs.push({ label: 'Typ', value: count ? `Pneumatiky (${count[1]} ks)` : 'Pneumatiky' });
@@ -346,4 +357,18 @@ export const CAR_WHEEL_BRANDS = [
   { value: 'dezent', label: 'Disky Dezent' },
   { value: 'ronal', label: 'Disky Ronal' },
   { value: 'borbet', label: 'Disky Borbet' },
+];
+
+export const WHEEL_PCD_OPTIONS = [
+  { value: '5x112', label: '5x112 (Škoda, VW, Audi, Seat, MB)' },
+  { value: '5x108', label: '5x108 (Ford, Volvo, Peugeot)' },
+  { value: '5x114.3', label: '5x114,3 (Hyundai, Kia, Mazda, Japonské)' },
+  { value: '5x120', label: '5x120 (BMW, VW Transporter T5/T6)' },
+  { value: '5x100', label: '5x100 (Fabia, Octavia 1, Polo, Golf 4)' },
+  { value: '4x100', label: '4x100 (Citigo, Renault, Opel, Felicia)' },
+  { value: '4x108', label: '4x108 (Ford, Peugeot, Citroën)' },
+  { value: '5x130', label: '5x130 (VW Touareg, Porsche, Audi Q7)' },
+  { value: '5x110', label: '5x110 (Opel, Alfa Romeo, Saab)' },
+  { value: '5x115', label: '5x115 (Opel Astra J, Chevrolet)' },
+  { value: '5x105', label: '5x105 (Opel Astra J, Mokka)' },
 ];

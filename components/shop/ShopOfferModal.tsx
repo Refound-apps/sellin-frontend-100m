@@ -496,7 +496,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   <span>Osobní odběr: {addressLine ? `${addressLine}, ${addressCity || 'Plzeň'}` : 'na naší provozovně'}</span>
                 </div>
                 <p className="text-[11px] text-slate-600">
-                  Otevírací doba: {hours || 'Po–Pá: 8:00 – 17:00'} · Možnost přezutí a vyvážení kol na místě.
+                  Otevírací doba: {hours || '10:00 – 15:00 nebo dle telefonické domluvy'} · Možnost přezutí a vyvážení kol na místě.
                 </p>
                 <div className="flex items-center gap-3 pt-1 text-[11px] font-semibold text-emerald-800">
                   <span>Poštovné: {pricing.shippingPrice}</span>

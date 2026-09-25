@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Offer } from '@/lib/types';
-import { formatCzk, getOfferSpecsList, isSteelWheelOffer, isWheelOffer } from '@/components/shop/offerMeta';
+import { formatCzk, getOfferSpecsList, isAluDiskyOffer, isSteelWheelOffer, isWheelOffer } from '@/components/shop/offerMeta';
 import { formatOfferDate, formatPhoneNumber, getOfferStatusInfo } from './offerStatus';
 
 interface OfferCardProps {
@@ -15,6 +15,7 @@ interface OfferCardProps {
 export default function OfferCard({ offer, onClick, priority = false }: OfferCardProps) {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const isAlu = isAluDiskyOffer(offer);
   const isWheel = isWheelOffer(offer);
   const isSteel = isSteelWheelOffer(offer);
   const specs = getOfferSpecsList(offer);
@@ -23,8 +24,18 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
   // Derive category badge
   const titleAndDesc = `${offer.title} ${offer.description || ''}`;
   let typeBadge: string | null = null;
-  if (isWheel) {
-    typeBadge = isSteel ? '🛞 Plechové disky' : '🛞 ALU disky';
+  if (isAlu) {
+    typeBadge = '🛞 ALU disky';
+  } else if (isSteel) {
+    typeBadge = '🛞 Plechové disky';
+  } else if (isWheel) {
+    typeBadge = '🛞 Disky';
+  } else if (/\bzimn/i.test(offer.title)) {
+    typeBadge = '❄ Zimní pneu';
+  } else if (/(?<!komp)\bletn/i.test(offer.title)) {
+    typeBadge = '☀ Letní pneu';
+  } else if (/celoroč/i.test(offer.title)) {
+    typeBadge = '⭐ Celoroční';
   } else if (/\bzimn/i.test(titleAndDesc)) {
     typeBadge = '❄ Zimní';
   } else if (/(?<!komp)\bletn/i.test(titleAndDesc)) {
