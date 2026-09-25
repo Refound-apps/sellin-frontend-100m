@@ -965,10 +965,10 @@ function CreateOfferContent() {
               </div>
             </div>
 
-            {/* Box: Interval obnovování (TOPování) */}
+            {/* Box: Automatická obnova */}
             <div className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-3">
               <h2 className="text-sm sm:text-base font-bold text-slate-950 flex items-center gap-2">
-                <span>⚡</span> Automatické TOPování
+                <span>⚡</span> Automatická Obnova
               </h2>
               <div>
                 <select

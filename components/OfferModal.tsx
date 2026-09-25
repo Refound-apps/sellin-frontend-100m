@@ -1064,7 +1064,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <label htmlFor="edit-autorenew" className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                            Auto-obnova (TOP)
+                            Automatická Obnova
                           </label>
                           <span className="text-[10px] text-emerald-700 font-bold">
                             Bazoš / Sbazar
