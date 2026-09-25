@@ -54,7 +54,7 @@ export default function ShopHero({
             viewBox="0 0 400 400"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="animate-spin-slow origin-center select-none"
+            className="origin-center select-none"
           >
             <defs>
               {/* Subtle emerald ambient aura in the inner wheel */}
@@ -172,7 +172,7 @@ export default function ShopHero({
       {/* Main Hero Content */}
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
         {/* Top badge */}
-        <div className="mb-3.5 inline-flex items-center gap-2 rounded-full border border-[hsl(214_32%_88%)] bg-white/90 px-3 py-1 text-xs font-semibold text-[hsl(222_47%_11%)] shadow-xs backdrop-blur">
+        <div className="mb-3.5 inline-flex items-center gap-2 rounded-full border border-[hsl(214_32%_88%)] bg-white px-3 py-1 text-xs font-semibold text-[hsl(222_47%_11%)] shadow-xs">
           <span className="flex h-2 w-2 relative">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[hsl(142_71%_45%)] opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(142_71%_45%)]" />
@@ -302,19 +302,19 @@ export default function ShopHero({
 
         {/* 4 Trust Metrics - 2x2 grid on mobile */}
         <div className="mt-8 sm:mt-10 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-4 pt-5 sm:pt-6 border-t border-[hsl(214_32%_91%)]">
-          <div className="rounded-xl bg-white/70 p-2.5 sm:p-3.5 backdrop-blur-xs border border-[hsl(214_32%_91%)]">
+          <div className="rounded-xl bg-white p-2.5 sm:p-3.5 border border-[hsl(214_32%_91%)] shadow-2xs">
             <p className="text-lg sm:text-xl font-bold text-[hsl(222_47%_11%)]">100%</p>
             <p className="text-[11px] sm:text-xs text-[hsl(215_16%_47%)] mt-0.5">Reálné fotografie každé sady</p>
           </div>
-          <div className="rounded-xl bg-white/70 p-2.5 sm:p-3.5 backdrop-blur-xs border border-[hsl(214_32%_91%)]">
+          <div className="rounded-xl bg-white p-2.5 sm:p-3.5 border border-[hsl(214_32%_91%)] shadow-2xs">
             <p className="text-lg sm:text-xl font-bold text-[hsl(222_47%_11%)]">Měřený vzorek</p>
             <p className="text-[11px] sm:text-xs text-[hsl(215_16%_47%)] mt-0.5">Přesná hloubka dezénu v mm</p>
           </div>
-          <div className="rounded-xl bg-white/70 p-2.5 sm:p-3.5 backdrop-blur-xs border border-[hsl(214_32%_91%)]">
+          <div className="rounded-xl bg-white p-2.5 sm:p-3.5 border border-[hsl(214_32%_91%)] shadow-2xs">
             <p className="text-lg sm:text-xl font-bold text-[hsl(222_47%_11%)]">Dostupnost</p>
             <p className="text-[11px] sm:text-xs text-[hsl(215_16%_47%)] mt-0.5">{region || addressLine || 'Snadný příjezd autem'}</p>
           </div>
-          <div className="rounded-xl bg-white/70 p-2.5 sm:p-3.5 backdrop-blur-xs border border-[hsl(214_32%_91%)]">
+          <div className="rounded-xl bg-white p-2.5 sm:p-3.5 border border-[hsl(214_32%_91%)] shadow-2xs">
             <p className="text-lg sm:text-xl font-bold text-[hsl(222_47%_11%)]">Přezutí</p>
             <p className="text-[11px] sm:text-xs text-[hsl(215_16%_47%)] mt-0.5">Možnost montáže na místě</p>
           </div>

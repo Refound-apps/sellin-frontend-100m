@@ -13,7 +13,6 @@
 }
 
 html {
-  scroll-behavior: smooth;
   scrollbar-gutter: stable;
 }
 
@@ -78,22 +77,6 @@ body {
   }
 }
 
-/* Smooth ambient tyre rotation for shop hero background (counter-clockwise) */
-@keyframes spin-slow {
-  from {
-    transform: rotate(360deg);
-  }
-  to {
-    transform: rotate(0deg);
-  }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 50s linear infinite;
-  transform-origin: center;
-  will-change: transform;
-}
-
 /* Subtle, elegant loading animations */
 @keyframes shimmer {
   0% {
@@ -129,7 +112,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-spin-slow,
   .animate-shimmer,
   .animate-progress-pulse {
     animation: none;

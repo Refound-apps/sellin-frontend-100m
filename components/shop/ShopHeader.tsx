@@ -48,7 +48,7 @@ export default function ShopHeader() {
       </div>
 
       {/* Main sticky navigation */}
-      <header className="sticky top-0 z-40 border-b border-[hsl(214_32%_91%/0.8)] bg-white/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-[hsl(214_32%_91%)] bg-white shadow-xs">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-3.5 py-2.5 sm:px-6 sm:py-3.5">
           <Link
             href="/shop"

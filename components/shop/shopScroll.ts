@@ -31,7 +31,7 @@ export function scrollToShopSection(
   const currentY = window.scrollY;
   const distance = Math.abs(targetY - currentY);
 
-  if (options?.updateHistory !== false) {
+  if (options?.updateHistory === true) {
     try {
       window.history.pushState(null, '', `#${targetId}`);
     } catch {
@@ -40,49 +40,9 @@ export function scrollToShopSection(
   }
 
   if (options?.immediate) {
-    const html = document.documentElement;
-    const prevScrollBehavior = html.style.scrollBehavior;
-    html.style.scrollBehavior = 'auto';
     window.scrollTo({ top: targetY, behavior: 'auto' });
-    html.style.scrollBehavior = prevScrollBehavior;
     return;
   }
 
-  // If distance is large (> 2000px):
-  // Browsers (especially Chromium/WebKit) cap smooth-scroll animation duration/velocity.
-  // When scrolling past dozens of loaded cards with lazy images, the smooth scroll
-  // animation frequently aborts halfway through, stranding the user in the images.
-  // Strategy: jump instantaneously within 600px of the target, then smooth-scroll the rest.
-  if (distance > 2000) {
-    const preScrollY = targetY > currentY ? targetY - 600 : targetY + 600;
-    const html = document.documentElement;
-    const prevScrollBehavior = html.style.scrollBehavior;
-    html.style.scrollBehavior = 'auto';
-    window.scrollTo({ top: preScrollY, behavior: 'auto' });
-    html.style.scrollBehavior = prevScrollBehavior;
-
-    requestAnimationFrame(() => {
-      const finalY = computeTargetY();
-      window.scrollTo({ top: finalY, behavior: 'smooth' });
-    });
-  } else {
-    window.scrollTo({ top: targetY, behavior: 'smooth' });
-  }
-
-  // Double-check verification:
-  // If lazy-loaded images, fonts, or mobile menu collapse caused layout shift,
-  // or if browser smooth-scroll was cut short, re-align smoothly to the exact target.
-  const verifyArrival = () => {
-    const currentEl = document.getElementById(targetId);
-    if (!currentEl) return;
-    const currentTop = currentEl.getBoundingClientRect().top;
-    const diff = currentTop - totalOffset;
-    if (Math.abs(diff) > 35) {
-      const correctedY = computeTargetY();
-      window.scrollTo({ top: correctedY, behavior: 'smooth' });
-    }
-  };
-
-  setTimeout(verifyArrival, 300);
-  setTimeout(verifyArrival, 600);
+  window.scrollTo({ top: targetY, behavior: 'smooth' });
 }

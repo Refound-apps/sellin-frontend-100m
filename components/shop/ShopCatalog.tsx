@@ -399,7 +399,8 @@ export default function ShopCatalog() {
       {/* Catalog & Filter Section */}
       <section
         id="nabidka"
-        className="scroll-mt-20 sm:scroll-mt-24 bg-gradient-to-b from-white via-[hsl(210_40%_98%)] via-[200px] sm:via-[260px] to-[hsl(210_40%_98%)] py-8 sm:py-20"
+        style={{ overflowAnchor: 'none' }}
+        className="scroll-mt-16 sm:scroll-mt-20 bg-gradient-to-b from-white via-[hsl(210_40%_98%)] via-[200px] sm:via-[260px] to-[hsl(210_40%_98%)] py-8 sm:py-20"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto mb-6 sm:mb-10 max-w-2xl text-center">
