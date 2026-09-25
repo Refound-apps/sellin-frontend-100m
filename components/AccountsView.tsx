@@ -36,11 +36,7 @@ export interface ChannelItem {
   };
 }
 
-// Kanály seřazené podle revenue ROI v recommerce:
-// 1. Přímé kanály bez provizí s okamžitým obratem (Bazoš, FB Marketplace, Sbazar, Vlastní E-shop)
-// 2. Osvědčená tržiště s garancí a exportem (Aukro, Vinted, eBay, Allegro)
-// 3. E-commerce platformy (Shoptet, Shopify)
-// 4. Retail marketplace a srovnávače (Kaufland, Google Shopping, Zboží, Heureka)
+// Pořadí: 1 Bazoš → 2 Sbazar → 3 Vlastní e-shop → 4 Google → 5 Facebook → 6 Aukro → 7 Shopify → 8 Shoptet → 9 Allegro → ostatní
 const ALL_CHANNELS: ChannelItem[] = [
   // 1. BAZOŠ.CZ / SK
   {
@@ -68,26 +64,7 @@ const ALL_CHANNELS: ChannelItem[] = [
     },
   },
 
-  // 2. FACEBOOK MARKETPLACE
-  {
-    id: 'facebook',
-    name: 'Facebook Marketplace',
-    category: 'marketplaces',
-    categoryLabel: 'Sociální inzerce',
-    brandColor: '#1877F2',
-    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Lokální poptávka bez poplatků',
-    shortDesc: 'Rychlý lokální odbyt bez prodejních provizí. Poptávky přímo do Messengeru a okamžitý osobní odběr.',
-    tags: ['0 % provize', 'Messenger chat', 'Lokální odběr'],
-    config: {
-      feedUrl: 'https://sellin.cz/api/feeds/meta-catalog.xml',
-      syncStock: true,
-    },
-  },
-
-  // 3. SBAZAR.CZ
+  // 2. SBAZAR.CZ
   {
     id: 'sbazar',
     name: 'Sbazar.cz',
@@ -110,7 +87,7 @@ const ALL_CHANNELS: ChannelItem[] = [
     },
   },
 
-  // 4. VLASTNÍ E-SHOP (STOREFRONT)
+  // 3. VLASTNÍ E-SHOP (STOREFRONT)
   {
     id: 'sellin-shop',
     name: 'Vlastní E-shop (Storefront)',
@@ -130,7 +107,45 @@ const ALL_CHANNELS: ChannelItem[] = [
     },
   },
 
-  // 5. AUKRO.CZ
+  // 4. GOOGLE NÁKUPY
+  {
+    id: 'google-shopping',
+    name: 'Google Nákupy',
+    category: 'comparators',
+    categoryLabel: 'Google Ads & PMax',
+    brandColor: '#4285F4',
+    bgLight: 'bg-sky-500/10 text-sky-700 border-sky-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Výkonnostní kampaně ve vyhledávání',
+    shortDesc: 'Zobrazení produktů ve vyhledávači se štítkem used/refurbished. Cílený nákupní záměr přímo do vašeho e-shopu.',
+    tags: ['Google Merchant', 'Used / Refurbished', 'PMax kampaně'],
+    config: {
+      feedUrl: 'https://sellin.cz/api/feeds/google-merchant.xml',
+      syncStock: true,
+    },
+  },
+
+  // 5. FACEBOOK MARKETPLACE
+  {
+    id: 'facebook',
+    name: 'Facebook Marketplace',
+    category: 'marketplaces',
+    categoryLabel: 'Sociální inzerce',
+    brandColor: '#1877F2',
+    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Lokální poptávka bez poplatků',
+    shortDesc: 'Rychlý lokální odbyt bez prodejních provizí. Poptávky přímo do Messengeru a okamžitý osobní odběr.',
+    tags: ['0 % provize', 'Messenger chat', 'Lokální odběr'],
+    config: {
+      feedUrl: 'https://sellin.cz/api/feeds/meta-catalog.xml',
+      syncStock: true,
+    },
+  },
+
+  // 6. AUKRO.CZ
   {
     id: 'aukro',
     name: 'Aukro.cz',
@@ -150,65 +165,28 @@ const ALL_CHANNELS: ChannelItem[] = [
     },
   },
 
-  // 6. VINTED
+  // 7. SHOPIFY
   {
-    id: 'vinted',
-    name: 'Vinted',
-    category: 'portals',
-    categoryLabel: 'Second-hand bazar',
-    brandColor: '#09B1BA',
-    bgLight: 'bg-teal-500/10 text-teal-700 border-teal-200/80',
+    id: 'shopify',
+    name: 'Shopify',
+    category: 'eshops',
+    categoryLabel: 'E-shop platforma',
+    brandColor: '#008060',
+    bgLight: 'bg-teal-500/10 text-teal-800 border-teal-200/80',
     status: 'ready',
     statusLabel: 'Připraveno k napojení',
-    tagline: 'Second-hand prodej bez poplatků',
-    shortDesc: 'Nulové poplatky pro prodejce s integrovanou zlevněnou dopravou. Platba předem garantovaná platformou.',
-    tags: ['0 % prodejci', 'Integrovaná doprava', 'Platba předem'],
+    tagline: 'Globální e-commerce systém',
+    shortDesc: 'Real-time synchronizace zásob a objednávek s platformou Shopify přes Admin API s podporou více měn.',
+    tags: ['Admin API', 'Webhooky', 'Multi-měna'],
     config: {
-      syncStock: true,
-    },
-  },
-
-  // 7. EBAY MOTORS & GOODS
-  {
-    id: 'ebay',
-    name: 'eBay Motors & Goods',
-    category: 'marketplaces',
-    categoryLabel: 'Globální export',
-    brandColor: '#3B82F6',
-    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Export do EU za vyšší EUR ceny',
-    shortDesc: 'Prodej autodílů a zboží do Německa a celé EU. Podstatně vyšší prodejní ceny kompenzují poplatky tržiště.',
-    tags: ['Export v EUR', 'Trh celé EU', 'Vyšší prodejní ceny'],
-    config: {
+      shopUrl: 'https://vas-obchod.myshopify.com',
       apiKey: '',
       syncStock: true,
       syncOrders: true,
     },
   },
 
-  // 8. ALLEGRO.CZ
-  {
-    id: 'allegro',
-    name: 'Allegro.cz',
-    category: 'marketplaces',
-    categoryLabel: 'Marketplace',
-    brandColor: '#FF5A00',
-    bgLight: 'bg-orange-500/10 text-orange-800 border-orange-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Široký odbyt v ČR a Polsku',
-    shortDesc: 'Hromadný odbyt v sekcích Outlet a Použité zboží. Program Allegro Smart zvyšuje konverzi a rychlost prodeje.',
-    tags: ['CZ a PL trh', 'Allegro Smart', 'REST API'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
-  },
-
-  // 9. SHOPTET
+  // 8. SHOPTET
   {
     id: 'shoptet',
     name: 'Shoptet',
@@ -230,28 +208,65 @@ const ALL_CHANNELS: ChannelItem[] = [
     },
   },
 
-  // 10. SHOPIFY
+  // 9. ALLEGRO.CZ
   {
-    id: 'shopify',
-    name: 'Shopify',
-    category: 'eshops',
-    categoryLabel: 'E-shop platforma',
-    brandColor: '#008060',
-    bgLight: 'bg-teal-500/10 text-teal-800 border-teal-200/80',
+    id: 'allegro',
+    name: 'Allegro.cz',
+    category: 'marketplaces',
+    categoryLabel: 'Marketplace',
+    brandColor: '#FF5A00',
+    bgLight: 'bg-orange-500/10 text-orange-800 border-orange-200/80',
     status: 'ready',
     statusLabel: 'Připraveno k napojení',
-    tagline: 'Globální e-commerce systém',
-    shortDesc: 'Real-time synchronizace zásob a objednávek s platformou Shopify přes Admin API s podporou více měn.',
-    tags: ['Admin API', 'Webhooky', 'Multi-měna'],
+    tagline: 'Široký odbyt v ČR a Polsku',
+    shortDesc: 'Hromadný odbyt v sekcích Outlet a Použité zboží. Program Allegro Smart zvyšuje konverzi a rychlost prodeje.',
+    tags: ['CZ a PL trh', 'Allegro Smart', 'REST API'],
     config: {
-      shopUrl: 'https://vas-obchod.myshopify.com',
       apiKey: '',
       syncStock: true,
       syncOrders: true,
     },
   },
 
-  // 11. KAUFLAND GLOBAL
+  // 10. VINTED
+  {
+    id: 'vinted',
+    name: 'Vinted',
+    category: 'portals',
+    categoryLabel: 'Second-hand bazar',
+    brandColor: '#09B1BA',
+    bgLight: 'bg-teal-500/10 text-teal-700 border-teal-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Second-hand prodej bez poplatků',
+    shortDesc: 'Nulové poplatky pro prodejce s integrovanou zlevněnou dopravou. Platba předem garantovaná platformou.',
+    tags: ['0 % prodejci', 'Integrovaná doprava', 'Platba předem'],
+    config: {
+      syncStock: true,
+    },
+  },
+
+  // 11. EBAY MOTORS & GOODS
+  {
+    id: 'ebay',
+    name: 'eBay Motors & Goods',
+    category: 'marketplaces',
+    categoryLabel: 'Globální export',
+    brandColor: '#3B82F6',
+    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
+    status: 'ready',
+    statusLabel: 'Připraveno k napojení',
+    tagline: 'Export do EU za vyšší EUR ceny',
+    shortDesc: 'Prodej autodílů a zboží do Německa a celé EU. Podstatně vyšší prodejní ceny kompenzují poplatky tržiště.',
+    tags: ['Export v EUR', 'Trh celé EU', 'Vyšší prodejní ceny'],
+    config: {
+      apiKey: '',
+      syncStock: true,
+      syncOrders: true,
+    },
+  },
+
+  // 12. KAUFLAND GLOBAL
   {
     id: 'kaufland',
     name: 'Kaufland Global',
@@ -268,25 +283,6 @@ const ALL_CHANNELS: ChannelItem[] = [
       apiKey: '',
       syncStock: true,
       syncOrders: true,
-    },
-  },
-
-  // 12. GOOGLE NÁKUPY
-  {
-    id: 'google-shopping',
-    name: 'Google Nákupy',
-    category: 'comparators',
-    categoryLabel: 'Google Ads & PMax',
-    brandColor: '#4285F4',
-    bgLight: 'bg-sky-500/10 text-sky-700 border-sky-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Výkonnostní kampaně ve vyhledávání',
-    shortDesc: 'Zobrazení produktů ve vyhledávači se štítkem used/refurbished. Cílený nákupní záměr přímo do vašeho e-shopu.',
-    tags: ['Google Merchant', 'Used / Refurbished', 'PMax kampaně'],
-    config: {
-      feedUrl: 'https://sellin.cz/api/feeds/google-merchant.xml',
-      syncStock: true,
     },
   },
 
@@ -430,7 +426,7 @@ export default function AccountsView() {
             Prodejní kanály & Integrace
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-            Centrální sklad propojený na prodejní kanály seřazené podle revenue ROI v recommerce.
+            Centrální sklad propojený na prodejní kanály – od přímé inzerce přes vlastní e-shop až po tržiště a srovnávače.
           </p>
         </div>
 

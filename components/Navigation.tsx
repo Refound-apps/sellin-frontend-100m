@@ -13,6 +13,7 @@ export default function Navigation() {
   const [user, setUser] = useState<{ email?: string; id?: string } | null>(null);
   const [role, setRole] = useState<'admin' | 'seller' | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     async function fetchUserRole(authUser: { id: string; email?: string | null }) {
@@ -72,6 +73,10 @@ export default function Navigation() {
       subscription.unsubscribe();
     };
   }, [supabase]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -148,9 +153,137 @@ export default function Navigation() {
     { href: '/admin/automations', label: 'Automatizace & Cron', exact: false },
     { href: '/admin/users', label: 'Uživatelé', exact: false },
     { href: '/admin/eshop', label: 'E-shopy', exact: false },
+    { href: '/admin/email', label: 'Test e-mail', exact: false },
   ];
 
-  const currentNavItems = isAdminSection ? adminNavItems : sellerNavItems;
+  if (isAdminSection) {
+    const isActive = (href: string, exact?: boolean) =>
+      exact ? pathname === href : pathname === href || pathname.startsWith(href + '/');
+
+    const renderSidebar = () => (
+      <aside className="flex h-full w-60 flex-col border-r border-slate-200 bg-white">
+        <div className="border-b border-slate-100 px-4 py-5">
+          <Link href="/admin/offers" className="group flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-xs transition-transform group-hover:scale-105">
+              P
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-baseline">
+                <span className="text-base font-black tracking-tight text-slate-950">
+                  Prodej
+                  <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">
+                    omat
+                  </span>
+                </span>
+                <span className="ml-0.5 text-[11px] font-bold text-slate-400">.cz</span>
+              </div>
+              <span className="mt-0.5 inline-flex rounded bg-slate-950 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                Admin
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+          {adminNavItems.map((item) => {
+            const active = isActive(item.href, item.exact);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? 'bg-slate-950 text-white'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="space-y-3 border-t border-slate-100 px-3 py-4">
+          {role === 'admin' && (
+            <div
+              className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-[11px]"
+              role="group"
+              aria-label="Režim zobrazení"
+            >
+              <Link
+                href="/"
+                className="flex-1 rounded-md px-2 py-1.5 text-center font-medium text-slate-500 transition hover:text-slate-900"
+              >
+                Prodejce
+              </Link>
+              <Link
+                href="/admin/offers"
+                className="flex-1 rounded-md bg-white px-2 py-1.5 text-center font-semibold text-slate-950 shadow-2xs"
+              >
+                Admin
+              </Link>
+            </div>
+          )}
+
+          {user ? (
+            <div className="space-y-2 px-1">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-slate-800">{user.email}</p>
+                <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+                  Administrátor
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+              >
+                Odhlásit
+              </button>
+            </div>
+          ) : !loading ? (
+            <Link
+              href="/login"
+              className="block rounded-lg bg-slate-950 px-3 py-2 text-center text-xs font-medium text-white"
+            >
+              Přihlásit
+            </Link>
+          ) : null}
+        </div>
+      </aside>
+    );
+
+    return (
+      <>
+        <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">{renderSidebar()}</div>
+
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur-xl lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-medium text-slate-700"
+            aria-label="Otevřít menu"
+          >
+            Menu
+          </button>
+          <span className="text-sm font-bold text-slate-950">Administrace</span>
+        </header>
+
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <button
+              type="button"
+              className="absolute inset-0 bg-slate-950/40"
+              aria-label="Zavřít menu"
+              onClick={() => setMobileOpen(false)}
+            />
+            <div className="absolute inset-y-0 left-0 shadow-xl">{renderSidebar()}</div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  const currentNavItems = sellerNavItems;
 
   return (
     <nav className="sticky top-0 z-40 border-b border-[hsl(214_24%_88%)] bg-white/80 backdrop-blur-xl">
@@ -159,7 +292,7 @@ export default function Navigation() {
           {/* Logo & Hlavní navigace */}
           <div className="flex items-center gap-6 lg:gap-8">
             <Link
-              href={isAdminSection ? '/admin/offers' : '/'}
+              href="/"
               className="flex items-center gap-2.5 shrink-0 group"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-xs group-hover:scale-105 transition-transform">
@@ -171,11 +304,6 @@ export default function Navigation() {
                 </span>
                 <span className="text-[11px] font-bold text-slate-400 ml-0.5">.cz</span>
               </div>
-              {isAdminSection && (
-                <span className="rounded bg-[hsl(222_47%_11%)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white ml-1">
-                  Admin
-                </span>
-              )}
             </Link>
 
             {/* Desktopové položky menu se shodným minimalistickým designem */}
@@ -273,10 +401,10 @@ export default function Navigation() {
         <div className="flex items-center gap-1 overflow-x-auto pb-3 pt-1 md:hidden">
           {role === 'admin' && (
             <Link
-              href={isAdminSection ? '/' : '/admin/offers'}
+              href="/admin/offers"
               className="shrink-0 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-900 shadow-2xs mr-1"
             >
-              {isAdminSection ? '↔ Přepnout na Prodejce' : '↔ Přepnout na Admin'}
+              ↔ Přepnout na Admin
             </Link>
           )}
           {currentNavItems.map((item) => {

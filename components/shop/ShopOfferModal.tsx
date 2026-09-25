@@ -276,7 +276,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                 <div className="space-y-2.5">
                   {/* Main Large Image Viewport */}
                   <div
-                    className="group relative h-60 xs:h-72 sm:h-80 md:h-[340px] w-full overflow-hidden rounded-2xl bg-slate-100/70 border border-slate-200 touch-pan-y"
+                    className="group relative h-80 xs:h-96 sm:h-[28rem] md:h-[420px] w-full overflow-hidden rounded-2xl bg-slate-100/70 border border-slate-200 touch-pan-y"
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                   >
@@ -371,7 +371,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   )}
                 </div>
               ) : (
-                <div className="flex h-64 sm:h-80 w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                <div className="flex h-80 sm:h-[28rem] w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                   <p className="text-sm">Fotografie není k dispozici</p>
                 </div>
               )}

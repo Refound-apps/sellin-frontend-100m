@@ -13,5 +13,5 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="relative flex-1">{children}</div>;
+  return <div className="relative min-h-0 flex-1 lg:pl-60">{children}</div>;
 }

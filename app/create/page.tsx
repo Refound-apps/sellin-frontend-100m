@@ -23,6 +23,7 @@ interface MarketplaceOption {
 const MARKETPLACES: MarketplaceOption[] = [
   { id: 'Bazoš', label: 'Bazoš.cz', icon: '🏷️', desc: 'Největší inzertní portál v ČR' },
   { id: 'Sbazar', label: 'Sbazar.cz', icon: '🛒', desc: 'Inzerce na portálu Seznam.cz' },
+  { id: 'E-shop', label: 'Vlastní e-shop', icon: '🛍️', desc: 'Zobrazení ve vašem storefrontu' },
   { id: 'Facebook', label: 'Facebook', icon: '📘', desc: 'Facebook Marketplace prodej' },
   { id: 'Bazoš.sk', label: 'Bazoš.sk', icon: '🇸🇰', desc: 'Slovenský portál Bazoš' },
 ];
@@ -68,7 +69,7 @@ function CreateOfferContent() {
     description: '',
     price: '',
     bb_email: '',
-    marketplace: ['Bazoš', 'Sbazar'] as string[],
+    marketplace: ['Bazoš', 'Sbazar', 'E-shop'] as string[],
     autorenew_freq: '1x za 10 dní vč. TOP',
     categoryId: 45, // Výchozí: Auto > Pneumatiky, kola (id 45)
   });
