@@ -75,6 +75,7 @@ export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
     <article
       itemScope
       itemType="https://schema.org/Product"
+      data-offer-id={offer.id}
       data-ai-product-id={offer.id}
       data-ai-title={offer.title}
       data-ai-price={offer.price}

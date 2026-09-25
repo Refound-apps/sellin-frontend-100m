@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShopOffer } from '@/lib/types';
 import { getOfferById, getShopOffers, SHOP_SBAZAR_EMAIL, ShopOfferFilters } from '@/lib/api';
@@ -161,26 +161,21 @@ export default function ShopCatalog() {
 
   const initialHashHandledRef = useRef(false);
 
-  // If page was loaded with a hash (e.g. #sluzby), wait until initial offers finish loading
-  // and are rendered in the DOM before scrolling, so layout height is accurate.
+  // Hash deep-link (např. #sluzby) — scroll hned při mountu, NE až po načtení nabídek
+  // (aby donačtení katalogu nikdy nespouštělo další skok stránky).
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (initialHashHandledRef.current) return;
+    initialHashHandledRef.current = true;
 
     const hash = window.location.hash.replace('#', '');
-    if (!hash) {
-      initialHashHandledRef.current = true;
-      return;
-    }
+    if (!hash) return;
 
-    if (!loading) {
-      initialHashHandledRef.current = true;
-      const timer = setTimeout(() => {
-        scrollToShopSection(hash, { updateHistory: false });
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [loading]);
+    const timer = setTimeout(() => {
+      scrollToShopSection(hash, { updateHistory: false });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle hash changes (e.g. browser back/forward)
   useEffect(() => {
@@ -224,8 +219,16 @@ export default function ShopCatalog() {
   const { linkedEmails, shop, addressLine, addressCity } = useShop();
 
   const activeRequestIdRef = useRef(0);
+  const freezeScrollYRef = useRef<number | null>(null);
   const filtersSerialized = useMemo(() => JSON.stringify(filters), [filters]);
   const linkedEmailsSerialized = useMemo(() => (linkedEmails || []).join(','), [linkedEmails]);
+
+  const restoreFrozenScroll = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const y = freezeScrollYRef.current;
+    if (y === null) return;
+    window.scrollTo({ top: y, left: 0, behavior: 'auto' });
+  }, []);
 
   const loadOffers = useCallback(
     async (targetPage: number = page, forceRefresh = false) => {
@@ -250,6 +253,12 @@ export default function ShopCatalog() {
         // Discard result if newer request has already started
         if (requestId !== activeRequestIdRef.current) {
           return;
+        }
+
+        // Zamknout scroll přesně před změnou DOM — zůstat kde uživatel zrovna je
+        // (včetně pozice po hash/#nabidka nebo ručním scrollu během načítání).
+        if (typeof window !== 'undefined') {
+          freezeScrollYRef.current = window.scrollY;
         }
 
         if (targetPage === 0) {
@@ -283,6 +292,34 @@ export default function ShopCatalog() {
   useEffect(() => {
     loadOffers(page);
   }, [page, searchQuery, filtersSerialized, linkedEmailsSerialized]);
+
+  // Po vložení nabídek do DOM vrať scroll přesně na zamčenou pozici — žádný auto-skok.
+  useLayoutEffect(() => {
+    if (freezeScrollYRef.current === null) return;
+    restoreFrozenScroll();
+    const y = freezeScrollYRef.current;
+    // Ještě jednou po paintu (proti pozdnímu scroll-anchoringu), pak odemknout
+    const id = requestAnimationFrame(() => {
+      if (y !== null) {
+        window.scrollTo({ top: y, left: 0, behavior: 'auto' });
+      }
+      if (!loading) {
+        freezeScrollYRef.current = null;
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [loading, offers, restoreFrozenScroll]);
+
+  const handleLoadMore = () => {
+    if (loading || !hasMore) return;
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    if (typeof window !== 'undefined') {
+      freezeScrollYRef.current = window.scrollY;
+    }
+    setPage((prev) => prev + 1);
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -778,7 +815,7 @@ export default function ShopCatalog() {
           ) : (
             <>
               <div
-                className={`shop-offer-grid transition-opacity duration-200 ${
+                className={`shop-offer-grid transition-opacity duration-200 [overflow-anchor:none] ${
                   loading && page === 0 ? 'opacity-60 pointer-events-none' : 'opacity-100'
                 }`}
               >
@@ -793,7 +830,7 @@ export default function ShopCatalog() {
 
               {/* Load More Button */}
               {hasMore && (
-                <div className="mt-8 sm:mt-14 text-center">
+                <div className="mt-8 sm:mt-14 text-center [overflow-anchor:none]">
                   {loading && page > 0 ? (
                     <div className="inline-flex items-center gap-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 px-6 py-3.5 text-sm font-semibold text-emerald-800 shadow-sm animate-pulse">
                       <svg className="animate-spin h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24">
@@ -804,7 +841,8 @@ export default function ShopCatalog() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setPage((prev) => prev + 1)}
+                      type="button"
+                      onClick={handleLoadMore}
                       disabled={loading}
                       className="group inline-flex w-full sm:w-auto items-center justify-center gap-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-8 sm:px-12 py-4 text-sm sm:text-base font-extrabold text-white shadow-xl shadow-emerald-600/30 ring-2 ring-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 transition-all duration-200 cursor-pointer disabled:opacity-50 touch-manipulation"
                     >
