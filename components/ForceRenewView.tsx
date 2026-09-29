@@ -30,7 +30,7 @@ export default function ForceRenewView() {
   const [items, setItems] = useState<PreviewItem[]>([]);
   const [tillTodayCount, setTillTodayCount] = useState(0);
   const [vouchersCount, setVouchersCount] = useState(0);
-  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(true);
   const [forcing, setForcing] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -47,19 +47,27 @@ export default function ForceRenewView() {
     return list.filter((e) => e.toLowerCase().includes(q)).slice(0, 12);
   }, [users, email]);
 
-  async function loadPreview(e?: FormEvent) {
-    e?.preventDefault();
+  async function loadPreview(filter?: {
+    email?: string;
+    marketplace?: Marketplace;
+    previewMax?: number;
+    tillTodayOnly?: boolean;
+  }) {
+    const activeEmail = filter?.email ?? email;
+    const activeMarketplace = filter?.marketplace ?? marketplace;
+    const activeMax = filter?.previewMax ?? previewMax;
+    const activeTillToday = filter?.tillTodayOnly ?? tillTodayOnly;
+
     setLoadingPreview(true);
-    setMessage(null);
 
     try {
       const params = new URLSearchParams({
-        marketplace,
-        max: String(previewMax),
+        marketplace: activeMarketplace,
+        max: String(activeMax),
         offset: '0',
       });
-      if (email.trim()) params.set('email', email.trim());
-      if (tillTodayOnly) params.set('tillToday', '1');
+      if (activeEmail.trim()) params.set('email', activeEmail.trim());
+      if (activeTillToday) params.set('tillToday', '1');
 
       const res = await fetch(`/api/admin/force-renew?${params.toString()}`, {
         cache: 'no-store',
@@ -79,6 +87,46 @@ export default function ForceRenewView() {
       setLoadingPreview(false);
     }
   }
+
+  // Auto-load hned po otevření + při změně filtrů (email s debounce)
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLoadingPreview(true);
+      try {
+        const params = new URLSearchParams({
+          marketplace,
+          max: String(previewMax),
+          offset: '0',
+        });
+        if (email.trim()) params.set('email', email.trim());
+        if (tillTodayOnly) params.set('tillToday', '1');
+
+        const res = await fetch(`/api/admin/force-renew?${params.toString()}`, {
+          cache: 'no-store',
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        setItems(data.items || []);
+        setTillTodayCount(data.tillTodayCount || 0);
+        setVouchersCount(data.vouchersCount || 0);
+      } catch (err: any) {
+        if (cancelled) return;
+        setItems([]);
+        setMessage({ ok: false, text: err?.message || 'Načtení náhledu selhalo.' });
+      } finally {
+        if (!cancelled) setLoadingPreview(false);
+      }
+    }, email ? 400 : 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [marketplace, previewMax, tillTodayOnly, email]);
 
   async function runForceRenew(e: FormEvent) {
     e.preventDefault();
@@ -164,7 +212,13 @@ export default function ForceRenewView() {
             )}
           </div>
 
-          <form onSubmit={loadPreview} className="space-y-3">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void loadPreview();
+            }}
+            className="space-y-3"
+          >
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
                 Marketplace
@@ -181,7 +235,7 @@ export default function ForceRenewView() {
 
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                E-mail (volitelné pro náhled)
+                E-mail (volitelné filtrování)
               </label>
               <input
                 list="force-renew-emails"
@@ -211,7 +265,7 @@ export default function ForceRenewView() {
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-950/10"
                 />
               </div>
-              <div className="flex items-end pb-1">
+              <div className="flex flex-col justify-end pb-1">
                 <label className="flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
@@ -227,13 +281,9 @@ export default function ForceRenewView() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loadingPreview}
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
-            >
-              {loadingPreview ? 'Načítám…' : 'Načíst náhled'}
-            </button>
+            {loadingPreview && (
+              <p className="text-xs font-medium text-slate-500">Načítám seznam…</p>
+            )}
           </form>
 
           <div className="mt-5 overflow-x-auto rounded-xl border border-slate-100">
@@ -248,10 +298,16 @@ export default function ForceRenewView() {
                 </tr>
               </thead>
               <tbody>
-                {items.length === 0 ? (
+                {loadingPreview && items.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
-                      Žádné záznamy — načti náhled.
+                      Načítám…
+                    </td>
+                  </tr>
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
+                      Žádné záznamy pro aktuální filtr.
                     </td>
                   </tr>
                 ) : (

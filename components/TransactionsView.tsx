@@ -154,9 +154,59 @@ export function getConditionInfo(condition: string | null | undefined): {
       description: 'Inzerát byl úspěšně stažen z inzertního portálu.',
     };
   }
-  if (c.includes('error') || c.includes('fail') || c.includes('blocked')) {
+  if (c === 'error_create' || c === 'error_created_no_link' || c === 'error_create_during_renewal') {
     return {
       label: 'Chyba nahrání',
+      badgeClass: 'bg-rose-50 text-rose-800 border-rose-200/90',
+      dotClass: 'bg-rose-500',
+      isError: true,
+      icon: '⚠️',
+      description: condition || 'Při nahrávání inzerátu došlo k chybě.',
+    };
+  }
+  if (c === 'error_create_blocked' || c.includes('blocked')) {
+    return {
+      label: 'Zablokováno',
+      badgeClass: 'bg-orange-50 text-orange-900 border-orange-200/90',
+      dotClass: 'bg-orange-500',
+      isError: true,
+      icon: '🚫',
+      description: condition || 'Inzerát / účet byl zablokován na portálu.',
+    };
+  }
+  if (c === 'error_delete' || c === 'error_delete_during_renewal') {
+    return {
+      label: 'Chyba mazání',
+      badgeClass: 'bg-rose-50 text-rose-800 border-rose-200/90',
+      dotClass: 'bg-rose-500',
+      isError: true,
+      icon: '⚠️',
+      description: condition || 'Při mazání / obnově inzerátu došlo k chybě.',
+    };
+  }
+  if (c === 'error_update') {
+    return {
+      label: 'Chyba aktualizace',
+      badgeClass: 'bg-rose-50 text-rose-800 border-rose-200/90',
+      dotClass: 'bg-rose-500',
+      isError: true,
+      icon: '⚠️',
+      description: condition || 'Při aktualizaci inzerátu došlo k chybě.',
+    };
+  }
+  if (c === 'error_renew') {
+    return {
+      label: 'Chyba obnovy',
+      badgeClass: 'bg-rose-50 text-rose-800 border-rose-200/90',
+      dotClass: 'bg-rose-500',
+      isError: true,
+      icon: '⚠️',
+      description: condition || 'Při obnově inzerátu došlo k chybě.',
+    };
+  }
+  if (c.includes('error') || c.includes('fail')) {
+    return {
+      label: 'Chyba synchronizace',
       badgeClass: 'bg-rose-50 text-rose-800 border-rose-200/90',
       dotClass: 'bg-rose-500',
       isError: true,
