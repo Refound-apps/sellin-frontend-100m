@@ -151,6 +151,8 @@ export type CronActionType =
   | 'renew_bazos_sk'
   | 'recreate_bazos'
   | 'recreate_sbazar'
+  | 'cookies_bazos'
+  | 'cookies_bazos_sk'
   | 'api_request';
 
 export type CronTriggerType = 'cron' | 'manual';

@@ -255,7 +255,102 @@ export async function POST(request: NextRequest) {
       resultMessage = `Pře-vytvoření ${items.length} inzerátů odesláno na endpoint ${endpoint}.`;
       details = { count: items.length, endpoint };
     }
-    // 5. Volný API request
+    // 5. Cookie health check Bazoš CZ / SK
+    else if (job.action_type === 'cookies_bazos' || job.action_type === 'cookies_bazos_sk') {
+      const isSk = job.action_type === 'cookies_bazos_sk';
+
+      let query = supabase
+        .from('credential_pg')
+        .select('*')
+        .not('proxy_ip', 'is', null)
+        .neq('proxy_ip', '');
+
+      if (targetEmails.length > 0) {
+        if (targetEmails.length === 1) {
+          query = query.ilike('email', targetEmails[0]);
+        } else {
+          query = query.or(
+            targetEmails.map((e) => `email.ilike."${String(e).replace(/"/g, '')}"`).join(',')
+          );
+        }
+      }
+
+      if (isSk) {
+        query = query.not('bazos_sk_bkod', 'is', null);
+      } else {
+        query = query.not('bazos_bkod', 'is', null);
+      }
+
+      const { data: creds, error: cErr } = await query;
+      if (cErr) throw new Error(`Chyba načítání credentials: ${cErr.message}`);
+
+      const items = (creds || []).filter((c: any) => {
+        const bkod = isSk ? c.bazos_sk_bkod : c.bazos_bkod;
+        return bkod && String(bkod).length === 10;
+      });
+      processedCount = items.length;
+
+      if (items.length === 0) {
+        resultMessage = `Nenalezeny žádné credentials k cookie checku (${isSk ? 'SK' : 'CZ'}) pro ${
+          targetEmails.join(', ') || 'všechny účty s proxy'
+        }.`;
+      } else {
+        // Manuálně / bez delay → *now; cron s delay → v2 (náhodný odklad jako Budibase)
+        const useDelay = Boolean(settings.with_delay);
+        const endpoint = isSk
+          ? useDelay
+            ? '/bazoscookiesskhealthcheckv2'
+            : '/bazoscookiesskhealthchecknow'
+          : useDelay
+            ? '/bazoscookieshealthcheckv2'
+            : '/bazoscookieshealthchecknow';
+
+        const backendUrl = getScraperActionUrl(endpoint);
+        const backendPromise = fetch(backendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          // Budibase posílal přímo pole credentials jako body
+          body: JSON.stringify(items),
+        });
+
+        type RaceResult =
+          | { kind: 'response'; res: Response }
+          | { kind: 'error'; error: any }
+          | { kind: 'timeout' };
+
+        const raced: RaceResult = await Promise.race([
+          backendPromise.then(
+            (res) => ({ kind: 'response' as const, res }),
+            (error) => ({ kind: 'error' as const, error })
+          ),
+          new Promise<RaceResult>((resolve) =>
+            setTimeout(() => resolve({ kind: 'timeout' }), 6000)
+          ),
+        ]);
+
+        if (raced.kind === 'error') {
+          throw new Error(`Backend nedostupný (${backendUrl}): ${raced.error?.message || 'connection failed'}`);
+        }
+
+        if (raced.kind === 'timeout') {
+          backendPromise.catch((err) => console.error('Cookie check late error:', err));
+          resultMessage = `Cookie check ${isSk ? 'SK' : 'CZ'} odeslán (${items.length} účtů) → ${endpoint}. Backend běží na pozadí.`;
+          details = { count: items.length, endpoint, backendUrl, pending: true, emails: targetEmails };
+        } else if (!raced.res.ok) {
+          throw new Error(`Backend ${backendUrl} vrátil ${raced.res.status}`);
+        } else {
+          resultMessage = `Cookie check ${isSk ? 'SK' : 'CZ'} přijat (${items.length} účtů) → ${endpoint}.`;
+          details = {
+            count: items.length,
+            endpoint,
+            backendUrl,
+            status: raced.res.status,
+            emails: items.map((c: any) => c.email),
+          };
+        }
+      }
+    }
+    // 6. Volný API request
     else {
       const endpoint = settings.endpoint || '/testsellin';
       const method = settings.method || 'POST';

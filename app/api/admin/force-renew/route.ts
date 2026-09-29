@@ -356,19 +356,36 @@ export async function POST(request: NextRequest) {
 
     console.log(`[force-renew] POST ${backendUrl} count=${items.length} email=${emails.join(',')}`);
 
-    let backendRes: Response;
-    try {
-      backendRes = await fetch(backendUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-    } catch (err: any) {
-      console.error('[force-renew] Backend unreachable:', err);
+    const payloadJson = JSON.stringify(payload);
+    const backendPromise = fetch(backendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payloadJson,
+    });
+
+    // Produkční backend často neodpoví hned (starší build bez 202) — renew přitom už běží.
+    // Nečekáme donekonečna, ať UI nepřestane na „Spouštím…“.
+    type RaceResult =
+      | { kind: 'response'; res: Response }
+      | { kind: 'error'; error: any }
+      | { kind: 'timeout' };
+
+    const raced: RaceResult = await Promise.race([
+      backendPromise.then(
+        (res) => ({ kind: 'response' as const, res }),
+        (error) => ({ kind: 'error' as const, error })
+      ),
+      new Promise<RaceResult>((resolve) =>
+        setTimeout(() => resolve({ kind: 'timeout' }), 6000)
+      ),
+    ]);
+
+    if (raced.kind === 'error') {
+      console.error('[force-renew] Backend unreachable:', raced.error);
       return NextResponse.json(
         {
           success: false,
-          error: `Backend nedostupný na ${backendUrl}. Zkontroluj SCRAPER_API_URL / API_URL. (${err?.message || 'connection failed'})`,
+          error: `Backend nedostupný na ${backendUrl}. Zkontroluj SCRAPER_API_URL / API_URL. (${raced.error?.message || 'connection failed'})`,
           endpoint,
           backendUrl,
         },
@@ -376,6 +393,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (raced.kind === 'timeout') {
+      // Necháme backendPromise běžet na pozadí (pokud runtime dovolí)
+      backendPromise.catch((err) => console.error('[force-renew] late backend error:', err));
+      return NextResponse.json({
+        success: true,
+        started: true,
+        pending: true,
+        message: `Force renew odeslán na backend (${items.length} inzerátů). Backend ještě neodpověděl — obnova pravděpodobně běží na pozadí.`,
+        count: items.length,
+        vouchersCount: voucherPayload.length,
+        emails,
+        marketplace,
+        endpoint,
+        backendUrl,
+      });
+    }
+
+    const backendRes = raced.res;
     let backendBody: any = null;
     try {
       backendBody = await backendRes.json();

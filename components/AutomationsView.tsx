@@ -62,6 +62,20 @@ const ACTION_TYPES: { id: CronActionType; label: string; desc: string; icon: str
     badgeColor: 'bg-purple-500/10 text-purple-700 border-purple-200',
   },
   {
+    id: 'cookies_bazos',
+    label: 'Cookie check Bazoš.cz',
+    desc: 'Ověří platnost bazos_bkod (cookie) pro vybrané účty s proxy',
+    icon: '🍪',
+    badgeColor: 'bg-orange-500/10 text-orange-800 border-orange-200',
+  },
+  {
+    id: 'cookies_bazos_sk',
+    label: 'Cookie check Bazoš.sk',
+    desc: 'Ověří platnost bazos_sk_bkod cookie pro slovenské účty',
+    icon: '🍪',
+    badgeColor: 'bg-amber-500/10 text-amber-800 border-amber-200',
+  },
+  {
     id: 'api_request',
     label: 'Vlastní backend webhook / API akce',
     desc: 'Volání jakékoliv routy na backendu (GET/POST s parametry)',
@@ -454,6 +468,8 @@ export default function AutomationsView() {
             <option value="renew_bazos_sk">Obnova Bazoš.sk</option>
             <option value="recreate_bazos">Pře-vytvořit Bazoš</option>
             <option value="recreate_sbazar">Pře-vytvořit Sbazar</option>
+            <option value="cookies_bazos">Cookie check Bazoš.cz</option>
+            <option value="cookies_bazos_sk">Cookie check Bazoš.sk</option>
             <option value="api_request">API Webhook</option>
           </select>
         </div>
@@ -814,10 +830,14 @@ export default function AutomationsView() {
               {/* Cílové účty (E-maily) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700">
-                  Cílové e-mailové účty (pro které inzeráty provést akci)
+                  {formActionType.startsWith('cookies_')
+                    ? 'Účty pro cookie check (e-maily)'
+                    : 'Cílové e-mailové účty (pro které inzeráty provést akci)'}
                 </label>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Můžete vybrat z registrovaných prodejců nebo zadat konkrétní e-mail. Pokud nezadáte žádný, platí pro všechny účty.
+                  {formActionType.startsWith('cookies_')
+                    ? 'Vyber e-mail(y) účtu, u kterých ověřit bazos cookie. Bez e-mailu = všechny účty s vyplněným proxy_ip (jako Budibase).'
+                    : 'Můžete vybrat z registrovaných prodejců nebo zadat konkrétní e-mail. Pokud nezadáte žádný, platí pro všechny účty.'}
                 </p>
 
                 {/* Vybrané e-maily (tagy) */}
@@ -902,9 +922,14 @@ export default function AutomationsView() {
                       onChange={(e) => setFormWithDelay(e.target.checked)}
                       className="rounded text-indigo-600 focus:ring-indigo-500"
                     />
-                    <span>Ochrana proti blokaci (náhodné zpoždění 0–90 min)</span>
+                    <span>
+                      {formActionType.startsWith('cookies_')
+                        ? 'Náhodné zpoždění před checkem (0–180 min, jako Budibase cron)'
+                        : 'Ochrana proti blokaci (náhodné zpoždění 0–90 min)'}
+                    </span>
                   </label>
 
+                  {!formActionType.startsWith('cookies_') && (
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
                     <input
                       type="checkbox"
@@ -914,6 +939,7 @@ export default function AutomationsView() {
                     />
                     <span>Automaticky topovat inzeráty z voucherů</span>
                   </label>
+                  )}
 
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
                     <input

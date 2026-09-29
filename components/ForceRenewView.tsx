@@ -149,15 +149,25 @@ export default function ForceRenewView() {
     setMessage(null);
 
     try {
-      const res = await fetch('/api/admin/force-renew', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: cleanEmail,
-          max,
-          marketplace,
-        }),
-      });
+      const controller = new AbortController();
+      const abortTimer = setTimeout(() => controller.abort(), 20000);
+
+      let res: Response;
+      try {
+        res = await fetch('/api/admin/force-renew', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: cleanEmail,
+            max,
+            marketplace,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(abortTimer);
+      }
+
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || `HTTP ${res.status}`);
@@ -167,9 +177,18 @@ export default function ForceRenewView() {
         ok: true,
         text: data.message || `Force renew zahájen (${data.count || 0} inzerátů).`,
       });
-      await loadPreview();
+      // Náhled obnovíme na pozadí — nesmí blokovat tlačítko
+      void loadPreview();
     } catch (err: any) {
-      setMessage({ ok: false, text: err?.message || 'Force renew selhal.' });
+      if (err?.name === 'AbortError') {
+        setMessage({
+          ok: true,
+          text: 'Požadavek byl odeslán. Backend odpovídá pomalu / běží na pozadí — zkontroluj logy backendu.',
+        });
+        void loadPreview();
+      } else {
+        setMessage({ ok: false, text: err?.message || 'Force renew selhal.' });
+      }
     } finally {
       setForcing(false);
     }
