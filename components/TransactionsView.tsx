@@ -89,6 +89,20 @@ export function formatDateTime(isoString: string | null | undefined): {
   return { formatted, relative, short };
 }
 
+/** Čas poslední synchronizační akce (preferuje last_date_renewed před date vytvoření). */
+export function getSyncActionAt(tx: {
+  last_date_renewed?: string | null;
+  date?: string | null;
+}): string | null {
+  return tx.last_date_renewed || tx.date || null;
+}
+
+/** Je inzerát ve stavu, kde auto-obnova dává smysl zobrazit? */
+export function isActiveListingCondition(condition: string | null | undefined): boolean {
+  const c = (condition || '').toLowerCase().trim();
+  return c === 'ok_created' || c === 'ok_updated' || c === 'ok_topped';
+}
+
 /** Informace o stavu synchronizace */
 export function getConditionInfo(condition: string | null | undefined): {
   label: string;
@@ -233,7 +247,7 @@ export default function TransactionsView() {
 
   // Filters & pagination
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [pageSize, setPageSize] = useState<number>(50);
   const [searchInput, setSearchInput] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [marketplaceFilter, setMarketplaceFilter] = useState<MarketplaceFilter>('all');
@@ -596,10 +610,10 @@ export default function TransactionsView() {
               className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
             >
               <option value="all">Všechny stavy</option>
-              <option value="ok_created">Pouze Vloženo (ok_created)</option>
-              <option value="ok_updated">Pouze Aktualizováno (ok_updated)</option>
-              <option value="ok_topped">Pouze Topováno (ok_topped)</option>
-              <option value="ok_deleted">Pouze Smazáno (ok_deleted)</option>
+              <option value="ok_created">Pouze Vloženo</option>
+              <option value="ok_updated">Pouze Aktualizováno</option>
+              <option value="ok_topped">Pouze Topováno</option>
+              <option value="ok_deleted">Pouze Smazáno</option>
               <option value="errors">Pouze Chyby a blokace</option>
             </select>
 
@@ -626,8 +640,8 @@ export default function TransactionsView() {
               }}
               className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 shadow-2xs"
             >
-              <option value="25">25 na stranu</option>
               <option value="50">50 na stranu</option>
+              <option value="25">25 na stranu</option>
               <option value="100">100 na stranu</option>
             </select>
           </div>
@@ -687,7 +701,7 @@ export default function TransactionsView() {
             )}
             {conditionFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 border border-slate-200/80 px-2.5 py-1 font-semibold text-slate-800">
-                Stav: {conditionFilter}
+                Stav: {conditionFilter === 'errors' ? 'Chyby' : getConditionInfo(conditionFilter).label}
                 <button type="button" onClick={() => setConditionFilter('all')} className="hover:text-slate-950 ml-0.5">
                   ×
                 </button>
@@ -782,10 +796,10 @@ export default function TransactionsView() {
                     Tržiště & Účet
                   </th>
                   <th scope="col" className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[150px]">
-                    Stav synchronizace
+                    Stav
                   </th>
-                  <th scope="col" className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[180px]">
-                    Publikováno & Obnova
+                  <th scope="col" className="px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[160px]">
+                    Poslední akce
                   </th>
                   <th scope="col" className="px-3.5 py-2.5 text-right text-[11px] font-bold uppercase tracking-wider text-slate-600 min-w-[150px]">
                     Akce
@@ -797,8 +811,11 @@ export default function TransactionsView() {
                   const tx = item.tx;
                   const mInfo = getMarketplaceInfo(tx.bb_marketplace_id);
                   const sInfo = getConditionInfo(tx.condition);
-                  const pubDate = formatDateTime(tx.date || tx.last_date_renewed);
-                  const nextDate = formatDateTime(tx.next_date_renew);
+                  const syncAt = formatDateTime(getSyncActionAt(tx));
+                  const showAutorenew =
+                    isActiveListingCondition(tx.condition) &&
+                    !!tx.autorenew_freq &&
+                    tx.autorenew_freq !== 'Neobnovovat';
                   const isLiveUrl = tx.link?.startsWith('http://') || tx.link?.startsWith('https://');
 
                   return (
@@ -923,45 +940,34 @@ export default function TransactionsView() {
                         </div>
                       </td>
 
-                      {/* 3. Stav synchronizace */}
+                      {/* 3. Stav */}
+                      <td className="px-3.5 py-2 align-middle">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold shadow-2xs w-fit ${sInfo.badgeClass}`}
+                          title={sInfo.description}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${sInfo.dotClass}`} />
+                          <span>{sInfo.label}</span>
+                        </span>
+                      </td>
+
+                      {/* 4. Poslední akce */}
                       <td className="px-3.5 py-2 align-middle">
                         <div className="flex flex-col gap-0.5">
                           <span
-                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold shadow-2xs w-fit ${sInfo.badgeClass}`}
+                            className="text-xs font-bold text-slate-900"
+                            title={syncAt.formatted}
                           >
-                            <span className={`h-1.5 w-1.5 rounded-full ${sInfo.dotClass}`} />
-                            <span>{sInfo.label}</span>
+                            {syncAt.relative}
                           </span>
 
-                          <span className="font-mono text-[10px] text-slate-400">
-                            {tx.condition || '—'}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* 4. Publikováno & Obnova */}
-                      <td className="px-3.5 py-2 align-middle">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1 text-xs">
-                            <span className="font-bold text-slate-900">{pubDate.relative}</span>
-                            <span className="text-[10px] font-mono text-slate-400">({pubDate.short})</span>
-                          </div>
-
-                          {tx.autorenew_freq && tx.autorenew_freq !== 'Neobnovovat' ? (
+                          {showAutorenew && (
                             <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-800">
                               <span>⚡</span>
-                              <span className="truncate max-w-[150px]" title={tx.autorenew_freq}>
+                              <span className="truncate max-w-[150px]" title={tx.autorenew_freq || undefined}>
                                 {tx.autorenew_freq}
                               </span>
                             </div>
-                          ) : (
-                            <span className="text-[10px] text-slate-400">Bez auto-obnovy</span>
-                          )}
-
-                          {tx.next_date_renew && (
-                            <span className="text-[10px] text-slate-500 font-medium">
-                              Příští: {nextDate.relative}
-                            </span>
                           )}
                         </div>
                       </td>
@@ -1009,7 +1015,11 @@ export default function TransactionsView() {
           {transactions.map((tx) => {
             const mInfo = getMarketplaceInfo(tx.bb_marketplace_id);
             const sInfo = getConditionInfo(tx.condition);
-            const pubDate = formatDateTime(tx.date || tx.last_date_renewed);
+            const syncAt = formatDateTime(getSyncActionAt(tx));
+            const showAutorenew =
+              isActiveListingCondition(tx.condition) &&
+              !!tx.autorenew_freq &&
+              tx.autorenew_freq !== 'Neobnovovat';
             const isLiveUrl = tx.link?.startsWith('http://') || tx.link?.startsWith('https://');
 
             return (
@@ -1083,11 +1093,13 @@ export default function TransactionsView() {
                     </div>
 
                     <div className="flex items-center justify-between text-slate-600">
-                      <span className="text-slate-400 font-medium">Synchronizováno:</span>
-                      <span className="font-bold text-slate-900">{pubDate.relative}</span>
+                      <span className="text-slate-400 font-medium">Poslední akce:</span>
+                      <span className="font-bold text-slate-900" title={syncAt.formatted}>
+                        {syncAt.relative}
+                      </span>
                     </div>
 
-                    {tx.autorenew_freq && tx.autorenew_freq !== 'Neobnovovat' && (
+                    {showAutorenew && (
                       <div className="flex items-center justify-between text-sky-800">
                         <span className="text-slate-400 font-medium">Auto-obnova:</span>
                         <span className="font-bold">⚡ {tx.autorenew_freq}</span>
@@ -1227,24 +1239,19 @@ export default function TransactionsView() {
               const status = getConditionInfo(selectedTx.condition);
               return (
                 <div
-                  className={`rounded-2xl border p-4 flex items-center justify-between ${
+                  className={`rounded-2xl border p-4 flex items-center gap-3 ${
                     status.isError
                       ? 'bg-rose-50 border-rose-200 text-rose-950'
                       : 'bg-emerald-50 border-emerald-200 text-emerald-950'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{status.icon}</span>
-                    <div>
-                      <h4 className="font-black text-sm">{status.label}</h4>
-                      <p className="text-xs font-medium opacity-85 mt-0.5">
-                        {status.description}
-                      </p>
-                    </div>
+                  <span className="text-2xl">{status.icon}</span>
+                  <div>
+                    <h4 className="font-black text-sm">{status.label}</h4>
+                    <p className="text-xs font-medium opacity-85 mt-0.5">
+                      {status.description}
+                    </p>
                   </div>
-                  <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-xl bg-white/80 border border-slate-200/50 shadow-2xs">
-                    {selectedTx.condition || '—'}
-                  </span>
                 </div>
               );
             })()}
@@ -1297,33 +1304,43 @@ export default function TransactionsView() {
 
             {/* Key Information Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {/* Poslední synchronizace */}
+              {/* Poslední akce */}
               <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 space-y-1 shadow-2xs">
                 <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-                  Čas synchronizace
+                  Poslední akce
                 </span>
                 <p className="font-mono font-bold text-slate-900 text-sm">
-                  {formatDateTime(selectedTx.date || selectedTx.last_date_renewed).formatted}
+                  {formatDateTime(getSyncActionAt(selectedTx)).formatted}
                 </p>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  {formatDateTime(selectedTx.date || selectedTx.last_date_renewed).relative}
+                  {formatDateTime(getSyncActionAt(selectedTx)).relative}
                 </p>
               </div>
 
-              {/* Příští auto-obnova */}
+              {/* Auto-obnova / frekvence */}
               <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 space-y-1 shadow-2xs">
                 <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-                  Plánovaná příští obnova
+                  Auto-obnova
                 </span>
-                <p className="font-mono font-bold text-slate-900 text-sm">
-                  {formatDateTime(selectedTx.next_date_renew).formatted}
-                </p>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  {formatDateTime(selectedTx.next_date_renew).relative}
-                </p>
+                {isActiveListingCondition(selectedTx.condition) &&
+                selectedTx.autorenew_freq &&
+                selectedTx.autorenew_freq !== 'Neobnovovat' ? (
+                  <>
+                    <p className="font-bold text-slate-900 text-sm">
+                      ⚡ {selectedTx.autorenew_freq}
+                    </p>
+                    {selectedTx.next_date_renew && (
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Příští: {formatDateTime(selectedTx.next_date_renew).relative}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="font-bold text-slate-500 text-sm">Neaktivní</p>
+                )}
               </div>
 
-              {/* Účet a frekvence */}
+              {/* Účet */}
               <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 space-y-1 shadow-2xs sm:col-span-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">
@@ -1342,9 +1359,11 @@ export default function TransactionsView() {
                 <p className="font-bold text-slate-900 text-sm">
                   {selectedTx.bb_email || '—'}
                 </p>
-                <p className="text-[11px] text-slate-500">
-                  Frekvence obnovy: <span className="font-bold text-slate-700">{selectedTx.autorenew_freq || 'Neobnovovat'}</span>
-                </p>
+                {selectedTx.date && (
+                  <p className="text-[11px] text-slate-500">
+                    Vytvořeno: <span className="font-medium text-slate-700">{formatDateTime(selectedTx.date).short}</span>
+                  </p>
+                )}
               </div>
             </div>
 

@@ -151,6 +151,7 @@ export default function Navigation() {
     { href: '/admin/offers', label: 'Nabídka', exact: false },
     { href: '/admin/transactions', label: 'Transakce', exact: false },
     { href: '/admin/automations', label: 'Automatizace & Cron', exact: false },
+    { href: '/admin/force-renew', label: 'Force renew', exact: false },
     { href: '/admin/users', label: 'Uživatelé', exact: false },
     { href: '/admin/eshop', label: 'E-shopy', exact: false },
     { href: '/admin/email', label: 'Test e-mail', exact: false },
