@@ -348,44 +348,73 @@ export async function POST(request: NextRequest) {
 
     const voucherPayload = vouchers.map((v) => ({ value: v.value, bb_email: v.bb_email, id: v.id }));
     const endpoint = forceEndpoint(marketplace);
+    const backendUrl = `${BACKEND_URL}${endpoint}`;
     const payload = {
       offerdetails: items,
       vouchers: JSON.stringify(voucherPayload),
       creds,
     };
 
-    // Backend běží dlouho (náhodné pauzy mezi renew) — fire-and-forget po startu requestu
-    const backendPromise = fetch(`${BACKEND_URL}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).catch((err) => {
-      console.error('Force renew backend call failed:', err);
-    });
+    console.log(`[force-renew] POST ${backendUrl} count=${items.length} email=${emails.join(',')}`);
 
-    // Krátce počkáme, jestli endpoint ihned neodmítne (síť / 4xx)
-    const raced = await Promise.race([
-      backendPromise.then(() => 'done' as const),
-      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 2500)),
-    ]);
+    let backendRes: Response;
+    try {
+      backendRes = await fetch(backendUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (err: any) {
+      console.error('[force-renew] Backend unreachable:', err);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Backend nedostupný na ${backendUrl}. Spusť backend (port 3300) nebo nastav API_URL. (${err?.message || 'connection failed'})`,
+          endpoint,
+          backendUrl,
+        },
+        { status: 502 }
+      );
+    }
+
+    let backendBody: any = null;
+    try {
+      backendBody = await backendRes.json();
+    } catch {
+      backendBody = null;
+    }
+
+    if (!backendRes.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Backend ${endpoint} vrátil ${backendRes.status}`,
+          endpoint,
+          backendUrl,
+          backendBody,
+        },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       started: true,
-      message:
-        raced === 'timeout'
-          ? `Force renew zahájen na backendu (${items.length} inzerátů, ${voucherPayload.length} voucherů). Běží na pozadí.`
-          : `Force renew odeslán na backend (${items.length} inzerátů).`,
+      message: `Force renew přijat backendem (${items.length} inzerátů, ${voucherPayload.length} voucherů) → ${endpoint}`,
       count: items.length,
       vouchersCount: voucherPayload.length,
       emails,
       marketplace,
       endpoint,
+      backendUrl,
+      backendStatus: backendRes.status,
+      backendBody,
       sample: items.slice(0, 5).map((i) => ({
         auto_id: i['auto id'],
         email: i.bb_email_od,
         next_date_renew: i.next_date_renew,
         link: i.link,
+        condition: i.condition,
       })),
     });
   } catch (err: any) {
