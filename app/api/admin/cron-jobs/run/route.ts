@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getScraperActionUrl } from '@/lib/backend';
+import { resolvePairedUserAccounts } from '@/lib/sellerAccounts';
+import type { User } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -259,32 +261,59 @@ export async function POST(request: NextRequest) {
     else if (job.action_type === 'cookies_bazos' || job.action_type === 'cookies_bazos_sk') {
       const isSk = job.action_type === 'cookies_bazos_sk';
 
-      let query = supabase
+      // Načti credentials (pro pairing potřebujeme všechny účty se sbazar_email vazbou)
+      const { data: allCreds, error: allErr } = await supabase
         .from('credential_pg')
-        .select('*')
-        .not('proxy_ip', 'is', null)
-        .neq('proxy_ip', '');
+        .select('*');
+      if (allErr) throw new Error(`Chyba načítání credentials: ${allErr.message}`);
 
-      if (targetEmails.length > 0) {
-        if (targetEmails.length === 1) {
-          query = query.ilike('email', targetEmails[0]);
-        } else {
-          query = query.or(
-            targetEmails.map((e) => `email.ilike."${String(e).replace(/"/g, '')}"`).join(',')
-          );
+      const allUsers: User[] = (allCreds || []).map((row: any) => ({
+        id: Number(row.id) || 0,
+        email: String(row.email ?? ''),
+        telephone1: row.telephone1 ?? null,
+        telephone2: row.telephone2 ?? null,
+        bazos_email: row.bazos_email ?? null,
+        sbazar_email: row.sbazar_email ?? null,
+        facebook_email: row.facebook_email ?? null,
+        bazos_name: row.bazos_name ?? null,
+        location: row.location ?? null,
+        zipcode: row.zipcode ?? null,
+        zipcode_sk: row.zipcode_sk ?? null,
+        status_cz: row.status_cz ?? null,
+        status_sk: row.status_sk ?? null,
+        sbazar_profile: row.sbazar_profile ?? null,
+        tier: row.tier ?? null,
+        bazos_rewrite: row.bazos_rewrite ?? null,
+        bazos_top_max: row.bazos_top_max ?? null,
+        bazos_bkod: row.bazos_bkod ?? null,
+      }));
+
+      // Expanduj target e-maily o spárované účty (stejná logika jako Moje nabídka)
+      let emailsToCheck = new Set<string>();
+      if (targetEmails.length === 0) {
+        // Bez filtru = všechny s proxy (legacy Budibase chování)
+        for (const c of allCreds || []) {
+          if (c.email && c.proxy_ip) emailsToCheck.add(String(c.email).toLowerCase().trim());
+        }
+      } else {
+        for (const seed of targetEmails) {
+          const paired = resolvePairedUserAccounts(seed, allUsers);
+          if (paired.length > 0) {
+            for (const u of paired) {
+              if (u.email) emailsToCheck.add(u.email.toLowerCase().trim());
+            }
+          } else {
+            emailsToCheck.add(seed.toLowerCase().trim());
+          }
         }
       }
 
-      if (isSk) {
-        query = query.not('bazos_sk_bkod', 'is', null);
-      } else {
-        query = query.not('bazos_bkod', 'is', null);
-      }
+      const expandedEmails = Array.from(emailsToCheck).filter(Boolean);
 
-      const { data: creds, error: cErr } = await query;
-      if (cErr) throw new Error(`Chyba načítání credentials: ${cErr.message}`);
-
-      const items = (creds || []).filter((c: any) => {
+      const items = (allCreds || []).filter((c: any) => {
+        const email = String(c.email || '').toLowerCase().trim();
+        if (!email || !emailsToCheck.has(email)) return false;
+        if (!c.proxy_ip || String(c.proxy_ip).trim() === '') return false;
         const bkod = isSk ? c.bazos_sk_bkod : c.bazos_bkod;
         return bkod && String(bkod).length === 10;
       });
@@ -293,7 +322,7 @@ export async function POST(request: NextRequest) {
       if (items.length === 0) {
         resultMessage = `Nenalezeny žádné credentials k cookie checku (${isSk ? 'SK' : 'CZ'}) pro ${
           targetEmails.join(', ') || 'všechny účty s proxy'
-        }.`;
+        } (včetně spárovaných: ${expandedEmails.join(', ') || '—'}).`;
       } else {
         // Manuálně / bez delay → *now; cron s delay → v2 (náhodný odklad jako Budibase)
         const useDelay = Boolean(settings.with_delay);
@@ -332,20 +361,32 @@ export async function POST(request: NextRequest) {
           throw new Error(`Backend nedostupný (${backendUrl}): ${raced.error?.message || 'connection failed'}`);
         }
 
+        const checkedEmails = items.map((c: any) => c.email);
+
         if (raced.kind === 'timeout') {
           backendPromise.catch((err) => console.error('Cookie check late error:', err));
-          resultMessage = `Cookie check ${isSk ? 'SK' : 'CZ'} odeslán (${items.length} účtů) → ${endpoint}. Backend běží na pozadí.`;
-          details = { count: items.length, endpoint, backendUrl, pending: true, emails: targetEmails };
+          resultMessage = `Cookie check ${isSk ? 'SK' : 'CZ'} odeslán (${items.length} účtů vč. spárovaných) → ${endpoint}. Backend běží na pozadí.`;
+          details = {
+            count: items.length,
+            endpoint,
+            backendUrl,
+            pending: true,
+            seedEmails: targetEmails,
+            expandedEmails,
+            checkedEmails,
+          };
         } else if (!raced.res.ok) {
           throw new Error(`Backend ${backendUrl} vrátil ${raced.res.status}`);
         } else {
-          resultMessage = `Cookie check ${isSk ? 'SK' : 'CZ'} přijat (${items.length} účtů) → ${endpoint}.`;
+          resultMessage = `Cookie check ${isSk ? 'SK' : 'CZ'} přijat (${items.length} účtů vč. spárovaných) → ${endpoint}.`;
           details = {
             count: items.length,
             endpoint,
             backendUrl,
             status: raced.res.status,
-            emails: items.map((c: any) => c.email),
+            seedEmails: targetEmails,
+            expandedEmails,
+            checkedEmails,
           };
         }
       }

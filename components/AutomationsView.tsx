@@ -64,14 +64,14 @@ const ACTION_TYPES: { id: CronActionType; label: string; desc: string; icon: str
   {
     id: 'cookies_bazos',
     label: 'Cookie check Bazoš.cz',
-    desc: 'Ověří platnost bazos_bkod (cookie) pro vybrané účty s proxy',
+    desc: 'Ověří bazos_bkod pro vybraný účet + všechny spárované (jako Moje nabídka)',
     icon: '🍪',
     badgeColor: 'bg-orange-500/10 text-orange-800 border-orange-200',
   },
   {
     id: 'cookies_bazos_sk',
     label: 'Cookie check Bazoš.sk',
-    desc: 'Ověří platnost bazos_sk_bkod cookie pro slovenské účty',
+    desc: 'Ověří bazos_sk_bkod pro vybraný účet + spárované účty',
     icon: '🍪',
     badgeColor: 'bg-amber-500/10 text-amber-800 border-amber-200',
   },
@@ -332,7 +332,7 @@ export default function AutomationsView() {
       if (!ok) return;
     } else if (job.action_type.startsWith('cookies_')) {
       const ok = window.confirm(
-        `Spustit cookie check pro:\n${emails.join('\n')}\n\nPokračovat?`
+        `Spustit cookie check pro:\n${emails.join('\n')}\n\n(+ automaticky všechny spárované účty přes sbazar_email)\n\nPokračovat?`
       );
       if (!ok) return;
     }
@@ -866,7 +866,7 @@ export default function AutomationsView() {
                 </label>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   {formActionType.startsWith('cookies_')
-                    ? 'Zadej e-mail a klikni Přidat (nebo Enter). E-mail musí být v šedém štítku — jinak se neuloží. Pro cookie check je e-mail povinný.'
+                    ? 'Zadej hlavní e-mail (např. duplux@seznam.cz) a Přidej. Při běhu se automaticky zahrnou i všechny spárované účty přes sbazar_email (jako v Moje nabídka).'
                     : 'Můžete vybrat z registrovaných prodejců nebo zadat konkrétní e-mail. Pokud nezadáte žádný, platí pro všechny účty.'}
                 </p>
 
