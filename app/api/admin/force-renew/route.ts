@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getScraperActionUrl } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
-
-const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
 
 const EXCLUDED_CONDITIONS = ['error_delete', 'ok_deleted', 'error_create'] as const;
 
@@ -348,7 +347,7 @@ export async function POST(request: NextRequest) {
 
     const voucherPayload = vouchers.map((v) => ({ value: v.value, bb_email: v.bb_email, id: v.id }));
     const endpoint = forceEndpoint(marketplace);
-    const backendUrl = `${BACKEND_URL}${endpoint}`;
+    const backendUrl = getScraperActionUrl(endpoint);
     const payload = {
       offerdetails: items,
       vouchers: JSON.stringify(voucherPayload),
@@ -369,7 +368,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Backend nedostupný na ${backendUrl}. Spusť backend (port 3300) nebo nastav API_URL. (${err?.message || 'connection failed'})`,
+          error: `Backend nedostupný na ${backendUrl}. Zkontroluj SCRAPER_API_URL / API_URL. (${err?.message || 'connection failed'})`,
           endpoint,
           backendUrl,
         },
@@ -388,7 +387,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Backend ${endpoint} vrátil ${backendRes.status}`,
+          error: `Backend ${backendUrl} vrátil ${backendRes.status}`,
           endpoint,
           backendUrl,
           backendBody,
@@ -400,7 +399,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       started: true,
-      message: `Force renew přijat backendem (${items.length} inzerátů, ${voucherPayload.length} voucherů) → ${endpoint}`,
+      message: `Force renew přijat backendem (${items.length} inzerátů, ${voucherPayload.length} voucherů) → ${backendUrl}`,
       count: items.length,
       vouchersCount: voucherPayload.length,
       emails,

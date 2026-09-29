@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getScraperActionUrl } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
-
-const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -118,7 +117,7 @@ export async function POST(request: NextRequest) {
         resultMessage = `Nenalezeny žádné inzeráty k obnově na Sbazaru pro zadané účty (${targetEmails.join(', ') || 'všechny'}).`;
       } else {
         const endpoint = settings.with_delay ? '/renewoffersbazarwithdelay' : '/renewoffersbazar';
-        const backendRes = await fetch(`${BACKEND_URL}${endpoint}`, {
+        const backendRes = await fetch(getScraperActionUrl(endpoint), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ offerdetails: items }),
@@ -173,7 +172,7 @@ export async function POST(request: NextRequest) {
         const voucherValues = (vouchers || []).map((v: any) => v.value);
 
         const endpoint = settings.with_delay ? '/renewofferbazoswithdelay' : '/renewofferbazosv2';
-        const backendRes = await fetch(`${BACKEND_URL}${endpoint}`, {
+        const backendRes = await fetch(getScraperActionUrl(endpoint), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -210,7 +209,7 @@ export async function POST(request: NextRequest) {
         resultMessage = `Nenalezeny žádné inzeráty pro Bazoš.sk.`;
       } else {
         const endpoint = settings.with_delay ? '/renewofferbazosskwithdelay' : '/renewofferbazossk';
-        const backendRes = await fetch(`${BACKEND_URL}${endpoint}`, {
+        const backendRes = await fetch(getScraperActionUrl(endpoint), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ offerdetails: items }),
@@ -247,7 +246,7 @@ export async function POST(request: NextRequest) {
       processedCount = items.length;
 
       const endpoint = job.action_type === 'recreate_bazos' ? '/recreatebazos' : '/recreatesbazar';
-      const backendRes = await fetch(`${BACKEND_URL}${endpoint}`, {
+      const backendRes = await fetch(getScraperActionUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ offers: items, creds: creds || [] }),
@@ -262,7 +261,7 @@ export async function POST(request: NextRequest) {
       const method = settings.method || 'POST';
       const customBody = settings.custom_body || {};
 
-      const backendRes = await fetch(`${BACKEND_URL}${endpoint}`, {
+      const backendRes = await fetch(getScraperActionUrl(endpoint), {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: method === 'POST' ? JSON.stringify(customBody) : undefined,
