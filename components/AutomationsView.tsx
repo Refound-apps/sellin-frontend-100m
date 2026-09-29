@@ -223,6 +223,22 @@ export default function AutomationsView() {
       return;
     }
 
+    // E-mail zapsaný v inputu, ale nepřidaný tlačítkem „Přidat“ → přidej při uložení
+    const pendingEmail = emailInput.trim().toLowerCase();
+    let emailsToSave = [...formTargetEmails];
+    if (pendingEmail && pendingEmail.includes('@') && !emailsToSave.includes(pendingEmail)) {
+      emailsToSave = [...emailsToSave, pendingEmail];
+      setFormTargetEmails(emailsToSave);
+      setEmailInput('');
+    }
+
+    if (formActionType.startsWith('cookies_') && emailsToSave.length === 0) {
+      setFormError(
+        'Pro cookie check vyber aspoň jeden e-mail (jinak by se spustilo pro všechny účty s proxy).'
+      );
+      return;
+    }
+
     setFormSaving(true);
     setFormError(null);
 
@@ -244,7 +260,7 @@ export default function AutomationsView() {
         schedule_preset: formSchedulePreset,
         schedule_human: scheduleHuman,
         action_type: formActionType,
-        target_emails: formTargetEmails,
+        target_emails: emailsToSave,
         max_items: Number(formMaxItems) || 40,
         settings: {
           with_delay: formWithDelay,
@@ -307,6 +323,20 @@ export default function AutomationsView() {
   // Okamžité spuštění (Spustit nyní)
   const handleRunNow = async (job: CronJob, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+
+    const emails = job.target_emails || [];
+    if (job.action_type.startsWith('cookies_') && emails.length === 0) {
+      const ok = window.confirm(
+        `Úloha "${job.name}" nemá vybraný e-mail.\n\nSpustí cookie check pro VŠECHNY účty s proxy (může jich být 100+).\n\nOpravdu pokračovat?`
+      );
+      if (!ok) return;
+    } else if (job.action_type.startsWith('cookies_')) {
+      const ok = window.confirm(
+        `Spustit cookie check pro:\n${emails.join('\n')}\n\nPokračovat?`
+      );
+      if (!ok) return;
+    }
+
     setRunningJobId(job.id);
     showNotification(`Spouštím úlohu "${job.name}"... Vyčkejte.`);
 
@@ -836,7 +866,7 @@ export default function AutomationsView() {
                 </label>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   {formActionType.startsWith('cookies_')
-                    ? 'Vyber e-mail(y) účtu, u kterých ověřit bazos cookie. Bez e-mailu = všechny účty s vyplněným proxy_ip (jako Budibase).'
+                    ? 'Zadej e-mail a klikni Přidat (nebo Enter). E-mail musí být v šedém štítku — jinak se neuloží. Pro cookie check je e-mail povinný.'
                     : 'Můžete vybrat z registrovaných prodejců nebo zadat konkrétní e-mail. Pokud nezadáte žádný, platí pro všechny účty.'}
                 </p>
 
