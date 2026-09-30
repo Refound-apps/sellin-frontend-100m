@@ -543,7 +543,6 @@ function CreateOfferContent() {
                           alt={`Fotografie ${index + 1}`}
                           fill
                           className="object-cover"
-                          unoptimized
                         />
 
                         {/* Badge pro hlavní foto */}
