@@ -68,11 +68,59 @@ function CreateOfferContent() {
     title: '',
     description: '',
     price: '',
+    price_agreement: false,
+    location: '',
+    zipcode: '',
     bb_email: '',
     marketplace: ['Bazoš', 'Sbazar', 'E-shop'] as string[],
     autorenew_freq: '1x za 10 dní vč. TOP',
     categoryId: 45, // Výchozí: Auto > Pneumatiky, kola (id 45)
   });
+
+  const [templateToast, setTemplateToast] = useState<string | null>(null);
+
+  const handleSaveTemplate = () => {
+    try {
+      const templateData = {
+        location: formData.location.trim(),
+        zipcode: formData.zipcode.trim(),
+        autorenew_freq: formData.autorenew_freq,
+        marketplace: formData.marketplace,
+        categoryId: formData.categoryId,
+        price_agreement: formData.price_agreement,
+      };
+      localStorage.setItem('sellin_offer_template', JSON.stringify(templateData));
+      setTemplateToast('Výchozí šablona byla uložena.');
+      setTimeout(() => setTemplateToast(null), 3500);
+    } catch (e) {
+      console.error('Failed to save template:', e);
+    }
+  };
+
+  const handleApplyTemplate = () => {
+    try {
+      const stored = localStorage.getItem('sellin_offer_template');
+      if (stored) {
+        const t = JSON.parse(stored);
+        setFormData((prev) => ({
+          ...prev,
+          location: t.location ?? prev.location,
+          zipcode: t.zipcode ?? prev.zipcode,
+          autorenew_freq: t.autorenew_freq ?? prev.autorenew_freq,
+          marketplace: Array.isArray(t.marketplace) && t.marketplace.length > 0 ? t.marketplace : prev.marketplace,
+          categoryId: t.categoryId ?? prev.categoryId,
+          price_agreement: t.price_agreement ?? prev.price_agreement,
+        }));
+        setTemplateToast('Údaje ze šablony byly načteny.');
+        setTimeout(() => setTemplateToast(null), 3500);
+      } else {
+        setTemplateToast('Zatím nemáte uloženou šablonu. Nastavte hodnoty a klikněte na Uložit šablonu.');
+        setTimeout(() => setTemplateToast(null), 3500);
+      }
+    } catch (e) {
+      console.error('Failed to apply template:', e);
+    }
+  };
 
   // Load Categories & Accounts on mount
   useEffect(() => {
@@ -188,14 +236,37 @@ function CreateOfferContent() {
       const paired = resolvePairedUserAccounts(targetQuery, allUsers);
       setPairedAccounts(paired);
 
-      // 7. Initialize formData.bb_email to target account
+      // 7. Initialize formData.bb_email, location & zipcode to target account
+      let savedDefaults: any = null;
+      try {
+        const stored = typeof window !== 'undefined' ? localStorage.getItem('sellin_offer_template') : null;
+        if (stored) savedDefaults = JSON.parse(stored);
+      } catch {}
+
+      const sellerLocation = targetSeller?.location || 'Praha';
+      const sellerZipcode = targetSeller?.zipcode ? String(targetSeller.zipcode) : '11000';
+
       if (paired.length > 0) {
         const initialEmail =
           paired.find((p) => p.email.toLowerCase() === targetSeller?.email?.toLowerCase())?.email ||
           paired[0].email;
-        setFormData((prev) => ({ ...prev, bb_email: initialEmail }));
+        setFormData((prev) => ({
+          ...prev,
+          bb_email: initialEmail,
+          location: prev.location || savedDefaults?.location || sellerLocation,
+          zipcode: prev.zipcode || savedDefaults?.zipcode || sellerZipcode,
+          autorenew_freq: savedDefaults?.autorenew_freq || prev.autorenew_freq,
+          marketplace: Array.isArray(savedDefaults?.marketplace) && savedDefaults.marketplace.length > 0 ? savedDefaults.marketplace : prev.marketplace,
+        }));
       } else if (targetSeller) {
-        setFormData((prev) => ({ ...prev, bb_email: targetSeller.email }));
+        setFormData((prev) => ({
+          ...prev,
+          bb_email: targetSeller.email,
+          location: prev.location || savedDefaults?.location || sellerLocation,
+          zipcode: prev.zipcode || savedDefaults?.zipcode || sellerZipcode,
+          autorenew_freq: savedDefaults?.autorenew_freq || prev.autorenew_freq,
+          marketplace: Array.isArray(savedDefaults?.marketplace) && savedDefaults.marketplace.length > 0 ? savedDefaults.marketplace : prev.marketplace,
+        }));
       }
     } catch (err) {
       console.error('Failed to load user and accounts for create offer:', err);
@@ -215,7 +286,12 @@ function CreateOfferContent() {
         paired.find((p) => p.email.toLowerCase() === user.email.toLowerCase())?.email ||
         paired[0]?.email ||
         user.email;
-      setFormData((prev) => ({ ...prev, bb_email: defaultEmail }));
+      setFormData((prev) => ({
+        ...prev,
+        bb_email: defaultEmail,
+        location: user.location || prev.location || 'Praha',
+        zipcode: user.zipcode ? String(user.zipcode) : (prev.zipcode || '11000'),
+      }));
     } else if (customEmail) {
       setSelectedSeller(null);
       setSelectedCustomEmail(customEmail);
@@ -235,14 +311,25 @@ function CreateOfferContent() {
         : availableUsers.slice(0, 1);
       setPairedAccounts(paired);
       if (paired.length > 0) {
-        setFormData((prev) => ({ ...prev, bb_email: paired[0].email }));
+        setFormData((prev) => ({
+          ...prev,
+          bb_email: paired[0].email,
+          location: meUser?.location || prev.location || 'Praha',
+          zipcode: meUser?.zipcode ? String(meUser.zipcode) : (prev.zipcode || '11000'),
+        }));
       }
     }
   };
 
   // Direct selection of one of the paired accounts
   const handleSelectPairedAccount = (accountEmail: string) => {
-    setFormData((prev) => ({ ...prev, bb_email: accountEmail }));
+    const matched = pairedAccounts.find((p) => p.email.toLowerCase() === accountEmail.toLowerCase());
+    setFormData((prev) => ({
+      ...prev,
+      bb_email: accountEmail,
+      location: matched?.location || prev.location,
+      zipcode: matched?.zipcode ? String(matched.zipcode) : prev.zipcode,
+    }));
   };
 
   const handleMarketplaceToggle = (marketplaceId: string) => {
@@ -333,8 +420,14 @@ function CreateOfferContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.title.trim() || !formData.description.trim() || !formData.price || !formData.bb_email) {
-      setError('Vyplňte prosím všechna povinná pole (název, popis, cena, účet).');
+    if (!formData.title.trim() || !formData.description.trim() || !formData.bb_email) {
+      setError('Vyplňte prosím všechna povinná pole (název, popis a účet).');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!formData.price_agreement && (!formData.price || parseFloat(formData.price) <= 0)) {
+      setError('Vyplňte prosím platnou cenu zboží nebo zaškrtněte "Cena dohodou".');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -358,7 +451,10 @@ function CreateOfferContent() {
         body: JSON.stringify({
           title: formData.title.trim(),
           description: formData.description.trim(),
-          price: parseFloat(formData.price),
+          price: formData.price_agreement ? 0 : parseFloat(formData.price) || 0,
+          price_agreement: Boolean(formData.price_agreement),
+          location: formData.location.trim() || undefined,
+          zipcode: formData.zipcode.trim() || undefined,
           bb_email: formData.bb_email,
           marketplace: formData.marketplace,
           autorenew_freq: formData.autorenew_freq,
@@ -405,10 +501,11 @@ function CreateOfferContent() {
     availableUsers.find((a) => a.email.toLowerCase() === formData.bb_email.toLowerCase()) ||
     null;
 
-  const formattedPricePreview =
-    formData.price && !isNaN(Number(formData.price))
-      ? `${Number(formData.price).toLocaleString('cs-CZ')} Kč`
-      : null;
+  const formattedPricePreview = formData.price_agreement
+    ? 'Cena dohodou'
+    : formData.price && !isNaN(Number(formData.price))
+    ? `${Number(formData.price).toLocaleString('cs-CZ')} Kč`
+    : null;
 
   return (
     <main className="relative mx-auto w-full max-w-6xl px-3.5 py-5 sm:px-6 sm:py-8 lg:px-8 pb-28 lg:pb-12">
@@ -434,14 +531,51 @@ function CreateOfferContent() {
           </p>
         </div>
 
-        <Link
-          href={selectedSeller?.email ? `/?account=${encodeURIComponent(selectedSeller.email)}` : '/'}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 active:scale-95 transition-all shadow-xs self-start sm:self-auto"
-        >
-          <span>←</span>
-          <span>Zpět na nabídku</span>
-        </Link>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <Link
+            href={selectedSeller?.email ? `/?account=${encodeURIComponent(selectedSeller.email)}` : '/'}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-950 active:scale-95 transition-all shadow-xs"
+          >
+            <span>←</span>
+            <span>Zpět na nabídku</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="hidden sm:inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs sm:text-sm font-bold shadow-xs active:scale-95 transition-all disabled:opacity-60"
+          >
+            {loading ? (
+              <span className="inline-flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                Publikuji…
+              </span>
+            ) : (
+              <span>Publikovat</span>
+            )}
+          </button>
+        </div>
       </div>
+
+      {templateToast && (
+        <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50/90 p-3.5 text-xs sm:text-sm font-semibold text-blue-900 shadow-xs flex items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span>ℹ️</span>
+            <span>{templateToast}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTemplateToast(null)}
+            className="text-blue-500 hover:text-blue-800 text-sm font-bold p-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 text-xs sm:text-sm font-semibold text-rose-800 shadow-xs flex items-center justify-between gap-3">
@@ -615,7 +749,7 @@ function CreateOfferContent() {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full rounded-xl border border-slate-200/90 bg-white px-3.5 py-2.5 text-sm sm:text-base font-semibold text-slate-950 transition-all focus:border-slate-950 focus:outline-none focus:ring-4 focus:ring-slate-900/5 placeholder:text-slate-400"
-                  placeholder="Např. Zimní pneumatiky Continental 205/55 R16 vzorek 7mm"
+                  placeholder="např. Macbook Air M1, jako nový!"
                   required
                 />
               </div>
@@ -698,7 +832,7 @@ function CreateOfferContent() {
                   htmlFor="description"
                   className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
                 >
-                  Popis zboží <span className="text-rose-500">*</span>
+                  Obsah inzerátu <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   id="description"
@@ -706,9 +840,57 @@ function CreateOfferContent() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full rounded-xl border border-slate-200/90 bg-white px-3.5 py-2.5 text-xs sm:text-sm text-slate-950 transition-all focus:border-slate-950 focus:outline-none focus:ring-4 focus:ring-slate-900/5 placeholder:text-slate-400 resize-y"
-                  placeholder="Detailní popis stavu zboží, technické parametry, rozměry, důvod prodeje a podmínky předání..."
+                  placeholder="Co nejlépe popište váš předmět a snažte se o co největší unikátnost inzerátu..."
                   required
                 />
+              </div>
+            </div>
+
+            {/* SEKCE 3: Lokalita a předání zboží (Adresa, PSČ) */}
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-slate-950 flex items-center gap-2">
+                  <span>📍</span> Lokalita a předání zboží
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Adresa a PSČ pro kontaktní údaje v inzerátech na Bazoši a Sbazaru.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="location"
+                    className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                  >
+                    Adresa / Město
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200/90 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-950 transition-all focus:border-slate-950 focus:outline-none focus:ring-4 focus:ring-slate-900/5 placeholder:text-slate-400"
+                    placeholder="např. Praha"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="zipcode"
+                    className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                  >
+                    PSČ
+                  </label>
+                  <input
+                    type="text"
+                    id="zipcode"
+                    value={formData.zipcode}
+                    onChange={(e) => setFormData({ ...formData, zipcode: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200/90 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-950 transition-all focus:border-slate-950 focus:outline-none focus:ring-4 focus:ring-slate-900/5 placeholder:text-slate-400"
+                    placeholder="např. 11000"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -719,28 +901,54 @@ function CreateOfferContent() {
             <div className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-4">
               {/* Cena */}
               <div>
-                <label
-                  htmlFor="price"
-                  className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
-                >
-                  Cena zboží <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="price"
+                    className="block text-xs font-bold uppercase tracking-wider text-slate-700"
+                  >
+                    Cena (v Kč) {!formData.price_agreement && <span className="text-rose-500">*</span>}
+                  </label>
+                  {formData.price_agreement && (
+                    <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      Cena dohodou
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type="number"
                     id="price"
-                    value={formData.price}
+                    value={formData.price_agreement ? '' : formData.price}
+                    disabled={formData.price_agreement}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200/90 bg-white py-3 pl-4 pr-12 text-base sm:text-lg font-black text-slate-950 transition-all focus:border-slate-950 focus:outline-none focus:ring-4 focus:ring-slate-900/5 placeholder:text-slate-400"
-                    placeholder="5000"
+                    className="w-full rounded-xl border border-slate-200/90 bg-white py-3 pl-4 pr-12 text-base sm:text-lg font-black text-slate-950 transition-all focus:border-slate-950 focus:outline-none focus:ring-4 focus:ring-slate-900/5 placeholder:text-slate-400 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    placeholder={formData.price_agreement ? 'Cena dohodou' : 'Uveďte cenu v korunách'}
                     min="0"
                     step="1"
-                    required
+                    required={!formData.price_agreement}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">
                     Kč
                   </span>
                 </div>
+
+                {/* Checkbox Cena dohodou */}
+                <label className="mt-2.5 flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    id="price_agreement"
+                    checked={formData.price_agreement}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        price_agreement: e.target.checked,
+                        price: e.target.checked ? '' : formData.price,
+                      })
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                  />
+                  <span className="text-xs font-semibold text-slate-700">Cena dohodou</span>
+                </label>
               </div>
 
               {/* ÚČET PRODEJCE & SPÁROVANÉ ÚČTY (přesně podle Moje nabídka) */}
@@ -967,7 +1175,7 @@ function CreateOfferContent() {
             {/* Box: Automatická obnova */}
             <div className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-3">
               <h2 className="text-sm sm:text-base font-bold text-slate-950 flex items-center gap-2">
-                <span>⚡</span> Automatická Obnova
+                <span>⚡</span> Auto-obnova inzerátu *
               </h2>
               <div>
                 <select
@@ -983,6 +1191,39 @@ function CreateOfferContent() {
                 </select>
               </div>
             </div>
+
+            {/* Box: Šablona inzerátu */}
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-3">
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-slate-950 flex items-center gap-2">
+                  <span>📋</span> Šablona inzerátu
+                </h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Uložte si výchozí adresu, PSČ, portály a auto-obnovu pro rychlé vytvoření.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleApplyTemplate}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:text-slate-950 px-3 py-2 text-xs font-bold text-slate-700 active:scale-95 transition-all text-center"
+                >
+                  Použít šablonu
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTemplate}
+                  className="w-full rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 active:scale-95 transition-all text-center"
+                >
+                  Uložit šablonu
+                </button>
+              </div>
+            </div>
+
+            {/* Upozornění pod formulářem */}
+            <p className="text-[11px] leading-relaxed text-slate-500 px-1">
+              * Beru na vědomí, že při vyšší frekvenci autoobnovy může potenciálně dojít ke smazání mých inzerátů z inzertních serverů, více ve FAQ.
+            </p>
 
             {/* Desktop Tlačítko Publikovat (skryto na mobilu, kde je sticky lišta) */}
             <div className="hidden lg:block space-y-2">
