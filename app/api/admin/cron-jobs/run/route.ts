@@ -1,41 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { getScraperActionUrl } from '@/lib/backend';
 import { resolvePairedUserAccounts } from '@/lib/sellerAccounts';
 import type { User } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
+const CRON_SECRET = process.env.CRON_SECRET || 'sellin-cron-secret-2026';
+
+function isCronSecretAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  return (
+    authHeader === `Bearer ${CRON_SECRET}` ||
+    authHeader === `Bearer ${process.env.CRON_SECRET}`
+  );
+}
+
+function createServiceSupabase() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   let logId: string | null = null;
   let supabase: any = null;
+  let triggeredBy: 'cron' | 'manual_admin' = 'manual_admin';
 
   try {
-    supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const cronAuth = isCronSecretAuth(request);
+    const body = await request.json().catch(() => ({}));
+    const { id } = body || {};
 
-    if (authError || !user) {
-      return NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 });
+    if (cronAuth) {
+      supabase = createServiceSupabase();
+      triggeredBy = body?.triggered_by === 'manual_admin' ? 'manual_admin' : 'cron';
+    } else {
+      supabase = await createClient();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        return NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 });
+      }
+
+      const userEmail = (user.email || '').toLowerCase().trim();
+      const { data: userCreds } = await supabase
+        .from('credential_pg')
+        .select('role')
+        .or(`user_id.eq.${user.id},email.ilike.${userEmail}`)
+        .eq('role', 'admin')
+        .limit(1);
+
+      if (!userCreds || userCreds.length === 0) {
+        return NextResponse.json({ success: false, error: 'Vyžaduje administrátora' }, { status: 403 });
+      }
     }
-
-    const userEmail = (user.email || '').toLowerCase().trim();
-    const { data: userCreds } = await supabase
-      .from('credential_pg')
-      .select('role')
-      .or(`user_id.eq.${user.id},email.ilike.${userEmail}`)
-      .eq('role', 'admin')
-      .limit(1);
-
-    if (!userCreds || userCreds.length === 0) {
-      return NextResponse.json({ success: false, error: 'Vyžaduje administrátora' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { id } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Chybí ID úlohy' }, { status: 400 });
@@ -69,10 +95,13 @@ export async function POST(request: NextRequest) {
         job_id: job.id,
         job_name: job.name,
         action_type: job.action_type,
-        triggered_by: 'manual_admin',
+        triggered_by: triggeredBy,
         status: 'running',
         started_at: new Date().toISOString(),
-        message: 'Úloha spuštěna administrátorem',
+        message:
+          triggeredBy === 'cron'
+            ? 'Automaticky spuštěno časovačem (cron worker)'
+            : 'Úloha spuštěna administrátorem',
       })
       .select()
       .single();
@@ -324,8 +353,8 @@ export async function POST(request: NextRequest) {
           targetEmails.join(', ') || 'všechny účty s proxy'
         } (včetně spárovaných: ${expandedEmails.join(', ') || '—'}).`;
       } else {
-        // Manuálně / bez delay → *now; cron s delay → v2 (náhodný odklad jako Budibase)
-        const useDelay = Boolean(settings.with_delay);
+        // Cron / with_delay → v2 (náhodný odklad jako Budibase); manuálně bez delay → *now
+        const useDelay = Boolean(settings.with_delay) || triggeredBy === 'cron';
         const endpoint = isSk
           ? useDelay
             ? '/bazoscookiesskhealthcheckv2'

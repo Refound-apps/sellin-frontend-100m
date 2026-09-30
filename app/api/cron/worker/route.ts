@@ -1,67 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { matchesCron, wasRunRecently } from '@/lib/cron/schedule';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SUPABASE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const CRON_SECRET = process.env.CRON_SECRET || 'sellin-cron-secret-2026';
-const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
 
-function matchesCron(cronExpr: string, date: Date = new Date()): boolean {
-  try {
-    const parts = cronExpr.trim().split(/\s+/);
-    if (parts.length < 5) return false;
-    const [min, hour, dom, mon, dow] = parts;
+function isAuthorized(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  const key = new URL(request.url).searchParams.get('key');
+  return (
+    authHeader === `Bearer ${CRON_SECRET}` ||
+    authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+    key === CRON_SECRET
+  );
+}
 
-    const currMin = date.getUTCMinutes();
-    const currHour = date.getUTCHours();
-    const currDom = date.getUTCDate();
-    const currMon = date.getUTCMonth() + 1;
-    const currDow = date.getUTCDay();
+function resolveAppOrigin(request: NextRequest): string {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : '') ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
 
-    const matchPart = (part: string, val: number) => {
-      if (part === '*') return true;
-      if (part.includes('/')) {
-        const step = parseInt(part.split('/')[1], 10);
-        return val % step === 0;
-      }
-      if (part.includes(',')) {
-        return part.split(',').map(Number).includes(val);
-      }
-      return parseInt(part, 10) === val;
-    };
-
-    return (
-      matchPart(min, currMin) &&
-      matchPart(hour, currHour) &&
-      matchPart(dom, currDom) &&
-      matchPart(mon, currMon) &&
-      matchPart(dow, currDow)
-    );
-  } catch {
-    return false;
-  }
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  return request.nextUrl.origin;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const { searchParams } = new URL(request.url);
-    const key = searchParams.get('key');
-
-    const isAuthorized =
-      authHeader === `Bearer ${process.env.CRON_SECRET}` ||
-      authHeader === `Bearer ${CRON_SECRET}` ||
-      key === CRON_SECRET;
-
-    if (!isAuthorized) {
+    if (!isAuthorized(request)) {
       return NextResponse.json({ success: false, error: 'Unauthorized cron worker' }, { status: 401 });
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const now = new Date();
 
-    // Načteme všechny aktivní cron úlohy
     const { data: jobs, error } = await supabase
       .from('cron_jobs')
       .select('*')
@@ -72,32 +52,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    const now = new Date();
-    const executed: string[] = [];
+    const origin = resolveAppOrigin(request);
+    const due: { id: string; name: string; schedule_cron: string }[] = [];
+    const skipped: { id: string; name: string; reason: string }[] = [];
+    const executed: { id: string; name: string; ok: boolean; message?: string }[] = [];
 
     for (const job of jobs || []) {
-      const shouldRun = matchesCron(job.schedule_cron, now);
+      if (!matchesCron(job.schedule_cron, now)) {
+        skipped.push({ id: job.id, name: job.name, reason: 'schedule_mismatch' });
+        continue;
+      }
 
-      if (shouldRun) {
-        // Zkontrolujeme, aby se nespustil vícekrát ve stejné minutě
-        if (job.last_run_at) {
-          const lastRun = new Date(job.last_run_at);
-          const diffMinutes = (now.getTime() - lastRun.getTime()) / (1000 * 60);
-          if (diffMinutes < 1) continue;
-        }
+      if (wasRunRecently(job.last_run_at, now)) {
+        skipped.push({ id: job.id, name: job.name, reason: 'cooldown' });
+        continue;
+      }
 
-        executed.push(job.name);
+      due.push({ id: job.id, name: job.name, schedule_cron: job.schedule_cron });
 
-        // Zde spustíme příslušnou akci obdobně jako v run route
-        // Pro přehlednost zapíšeme do logu
-        await supabase.from('cron_job_logs').insert({
-          job_id: job.id,
-          job_name: job.name,
-          action_type: job.action_type,
-          triggered_by: 'cron',
-          status: 'running',
-          started_at: now.toISOString(),
-          message: 'Automaticky spuštěno časovačem (Cron worker)',
+      try {
+        const runRes = await fetch(`${origin}/api/admin/cron-jobs/run`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${CRON_SECRET}`,
+          },
+          body: JSON.stringify({ id: job.id, triggered_by: 'cron' }),
+        });
+
+        const payload = await runRes.json().catch(() => ({}));
+        executed.push({
+          id: job.id,
+          name: job.name,
+          ok: runRes.ok && payload?.success !== false,
+          message: payload?.message || payload?.error || `HTTP ${runRes.status}`,
+        });
+      } catch (err: any) {
+        executed.push({
+          id: job.id,
+          name: job.name,
+          ok: false,
+          message: err?.message || 'fetch failed',
         });
       }
     }
@@ -105,10 +100,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       timestamp: now.toISOString(),
+      origin,
       checkedCount: (jobs || []).length,
+      dueCount: due.length,
+      due,
       executed,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
+}
+
+/** Vercel Cron may POST; treat same as GET. */
+export async function POST(request: NextRequest) {
+  return GET(request);
 }
