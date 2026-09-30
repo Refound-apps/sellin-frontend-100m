@@ -39,7 +39,10 @@ export async function GET(
           const pushImg = (url?: string | null) => {
             if (!url || typeof url !== 'string' || !url.trim()) return;
             const trimmed = url.trim();
-            const full = trimmed.startsWith('/') ? `http://46.36.36.196:9000${trimmed}` : trimmed;
+            // Relative MinIO paths → R2 CDN (HTTPS). Never use http://MinIO (mixed content).
+            const full = trimmed.startsWith('/')
+              ? `https://pub-d4238224a90a49f98bf05b686985171f.r2.dev${trimmed}`
+              : trimmed;
             if (!stored.includes(full)) stored.push(full);
           };
 

@@ -131,6 +131,8 @@ export async function POST(request: NextRequest) {
           'error_delete_during_renewal',
           'ok_renewed',
         ])
+        .or('platform_blocked.is.null,platform_blocked.eq.false')
+        .or('skip_renew.is.null,skip_renew.eq.false')
         .order('last_date_renewed', { ascending: true, nullsFirst: true })
         .limit(maxItems);
 
@@ -169,12 +171,13 @@ export async function POST(request: NextRequest) {
           'ok_created',
           'ok_topped',
           'ok_updated',
-          'ok_blocked',
           'error_update',
           'error_delete',
           'error_delete_during_renewal',
           'ok_renewed',
         ])
+        .or('platform_blocked.is.null,platform_blocked.eq.false')
+        .or('skip_renew.is.null,skip_renew.eq.false')
         .order('last_date_renewed', { ascending: true, nullsFirst: true })
         .limit(maxItems);
 
@@ -223,6 +226,9 @@ export async function POST(request: NextRequest) {
         .from('offer_detail_pg')
         .select('*')
         .eq('bb_marketplace_id', 'Bazoš.sk')
+        .not('condition', 'in', '(ok_deleted,error_delete,error_create,error_create_blocked,ok_blocked)')
+        .or('platform_blocked.is.null,platform_blocked.eq.false')
+        .or('skip_renew.is.null,skip_renew.eq.false')
         .order('last_date_renewed', { ascending: true, nullsFirst: true })
         .limit(maxItems);
 

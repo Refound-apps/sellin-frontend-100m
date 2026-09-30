@@ -4,7 +4,13 @@ import { getScraperActionUrl } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
 
-const EXCLUDED_CONDITIONS = ['error_delete', 'ok_deleted', 'error_create'] as const;
+const EXCLUDED_CONDITIONS = [
+  'error_delete',
+  'ok_deleted',
+  'error_create',
+  'error_create_blocked',
+  'ok_blocked',
+] as const;
 
 type Marketplace = 'Bazoš' | 'Bazoš.sk';
 
@@ -85,6 +91,8 @@ async function loadOfferDetailRows(
     .select('*')
     .eq('bb_marketplace_id', marketplace)
     .not('condition', 'in', `(${EXCLUDED_CONDITIONS.join(',')})`)
+    .or('platform_blocked.is.null,platform_blocked.eq.false')
+    .or('skip_renew.is.null,skip_renew.eq.false')
     .order('next_date_renew', { ascending: true, nullsFirst: true })
     .range(offset, offset + Math.max(max, 1) - 1);
 
@@ -222,6 +230,8 @@ async function countTillToday(
     .select('bb_offer_id', { count: 'exact', head: true })
     .eq('bb_marketplace_id', marketplace)
     .not('condition', 'in', `(${EXCLUDED_CONDITIONS.join(',')})`)
+    .or('platform_blocked.is.null,platform_blocked.eq.false')
+    .or('skip_renew.is.null,skip_renew.eq.false')
     .neq('autorenew_freq', 'Neobnovovat')
     .gte('next_date_renew', from)
     .lte('next_date_renew', to);

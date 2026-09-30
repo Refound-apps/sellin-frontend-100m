@@ -225,6 +225,28 @@ export function getConditionInfo(condition: string | null | undefined): {
   };
 }
 
+/** Prefer platform-blocked flag over raw condition (blocked rows are stored as ok_deleted). */
+export function getOfferDetailStatusInfo(tx: {
+  condition?: string | null;
+  platform_blocked?: boolean | null;
+  skip_renew?: boolean | null;
+  platform_blocked_reason?: string | null;
+}) {
+  if (tx.platform_blocked || tx.skip_renew) {
+    return {
+      label: 'Blokováno platformou',
+      badgeClass: 'bg-orange-50 text-orange-900 border-orange-200/90',
+      dotClass: 'bg-orange-500',
+      isError: true,
+      icon: '🚫',
+      description:
+        tx.platform_blocked_reason ||
+        'Inzerát byl zablokován portálem — condition=ok_deleted, obnova se přeskakuje.',
+    };
+  }
+  return getConditionInfo(tx.condition);
+}
+
 /** Informace o tržišti */
 export function getMarketplaceInfo(marketplace: string | null | undefined): {
   name: string;
@@ -876,7 +898,7 @@ export default function TransactionsView() {
                   if (item.groupIndex > 0 && !isGroupExpanded) return null;
 
                   const mInfo = getMarketplaceInfo(tx.bb_marketplace_id);
-                  const sInfo = getConditionInfo(tx.condition);
+                  const sInfo = getOfferDetailStatusInfo(tx);
                   const syncAt = formatDateTime(getSyncActionAt(tx));
                   const showAutorenew =
                     isActiveListingCondition(tx.condition) &&
@@ -1106,7 +1128,7 @@ export default function TransactionsView() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {transactions.map((tx) => {
             const mInfo = getMarketplaceInfo(tx.bb_marketplace_id);
-            const sInfo = getConditionInfo(tx.condition);
+            const sInfo = getOfferDetailStatusInfo(tx);
             const syncAt = formatDateTime(getSyncActionAt(tx));
             const showAutorenew =
               isActiveListingCondition(tx.condition) &&
@@ -1334,7 +1356,7 @@ export default function TransactionsView() {
 
             {/* Status Summary Banner */}
             {(() => {
-              const status = getConditionInfo(selectedTx.condition);
+              const status = getOfferDetailStatusInfo(selectedTx);
               return (
                 <div
                   className={`rounded-2xl border p-4 flex items-center gap-3 ${
