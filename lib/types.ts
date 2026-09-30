@@ -19,6 +19,10 @@ export interface Offer {
   seller_phone?: string | null;
   seller_name?: string | null;
   autorenew_freq?: string | null;
+  /** True when any marketplace detail is blocked by the portal */
+  platform_blocked?: boolean | null;
+  /** Comma-separated marketplace ids that blocked this offer */
+  platform_blocked_markets?: string | null;
 }
 
 export interface ShopOffer extends Offer {
@@ -58,6 +62,10 @@ export interface OfferDetail {
   offer_id?: number | null;
   offer_price?: number | null;
   offer_image?: string | null;
+  platform_blocked?: boolean | null;
+  skip_renew?: boolean | null;
+  platform_blocked_at?: string | null;
+  platform_blocked_reason?: string | null;
 }
 
 export interface TransactionsApiResponse {

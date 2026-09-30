@@ -166,12 +166,12 @@ export function getConditionInfo(condition: string | null | undefined): {
   }
   if (c === 'error_create_blocked' || c.includes('blocked')) {
     return {
-      label: 'Zablokováno',
+      label: 'Blokováno platformou',
       badgeClass: 'bg-orange-50 text-orange-900 border-orange-200/90',
       dotClass: 'bg-orange-500',
       isError: true,
       icon: '🚫',
-      description: condition || 'Inzerát / účet byl zablokován na portálu.',
+      description: condition || 'Inzerát byl zablokován portálem — obnova se přeskakuje.',
     };
   }
   if (c === 'error_delete' || c === 'error_delete_during_renewal') {
@@ -1024,13 +1024,23 @@ export default function TransactionsView() {
 
                       {/* 3. Stav */}
                       <td className="px-3.5 py-2 align-middle">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold shadow-2xs w-fit ${sInfo.badgeClass}`}
-                          title={sInfo.description}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${sInfo.dotClass}`} />
-                          <span>{sInfo.label}</span>
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold shadow-2xs w-fit ${sInfo.badgeClass}`}
+                            title={sInfo.description}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${sInfo.dotClass}`} />
+                            <span>{sInfo.label}</span>
+                          </span>
+                          {(tx.platform_blocked || tx.skip_renew) && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-md border border-orange-300/90 bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold text-orange-950 w-fit"
+                              title="Obnova / force renew se u tohoto inzerátu přeskakuje"
+                            >
+                              🚫 Skip renew
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* 4. Poslední akce */}
@@ -1124,6 +1134,12 @@ export default function TransactionsView() {
                       <span>{sInfo.label}</span>
                     </span>
                   </div>
+
+                  {(tx.platform_blocked || tx.skip_renew) && (
+                    <div className="mb-3 inline-flex items-center gap-1 rounded-lg border border-orange-300/90 bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-950">
+                      🚫 Blokováno platformou — obnova se přeskakuje
+                    </div>
+                  )}
 
                   {/* Thumbnail and Title */}
                   <div className="flex items-start gap-3">

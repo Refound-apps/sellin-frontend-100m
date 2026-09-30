@@ -391,6 +391,19 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
               <span>{statusInfo.label}</span>
             </span>
 
+            {offer.platform_blocked && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-orange-300/90 bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-orange-950"
+                title={
+                  offer.platform_blocked_markets
+                    ? `Blokováno: ${offer.platform_blocked_markets}`
+                    : 'Inzerát je blokován platformou — obnova se přeskakuje'
+                }
+              >
+                🚫 Blokováno platformou
+              </span>
+            )}
+
             <a
               href={`/shop?offer=${offer.id}`}
               target="_blank"
@@ -847,16 +860,32 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                   ) : (
                     details.map((detail, idx) => {
                       const portal = getPortalInfo(detail.bb_marketplace_id);
+                      const isBlocked =
+                        Boolean(detail.platform_blocked) ||
+                        Boolean(detail.skip_renew) ||
+                        String(detail.condition || '').toLowerCase().includes('blocked');
                       return (
                         <div
                           key={idx}
-                          className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-xs"
+                          className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs ${
+                            isBlocked
+                              ? 'border-orange-200/90 bg-orange-50/70'
+                              : 'border-slate-200/80 bg-white'
+                          }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span>{portal.icon}</span>
                             <span className="font-bold text-slate-900 truncate">{portal.label}</span>
+                            {isBlocked && (
+                              <span
+                                className="shrink-0 inline-flex items-center gap-0.5 rounded-md border border-orange-300/90 bg-orange-100/90 px-1.5 py-0.5 text-[10px] font-bold text-orange-950"
+                                title="Inzerát je blokován touto platformou — obnova se přeskakuje"
+                              >
+                                🚫 Blokováno
+                              </span>
+                            )}
                           </div>
-                          {detail.link ? (
+                          {detail.link && (detail.link.startsWith('http://') || detail.link.startsWith('https://')) ? (
                             <a
                               href={detail.link}
                               target="_blank"

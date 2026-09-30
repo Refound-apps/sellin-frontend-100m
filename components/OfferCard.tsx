@@ -72,6 +72,21 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
           <span>{statusInfo.label}</span>
         </div>
 
+        {/* Platform blocked flag */}
+        {offer.platform_blocked && (
+          <div
+            className="absolute left-2.5 top-10 z-10 inline-flex max-w-[calc(100%-1.25rem)] items-center gap-1 rounded-full border border-orange-300/90 bg-orange-50/95 px-2.5 py-0.5 text-[10.5px] font-bold text-orange-950 shadow-[0_2px_6px_rgba(0,0,0,0.06)] backdrop-blur-md"
+            title={
+              offer.platform_blocked_markets
+                ? `Blokováno platformou: ${offer.platform_blocked_markets}`
+                : 'Inzerát je blokován platformou — obnova se přeskakuje'
+            }
+          >
+            <span aria-hidden>🚫</span>
+            <span className="truncate">Blokováno platformou</span>
+          </div>
+        )}
+
         {/* Top-right product type badge */}
         {typeBadge && (
           <div className="absolute right-2.5 top-2.5 z-10 inline-flex items-center rounded-full bg-slate-950/85 border border-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(0,0,0,0.2)] backdrop-blur-md">
