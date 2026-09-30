@@ -9,6 +9,8 @@ import {
 import type { ScraperJob, ScraperJobCounts, ScraperJobStatus } from '@/lib/types';
 import { formatDateTime } from './TransactionsView';
 
+const PAGE_SIZE = 150;
+
 const STATUS_LABEL: Record<ScraperJobStatus, { label: string; className: string }> = {
   pending: { label: 'Čeká', className: 'bg-slate-100 text-slate-700 border-slate-200' },
   running: { label: 'Běží', className: 'bg-amber-50 text-amber-800 border-amber-200 animate-pulse' },
@@ -55,41 +57,90 @@ export default function ScraperJobsQueuePanel() {
     failed: 0,
     cancelled: 0,
   });
+  const [filteredTotal, setFilteredTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | ScraperJobStatus>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setError(null);
-      const res = await getScraperJobs({
-        status: statusFilter,
-        job_type: typeFilter,
-        limit: 150,
-      });
-      setJobs(res.data);
-      setCounts(res.counts);
-    } catch (err: any) {
-      setError(err?.message || 'Načtení fronty selhalo');
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, typeFilter]);
+  const load = useCallback(
+    async (opts?: { append?: boolean }) => {
+      const append = Boolean(opts?.append);
+      try {
+        setError(null);
+        if (append) setLoadingMore(true);
+        const offset = append ? jobs.length : 0;
+        const res = await getScraperJobs({
+          status: statusFilter,
+          job_type: typeFilter,
+          limit: PAGE_SIZE,
+          offset,
+        });
+        setJobs((prev) => (append ? [...prev, ...res.data] : res.data));
+        setCounts(res.counts);
+        setFilteredTotal(res.meta.filteredTotal);
+        setHasMore(res.meta.hasMore);
+      } catch (err: any) {
+        setError(err?.message || 'Načtení fronty selhalo');
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [statusFilter, typeFilter, jobs.length]
+  );
 
   useEffect(() => {
     setLoading(true);
-    load();
-  }, [load]);
+    setJobs([]);
+    // reset list on filter change
+    void (async () => {
+      try {
+        setError(null);
+        const res = await getScraperJobs({
+          status: statusFilter,
+          job_type: typeFilter,
+          limit: PAGE_SIZE,
+          offset: 0,
+        });
+        setJobs(res.data);
+        setCounts(res.counts);
+        setFilteredTotal(res.meta.filteredTotal);
+        setHasMore(res.meta.hasMore);
+      } catch (err: any) {
+        setError(err?.message || 'Načtení fronty selhalo');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [statusFilter, typeFilter]);
 
   useEffect(() => {
     const t = setInterval(() => {
-      load();
+      // soft refresh first page counts + replace if not paginated deep
+      void (async () => {
+        try {
+          const res = await getScraperJobs({
+            status: statusFilter,
+            job_type: typeFilter,
+            limit: Math.max(jobs.length, PAGE_SIZE),
+            offset: 0,
+          });
+          setJobs(res.data);
+          setCounts(res.counts);
+          setFilteredTotal(res.meta.filteredTotal);
+          setHasMore(res.meta.hasMore);
+        } catch {
+          /* ignore auto-refresh errors */
+        }
+      })();
     }, 10_000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [statusFilter, typeFilter, jobs.length]);
 
   const onCancel = async (id: number) => {
     setBusyId(id);
@@ -128,13 +179,16 @@ export default function ScraperJobsQueuePanel() {
     }
   };
 
+  const totalLast7 =
+    counts.pending + counts.running + counts.done + counts.failed + counts.cancelled;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-base font-bold text-slate-900">Fronta workerů (scraper_jobs)</h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            Jednotlivé renew / cookie joby zpracovávané backend workerem. Auto-obnova každých 10 s.
+            Create / update / delete / renew / recreate / cookie / archive. Auto-obnova každých 10 s.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -190,7 +244,7 @@ export default function ScraperJobsQueuePanel() {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
@@ -212,6 +266,10 @@ export default function ScraperJobsQueuePanel() {
             Zrušit filtr stavu
           </button>
         )}
+        <span className="text-[11px] text-slate-500">
+          Zobrazeno {jobs.length} / {filteredTotal}
+          {totalLast7 > 0 ? ` · souč 7 dní: ${totalLast7}` : ''}
+        </span>
       </div>
 
       {error && (
@@ -233,6 +291,7 @@ export default function ScraperJobsQueuePanel() {
                   <th className="px-4 py-3">ID</th>
                   <th className="px-4 py-3">Typ</th>
                   <th className="px-4 py-3">Stav</th>
+                  <th className="px-4 py-3">Priorita</th>
                   <th className="px-4 py-3">Cíl</th>
                   <th className="px-4 py-3">Pokusy</th>
                   <th className="px-4 py-3">Run after</th>
@@ -258,7 +317,11 @@ export default function ScraperJobsQueuePanel() {
                             {st.label}
                           </span>
                         </td>
-                        <td className="max-w-[220px] truncate px-4 py-3 text-slate-600" title={summarizePayload(job)}>
+                        <td className="px-4 py-3 text-slate-500">{job.priority ?? '—'}</td>
+                        <td
+                          className="max-w-[220px] truncate px-4 py-3 text-slate-600"
+                          title={summarizePayload(job)}
+                        >
                           {summarizePayload(job)}
                         </td>
                         <td className="px-4 py-3 text-slate-600">
@@ -304,16 +367,30 @@ export default function ScraperJobsQueuePanel() {
                       </tr>
                       {open && (
                         <tr className="bg-slate-50/80">
-                          <td colSpan={8} className="px-4 py-3">
-                            <div className="grid gap-3 sm:grid-cols-2">
+                          <td colSpan={9} className="px-4 py-3">
+                            <div className="grid gap-3 sm:grid-cols-3">
                               <div>
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                                  Chyba / locked
+                                  Časy / worker
                                 </p>
                                 <p className="mt-1 text-xs text-slate-700 break-all">
-                                  {job.last_error || '—'}
-                                  {job.locked_by ? ` · locked_by=${job.locked_by}` : ''}
+                                  start: {formatDateTime(job.started_at).short}
+                                  <br />
+                                  end: {formatDateTime(job.finished_at).short}
+                                  <br />
+                                  locked_by: {job.locked_by || '—'}
                                 </p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                  Chyba / result
+                                </p>
+                                <p className="mt-1 text-xs text-rose-700 break-all">
+                                  {job.last_error || '—'}
+                                </p>
+                                <pre className="mt-1 max-h-28 overflow-auto rounded-lg bg-white p-2 text-[10px] text-slate-600 border border-slate-200">
+                                  {JSON.stringify(job.result ?? null, null, 2)}
+                                </pre>
                               </div>
                               <div>
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -332,6 +409,19 @@ export default function ScraperJobsQueuePanel() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {hasMore && (
+          <div className="border-t border-slate-100 p-3 text-center">
+            <button
+              type="button"
+              disabled={loadingMore}
+              onClick={() => load({ append: true })}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {loadingMore ? 'Načítám…' : `Načíst další (${jobs.length} / ${filteredTotal})`}
+            </button>
           </div>
         )}
       </div>

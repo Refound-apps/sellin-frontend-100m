@@ -46,11 +46,12 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const jobType = searchParams.get('job_type');
     const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 100, 1), 500);
+    const offset = Math.max(Number(searchParams.get('offset')) || 0, 0);
 
     let query = jobsTable(supabase)
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (status && status !== 'all') {
       query = query.eq('status', status);
@@ -59,27 +60,34 @@ export async function GET(request: NextRequest) {
       query = query.eq('job_type', jobType);
     }
 
-    const { data, error: dbError } = await query;
+    const { data, error: dbError, count: filteredTotal } = await query;
     if (dbError) {
       return NextResponse.json({ success: false, error: dbError.message }, { status: 500 });
     }
 
-    // Counts for last 7 days
+    // Accurate status counts for last 7 days (head-only count queries)
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: countRows } = await jobsTable(supabase)
-      .select('status')
-      .gte('created_at', since);
-
     const counts = { pending: 0, running: 0, done: 0, failed: 0, cancelled: 0 };
-    for (const row of countRows || []) {
-      const s = row.status as keyof typeof counts;
-      if (s in counts) counts[s] += 1;
-    }
+    await Promise.all(
+      (Object.keys(counts) as Array<keyof typeof counts>).map(async (key) => {
+        const { count } = await jobsTable(supabase)
+          .select('id', { count: 'exact', head: true })
+          .eq('status', key)
+          .gte('created_at', since);
+        counts[key] = count || 0;
+      })
+    );
 
     return NextResponse.json({
       success: true,
       data: data || [],
       counts,
+      meta: {
+        limit,
+        offset,
+        filteredTotal: filteredTotal ?? (data || []).length,
+        hasMore: offset + (data || []).length < (filteredTotal ?? 0),
+      },
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

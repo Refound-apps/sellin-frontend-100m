@@ -635,11 +635,17 @@ export async function getScraperJobs(params?: {
   status?: string;
   job_type?: string;
   limit?: number;
-}): Promise<{ data: ScraperJob[]; counts: ScraperJobCounts }> {
+  offset?: number;
+}): Promise<{
+  data: ScraperJob[];
+  counts: ScraperJobCounts;
+  meta: { limit: number; offset: number; filteredTotal: number; hasMore: boolean };
+}> {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
   if (params?.job_type) qs.set('job_type', params.job_type);
   if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.offset != null) qs.set('offset', String(params.offset));
   const response = await fetch(`/api/admin/scraper-jobs?${qs.toString()}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
@@ -653,6 +659,12 @@ export async function getScraperJobs(params?: {
   return {
     data: data.data || [],
     counts: data.counts || { pending: 0, running: 0, done: 0, failed: 0, cancelled: 0 },
+    meta: data.meta || {
+      limit: params?.limit || 100,
+      offset: params?.offset || 0,
+      filteredTotal: (data.data || []).length,
+      hasMore: false,
+    },
   };
 }
 
