@@ -312,6 +312,17 @@ export default function TransactionsView() {
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  /** Rozbalené skupiny obnovených inzerátů (groupId) */
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroupExpanded = (groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
 
   // 1. Check user role
   useEffect(() => {
@@ -859,6 +870,11 @@ export default function TransactionsView() {
               <tbody>
                 {groupedRows.map((item) => {
                   const tx = item.tx;
+                  const isGroupExpanded =
+                    item.totalInGroup <= 1 || expandedGroups.has(item.groupId);
+                  // Collapsed: zobraz jen nejnovější (první) záznam ve skupině
+                  if (item.groupIndex > 0 && !isGroupExpanded) return null;
+
                   const mInfo = getMarketplaceInfo(tx.bb_marketplace_id);
                   const sInfo = getConditionInfo(tx.condition);
                   const syncAt = formatDateTime(getSyncActionAt(tx));
@@ -867,6 +883,10 @@ export default function TransactionsView() {
                     !!tx.autorenew_freq &&
                     tx.autorenew_freq !== 'Neobnovovat';
                   const isLiveUrl = tx.link?.startsWith('http://') || tx.link?.startsWith('https://');
+                  const effectiveRowSpan = isGroupExpanded ? item.groupSpan : 1;
+                  const isVisuallyLast =
+                    item.isLastInGroup || (!isGroupExpanded && item.groupIndex === 0);
+                  const olderCount = item.totalInGroup - 1;
 
                   return (
                     <tr
@@ -875,7 +895,7 @@ export default function TransactionsView() {
                         sInfo.isError ? 'bg-rose-50/25' : ''
                       } ${
                         item.totalInGroup > 1
-                          ? item.isLastInGroup
+                          ? isVisuallyLast
                             ? 'border-b-2 border-slate-200'
                             : 'border-b border-slate-100/70'
                           : 'border-b border-slate-100'
@@ -884,7 +904,7 @@ export default function TransactionsView() {
                       {/* 1. Inzerát & Nabídka (vertikálně sloučeno při obnoveném inzerátu se stejným offer_id) */}
                       {item.isGroupStart && (
                         <td
-                          rowSpan={item.groupSpan}
+                          rowSpan={effectiveRowSpan}
                           className={`px-3.5 py-2 align-top border-r border-slate-100 transition-colors ${
                             item.totalInGroup > 1 ? 'bg-slate-50/45' : 'bg-white'
                           }`}
@@ -943,12 +963,24 @@ export default function TransactionsView() {
                                 )}
                               </div>
 
-                              {/* Sloučený indikátor obnoveného inzerátu */}
+                              {/* Sloučený indikátor obnoveného inzerátu — collapsible */}
                               {item.totalInGroup > 1 && (
-                                <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-sky-50 border border-sky-200/80 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleGroupExpanded(item.groupId)}
+                                  className="mt-1.5 inline-flex items-center gap-1 rounded bg-sky-50 border border-sky-200/80 px-1.5 py-0.5 text-[10px] font-bold text-sky-800 hover:bg-sky-100 transition-colors"
+                                  title={
+                                    isGroupExpanded
+                                      ? 'Skrýt starší obnovy'
+                                      : `Zobrazit ${olderCount} starších obnov`
+                                  }
+                                >
                                   <span className="text-sky-600">🔄</span>
                                   <span>Obnovený inzerát ({item.totalInGroup}× záznam)</span>
-                                </div>
+                                  <span className="ml-0.5 text-sky-600">
+                                    {isGroupExpanded ? '▴ skrýt' : `▾ +${olderCount}`}
+                                  </span>
+                                </button>
                               )}
                             </div>
                           </div>
