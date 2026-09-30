@@ -13,6 +13,7 @@ import {
   getUsers,
 } from '@/lib/api';
 import { formatDateTime } from './TransactionsView';
+import ScraperJobsQueuePanel from './ScraperJobsQueuePanel';
 
 const SCHEDULE_PRESETS = [
   { id: 'daily_21', label: 'Každý večer ve 21:00', cron: '0 21 * * *' },
@@ -94,6 +95,7 @@ export default function AutomationsView() {
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState<'all' | CronActionType>('all');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [mainTab, setMainTab] = useState<'cron' | 'queue'>('cron');
 
   // Modal pro tvorbu / editaci úlohy
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -420,23 +422,54 @@ export default function AutomationsView() {
         <div className="flex items-center gap-2.5">
           <button
             onClick={loadData}
-            disabled={loading}
+            disabled={loading || mainTab !== 'cron'}
             title="Obnovit data"
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:text-slate-950 disabled:opacity-50"
           >
             <span className={loading ? 'animate-spin' : ''}>🔄</span>
             Obnovit
           </button>
-          <button
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 active:scale-98"
-          >
-            <span>➕</span>
-            Vytvořit automatizaci
-          </button>
+          {mainTab === 'cron' && (
+            <button
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 active:scale-98"
+            >
+              <span>➕</span>
+              Vytvořit automatizaci
+            </button>
+          )}
         </div>
       </div>
 
+      <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <button
+          type="button"
+          onClick={() => setMainTab('cron')}
+          className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+            mainTab === 'cron'
+              ? 'bg-white text-slate-900 shadow-2xs'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Cron úlohy
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab('queue')}
+          className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+            mainTab === 'queue'
+              ? 'bg-white text-slate-900 shadow-2xs'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Fronta workerů
+        </button>
+      </div>
+
+      {mainTab === 'queue' ? (
+        <ScraperJobsQueuePanel />
+      ) : (
+      <>
       {/* Souhrnné statistické karty */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-2xs">
@@ -735,6 +768,8 @@ export default function AutomationsView() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* MODAL PRO VYTVOŘENÍ / EDITACI AUTOMATIZACE */}
       {isModalOpen && (

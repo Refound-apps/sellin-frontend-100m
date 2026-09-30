@@ -74,7 +74,7 @@ export default function UsersList() {
       setLoading(true);
       setError(null);
       const data = await getUsers();
-      setUsers(data);
+      setUsers([...data].sort((a, b) => b.id - a.id));
     } catch (err) {
       setError('Nepodařilo se načíst uživatele. Zkuste to prosím znovu.');
       console.error(err);

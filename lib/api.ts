@@ -10,6 +10,8 @@ import {
   ShopConfigSummary,
   CronJob,
   CronJobLog,
+  ScraperJob,
+  ScraperJobCounts,
 } from './types';
 
 export const SHOP_SBAZAR_EMAIL = 'duplux@seznam.cz';
@@ -625,6 +627,62 @@ export async function getCronJobLogs(jobId?: string): Promise<CronJobLog[]> {
   }
   const data = await response.json();
   return data.data || [];
+}
+
+// ================= Scraper job queue ================= //
+
+export async function getScraperJobs(params?: {
+  status?: string;
+  job_type?: string;
+  limit?: number;
+}): Promise<{ data: ScraperJob[]; counts: ScraperJobCounts }> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.job_type) qs.set('job_type', params.job_type);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const response = await fetch(`/api/admin/scraper-jobs?${qs.toString()}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Nepodařilo se načíst frontu jobů');
+  }
+  const data = await response.json();
+  return {
+    data: data.data || [],
+    counts: data.counts || { pending: 0, running: 0, done: 0, failed: 0, cancelled: 0 },
+  };
+}
+
+export async function patchScraperJob(
+  id: number,
+  action: 'cancel' | 'retry'
+): Promise<ScraperJob> {
+  const response = await fetch('/api/admin/scraper-jobs', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, action }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Akce na jobu selhala');
+  }
+  return data.data;
+}
+
+export async function cancelAllPendingScraperJobs(): Promise<number> {
+  const response = await fetch('/api/admin/scraper-jobs', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'cancel_all_pending' }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Bulk cancel selhal');
+  }
+  return Number(data.cancelled || 0);
 }
 
 

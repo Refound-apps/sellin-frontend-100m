@@ -204,3 +204,49 @@ export interface CronJobLog {
   created_at: string;
 }
 
+export type ScraperJobStatus = 'pending' | 'running' | 'done' | 'failed' | 'cancelled';
+
+export type ScraperJobType =
+  | 'renew_bazos'
+  | 'renew_bazos_sk'
+  | 'renew_sbazar'
+  | 'cookie_bazos'
+  | 'cookie_bazos_sk'
+  | 'create_offer'
+  | 'update_offer'
+  | 'delete_offer'
+  | 'recreate_bazos'
+  | 'recreate_bazos_sk'
+  | 'recreate_sbazar'
+  | 'recreate_facebook'
+  | 'archive_offer'
+  | 'generic'
+  | string;
+
+export interface ScraperJob {
+  id: number;
+  job_type: ScraperJobType;
+  payload: Record<string, any>;
+  status: ScraperJobStatus;
+  priority: number;
+  attempts: number;
+  max_attempts: number;
+  run_after: string;
+  locked_at: string | null;
+  locked_by: string | null;
+  dedupe_key: string | null;
+  last_error: string | null;
+  result: Record<string, any> | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface ScraperJobCounts {
+  pending: number;
+  running: number;
+  done: number;
+  failed: number;
+  cancelled: number;
+}
+
