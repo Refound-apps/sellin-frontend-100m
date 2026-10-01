@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
 
-async function checkAdmin(supabase: any) {
+type CronJobUpdate = Database['public']['Tables']['cron_jobs']['Update'];
+
+async function checkAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
     error: authError,
@@ -131,7 +134,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Chybí ID úlohy' }, { status: 400 });
     }
 
-    const payload: Record<string, any> = {
+    const payload: CronJobUpdate = {
       updated_at: new Date().toISOString(),
     };
 
@@ -151,7 +154,8 @@ export async function PUT(request: NextRequest) {
     if (updates.max_items !== undefined) payload.max_items = Number(updates.max_items) || 40;
     if (updates.settings !== undefined) payload.settings = updates.settings;
 
-    const { data, error: updateError } = await (supabase.from('cron_jobs') as any)
+    const { data, error: updateError } = await supabase
+      .from('cron_jobs')
       .update(payload)
       .eq('id', id)
       .select()

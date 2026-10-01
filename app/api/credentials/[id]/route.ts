@@ -1,7 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
+
+type CredentialUpdate = Database['public']['Tables']['credential_pg']['Update'];
+type CredentialUpdateKey = keyof CredentialUpdate;
+
+const ALLOWED_FIELDS: CredentialUpdateKey[] = [
+  'email',
+  'bazos_name',
+  'bazos_email',
+  'bazos_password',
+  'bazos_bkod',
+  'bazos_sk_bkod',
+  'telephone1',
+  'telephone2',
+  'location',
+  'zipcode',
+  'zipcode_sk',
+  'bazos_rewrite',
+  'bazos_top_max',
+  'status_cz',
+  'status_sk',
+  'sbazar_email',
+  'sbazar_password',
+  'sbazar_profile',
+  'sbazar_cookie_ds',
+  'proxy_ip',
+  'proxy_ip_sbazar',
+  'facebook_email',
+  'facebook_password',
+];
 
 export async function PUT(
   request: NextRequest,
@@ -70,46 +100,21 @@ export async function PUT(
       }
     }
 
-    // Allowed fields to update
-    const allowedFields = [
-      'email',
-      'bazos_name',
-      'bazos_email',
-      'bazos_password',
-      'bazos_bkod',
-      'bazos_sk_bkod',
-      'telephone1',
-      'telephone2',
-      'location',
-      'zipcode',
-      'zipcode_sk',
-      'bazos_rewrite',
-      'bazos_top_max',
-      'status_cz',
-      'status_sk',
-      'sbazar_email',
-      'sbazar_password',
-      'sbazar_profile',
-      'sbazar_cookie_ds',
-      'proxy_ip',
-      'proxy_ip_sbazar',
-      'facebook_email',
-      'facebook_password',
-    ];
+    const updates: CredentialUpdate = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (!(key in body)) continue;
 
-    const updates: Record<string, any> = {};
-    for (const key of allowedFields) {
-      if (key in body) {
-        let val = body[key];
-        if (key === 'zipcode' && val !== null && val !== undefined && val !== '') {
-          val = parseFloat(String(val).replace(/\s+/g, '')) || null;
-        } else if (key === 'bazos_top_max' && val !== null && val !== undefined && val !== '') {
-          val = parseFloat(String(val)) || null;
-        } else if (typeof val === 'string') {
-          val = val.trim();
-        }
-        updates[key] = val;
+      let val = body[key];
+      if (key === 'zipcode' && val !== null && val !== undefined && val !== '') {
+        val = parseFloat(String(val).replace(/\s+/g, '')) || null;
+      } else if (key === 'bazos_top_max' && val !== null && val !== undefined && val !== '') {
+        val = parseFloat(String(val)) || null;
+      } else if (typeof val === 'string') {
+        val = val.trim();
       }
+
+      // Dynamic key assignment into typed Update payload
+      (updates as Record<string, unknown>)[key] = val;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -135,11 +140,9 @@ export async function PUT(
       success: true,
       data: updated,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Chyba při aktualizaci účtu';
     console.error('Unexpected error in PUT /api/credentials/[id]:', error);
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Chyba při aktualizaci účtu' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
+
+type CredentialInsert = Database['public']['Tables']['credential_pg']['Insert'];
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,12 +36,10 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data || [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Chyba při načítání účtů';
     console.error('Unexpected error in GET /api/credentials:', error);
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Chyba při načítání účtů' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const newRecord: Record<string, any> = {
+    const newRecord: CredentialInsert = {
       email: body.email.trim(),
       bazos_name: body.bazos_name?.trim() || null,
       bazos_email: body.bazos_email?.trim() || null,
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     const { data: created, error } = await supabase
       .from('credential_pg')
-      .insert(newRecord as any)
+      .insert(newRecord)
       .select('*')
       .single();
 
@@ -102,11 +103,9 @@ export async function POST(request: NextRequest) {
       success: true,
       data: created,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Chyba při vytváření účtu';
     console.error('Unexpected error in POST /api/credentials:', error);
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Chyba při vytváření účtu' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

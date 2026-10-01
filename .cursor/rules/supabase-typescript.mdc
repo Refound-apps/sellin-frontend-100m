@@ -1,0 +1,53 @@
+---
+description: Prevent Vercel TS build failures on Supabase .update()/.insert()
+globs: app/api/**/*.ts,lib/**/*.ts
+alwaysApply: false
+---
+
+# Supabase TypeScript – update/insert
+
+Vercel `next build` fails when you pass `Record<string, any>` into Supabase `.update()` / `.insert()`.
+Supabase then expects `{ [x: string]: never }` / typed Row payload → **TS2345**.
+
+## Never do this
+
+```typescript
+const updates: Record<string, any> = {};
+await supabase.from('credential_pg').update(updates);
+await supabase.from('credential_pg').update(updates as any); // band-aid, avoid
+```
+
+## Always do this
+
+```typescript
+import type { Database } from '@/lib/database.types';
+
+type CredentialUpdate = Database['public']['Tables']['credential_pg']['Update'];
+type CredentialInsert = Database['public']['Tables']['credential_pg']['Insert'];
+
+const updates: CredentialUpdate = { email: 'x@y.cz' };
+await supabase.from('credential_pg').update(updates);
+
+const row: CredentialInsert = { email: 'x@y.cz' };
+await supabase.from('credential_pg').insert(row);
+```
+
+## Dynamic keys
+
+If you build the payload in a loop, keep the **variable typed** as `Update`/`Insert`, and only cast the assignment:
+
+```typescript
+const updates: CredentialUpdate = {};
+for (const key of allowedKeys) {
+  if (key in body) {
+    (updates as Record<string, unknown>)[key] = body[key];
+  }
+}
+await supabase.from('credential_pg').update(updates);
+```
+
+## Checklist before finishing API work
+
+1. Payload for `.update()` / `.insert()` uses `Database['public']['Tables'][...]['Update'|'Insert']`
+2. No `Record<string, any>` passed into Supabase mutations
+3. Prefer `npx tsc --noEmit` locally (or `npm run build`) before push — Vercel fails on the same check
