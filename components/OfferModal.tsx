@@ -330,7 +330,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
     try {
       if (nextState === 'app_archive') {
         await deleteOfferById(offer.id);
-        offer.state = 'app_archive';
+        offer.state = 'app_delete';
         setSaveSuccessMessage('Inzerát byl zařazen do fronty pro smazání na portálech.');
       } else {
         await updateOfferById(offer.id, { state: nextState });

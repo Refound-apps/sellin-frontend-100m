@@ -3,12 +3,12 @@ export function offerStatusLabel(state: string | null | undefined) {
   if (state === 'app_active') return 'Aktivní';
   if (state === 'app_create') return 'Vytváření ve frontě';
   if (state === 'app_update') return 'Aktualizace ve frontě';
-  if (state === 'app_delete' || state === 'app_archive') return 'Mazání ve frontě';
+  if (state === 'app_delete') return 'Mazání ve frontě';
+  if (state === 'app_archive' || state === 'ok_deleted') return 'Smazáno';
   if (state === 'app_renew') return 'Obnova ve frontě';
   if (state === 'app_recreate') return 'Přeinzerování ve frontě';
-  if (state === 'ok_deleted') return 'Smazáno';
   if (state?.includes('error_')) return 'Chyba';
-  return state;
+  return 'Aktivní';
 }
 
 export function offerStatusTone(state: string | null | undefined) {
@@ -18,13 +18,13 @@ export function offerStatusTone(state: string | null | undefined) {
   if (state === 'app_update') {
     return 'bg-amber-100/90 text-amber-900 ring-amber-300';
   }
-  if (state === 'app_delete' || state === 'app_archive') {
+  if (state === 'app_delete') {
     return 'bg-rose-100/90 text-rose-900 ring-rose-300';
   }
   if (state === 'app_renew' || state === 'app_recreate') {
     return 'bg-indigo-100/90 text-indigo-900 ring-indigo-300';
   }
-  if (state === 'ok_deleted') {
+  if (state === 'app_archive' || state === 'ok_deleted') {
     return 'bg-[hsl(210_20%_94%)] text-[hsl(215_16%_38%)] ring-[hsl(214_16%_84%)]';
   }
   if (state?.includes('error_')) {
@@ -37,6 +37,22 @@ export interface StatusStyle {
   label: string;
   badge: string;
   dot: string;
+  /** Soft muted card treatment for finished/deleted offers */
+  muted?: boolean;
+}
+
+export function isOfferDeletedState(state: string | null | undefined): boolean {
+  return state === 'app_archive' || state === 'ok_deleted';
+}
+
+export function isOfferQueuedState(state: string | null | undefined): boolean {
+  return (
+    state === 'app_create' ||
+    state === 'app_update' ||
+    state === 'app_delete' ||
+    state === 'app_renew' ||
+    state === 'app_recreate'
+  );
 }
 
 export function getOfferStatusInfo(state: string | null | undefined): StatusStyle {
@@ -54,7 +70,7 @@ export function getOfferStatusInfo(state: string | null | undefined): StatusStyl
       dot: 'bg-amber-500 animate-pulse',
     };
   }
-  if (state === 'app_delete' || state === 'app_archive') {
+  if (state === 'app_delete') {
     return {
       label: 'Mazání ve frontě',
       badge: 'bg-rose-50 text-rose-900 border-rose-200/90',
@@ -75,11 +91,12 @@ export function getOfferStatusInfo(state: string | null | undefined): StatusStyl
       dot: 'bg-indigo-500 animate-pulse',
     };
   }
-  if (state === 'ok_deleted') {
+  if (state === 'app_archive' || state === 'ok_deleted') {
     return {
       label: 'Smazáno',
-      badge: 'bg-slate-100 text-slate-700 border-slate-200',
+      badge: 'bg-slate-100/90 text-slate-500 border-slate-200/80',
       dot: 'bg-slate-400',
+      muted: true,
     };
   }
   if (state?.includes('error_')) {

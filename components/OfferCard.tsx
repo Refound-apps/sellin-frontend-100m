@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Offer } from '@/lib/types';
 import { formatCzk, getOfferSpecsList, isAluDiskyOffer, isSteelWheelOffer, isWheelOffer } from '@/components/shop/offerMeta';
-import { formatOfferDate, formatPhoneNumber, getOfferStatusInfo } from './offerStatus';
+import { formatOfferDate, formatPhoneNumber, getOfferStatusInfo, isOfferDeletedState } from './offerStatus';
 
 interface OfferCardProps {
   offer: Offer;
@@ -20,6 +20,7 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
   const isSteel = isSteelWheelOffer(offer);
   const specs = getOfferSpecsList(offer);
   const statusInfo = getOfferStatusInfo(offer.state);
+  const isDeleted = isOfferDeletedState(offer.state) || Boolean(statusInfo.muted);
 
   // Derive category badge
   const titleAndDesc = `${offer.title} ${offer.description || ''}`;
@@ -59,7 +60,11 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
     <button
       type="button"
       onClick={onClick}
-      className="group relative flex h-full flex-col rounded-3xl bg-white/95 p-3 text-left border border-slate-200/80 shadow-[0_10px_28px_-6px_rgba(15,23,42,0.06),0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_22px_45px_-8px_rgba(15,23,42,0.13),0_4px_16px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:-translate-y-1 active:scale-[0.99] transition-all duration-300 touch-manipulation cursor-pointer ring-1 ring-black/[0.02] backdrop-blur-xs overflow-hidden"
+      className={`group relative flex h-full flex-col rounded-3xl p-3 text-left border transition-all duration-300 touch-manipulation cursor-pointer ring-1 ring-black/[0.02] backdrop-blur-xs overflow-hidden ${
+        isDeleted
+          ? 'bg-slate-50/90 border-slate-200/70 opacity-60 grayscale-[0.35] shadow-none hover:opacity-75 hover:border-slate-300'
+          : 'bg-white/95 border-slate-200/80 shadow-[0_10px_28px_-6px_rgba(15,23,42,0.06),0_2px_8px_rgba(15,23,42,0.03)] hover:shadow-[0_22px_45px_-8px_rgba(15,23,42,0.13),0_4px_16px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:-translate-y-1 active:scale-[0.99]'
+      }`}
     >
       {/* Subtilní horní světelná linka */}
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent group-hover:via-emerald-500/40 transition-colors" />
