@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
     const payload = await loadDailyReport(supabase, seller);
     const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
-      from: 'Sellin <sellin@sellin.cz>',
+      from: 'Prodejomat <robot@prodejomat.cz>',
       to: [to],
       replyTo: 'obchod@sellin.cz',
       subject: payload.subject,

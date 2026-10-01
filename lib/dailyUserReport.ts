@@ -168,7 +168,7 @@ export function createDailyUserReportHtml(report: DailyUserReport) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Denní report Sellin</title>
+  <title>Prodejomat denní report</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:24px 12px;">
@@ -177,7 +177,7 @@ export function createDailyUserReportHtml(report: DailyUserReport) {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;">
           <tr>
             <td style="padding:28px 28px 18px 28px;background:linear-gradient(135deg,#0f172a 0%,#134e4a 100%);color:#ffffff;">
-              <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;opacity:0.75;font-weight:700;">Sellin · Denní report</div>
+              <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;opacity:0.75;font-weight:700;">Prodejomat · Denní report</div>
               <div style="font-size:24px;font-weight:800;margin-top:8px;line-height:1.2;">${escapeHtml(dateTitle)}</div>
               <div style="margin-top:10px;font-size:14px;opacity:0.9;">
                 ${escapeHtml(report.sellerEmail)} · ${report.totals.accounts} účtů
@@ -236,7 +236,7 @@ export function createDailyUserReportHtml(report: DailyUserReport) {
 
           <tr>
             <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;">
-              Sellin denní report ·
+              Prodejomat denní report ·
               <a href="mailto:obchod@sellin.cz" style="color:#0f766e;font-weight:600;text-decoration:none;">obchod@sellin.cz</a>
             </td>
           </tr>
@@ -251,5 +251,5 @@ export function createDailyUserReportHtml(report: DailyUserReport) {
 export function createDailyUserReportSubject(report: DailyUserReport) {
   const day = new Date(report.generatedAt).toLocaleDateString('cs-CZ');
   const issue = report.totals.cookiesBad > 0 ? '⚠️ ' : '';
-  return `${issue}Sellin denní report · ${day} · ${report.sellerEmail}`;
+  return `${issue}Prodejomat denní report · ${day} · ${report.sellerEmail}`;
 }

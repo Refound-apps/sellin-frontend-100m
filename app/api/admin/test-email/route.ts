@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
-      from: 'Sellin <sellin@sellin.cz>',
+      from: 'Prodejomat <robot@prodejomat.cz>',
       to: [to],
       subject,
       text: message,
