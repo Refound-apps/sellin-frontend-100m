@@ -138,12 +138,10 @@ export default function Navigation() {
 
   const isAdminSection = pathname.startsWith('/admin');
 
-  // Navigační položky pro běžné prodejce (včetně Napojení účtů a Správy e-shopu)
   const sellerNavItems = [
     { href: '/', label: 'Moje nabídka', exact: true },
     { href: '/create', label: 'Vytvořit inzerát', exact: false },
     { href: '/accounts', label: 'Napojení účtů', exact: false },
-    { href: '/eshop', label: 'Správa e-shopu', exact: false },
   ];
 
   // Navigační položky pro administrátorské rozhraní (pouze čisté admin sekce)

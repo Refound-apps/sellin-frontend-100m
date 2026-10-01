@@ -74,7 +74,7 @@ export default function CustomShopModal({
             setSlug('muj-eshop');
             setEmail(sellerEmail);
             setOpeningHours('Po–Pá: 8:00 – 17:00');
-            setLinkedEmails(pairedAccounts.map((a) => a.email.toLowerCase()));
+            setLinkedEmails([]);
           }
         }
       } catch (err: any) {
@@ -88,7 +88,7 @@ export default function CustomShopModal({
     return () => {
       mounted = false;
     };
-  }, [sellerEmail, pairedAccounts]);
+  }, [sellerEmail]);
 
   const toggleLinkedEmail = (em: string) => {
     const clean = em.toLowerCase().trim();
@@ -149,7 +149,7 @@ export default function CustomShopModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60"
       onClick={onClose}
     >
       <div

@@ -233,7 +233,7 @@ export default function AccountsView() {
   const [loading, setLoading] = useState(true);
   const [shopConfig, setShopConfig] = useState<ShopConfigData | null>(null);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     let isMounted = true;
@@ -241,7 +241,6 @@ export default function AccountsView() {
       try {
         setLoading(true);
 
-        // 1. Get current auth user
         const {
           data: { user: authUser },
         } = await supabase.auth.getUser();
@@ -249,11 +248,9 @@ export default function AccountsView() {
         const authEmail = authUser?.email || null;
         if (isMounted) setMyEmail(authEmail);
 
-        // 2. Fetch all credentials
         const users = await getUsers();
         if (isMounted) setAllUsers(users);
 
-        // 3. Determine if admin
         let userIsAdmin = false;
         if (authUser) {
           const { data: userCreds } = await supabase
@@ -267,14 +264,10 @@ export default function AccountsView() {
         }
         if (isMounted) setIsAdmin(userIsAdmin);
 
-        // 4. Default seller email:
-        // If user is seller -> their email.
-        // If admin -> default to duplux@seznam.cz or first seller in DB.
         let defaultSellerEmail = 'duplux@seznam.cz';
         if (authEmail && !userIsAdmin) {
           defaultSellerEmail = authEmail;
         } else {
-          // Check if duplux exists in users
           const duplux = users.find((u) => u.email?.toLowerCase().includes('duplux'));
           if (duplux) {
             defaultSellerEmail = duplux.email;
@@ -285,7 +278,6 @@ export default function AccountsView() {
 
         if (isMounted) setCurrentEmail(defaultSellerEmail);
 
-        // 5. Load shop info for this seller
         try {
           const shopRes = await getUserShop(`?seller=${encodeURIComponent(defaultSellerEmail)}`);
           if (isMounted && shopRes.shop) {
@@ -305,7 +297,7 @@ export default function AccountsView() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [supabase]);
 
   // Compute paired subaccounts for the active seller
   const pairedAccounts = useMemo(() => {
@@ -355,101 +347,45 @@ export default function AccountsView() {
     });
   }, [activeCategory, search]);
 
-  const stats = useMemo(() => {
-    const ready = ALL_CHANNELS.filter((c) => c.isReady).length;
-    const total = ALL_CHANNELS.length;
-    return { ready, total, pairedCount: pairedAccounts.length };
-  }, [pairedAccounts]);
+  const openChannel = (channel: ChannelItem) => {
+    if (loading && (channel.id === 'bazos' || channel.id === 'sbazar' || channel.id === 'sellin-shop')) {
+      return;
+    }
+    setSelectedChannel(channel);
+  };
 
   return (
     <div className="pb-16">
-      {/* Top Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Top Header – clean, same style as rest of app */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Centrální správa napojení
-            </span>
-
-            <span className="text-xs font-semibold text-slate-500">
-              {stats.ready} kanálů aktivních / připravených • {stats.pairedCount} spárovaných subúčtů
-            </span>
-          </div>
-
-          <h1 className="mt-1.5 text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
-            Napojení účtů a prodejních kanálů
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Napojení účtů
           </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-slate-500 max-w-3xl">
-            Správa přihlašovacích credentials pro Bazoš, Sbazar a vlastní e-shop. Vyberte kanál pro úpravu B-kódů a údajů jednotlivých subúčtů.
+          <p className="mt-1.5 text-sm text-slate-500 max-w-2xl">
+            {loading
+              ? 'Načítám napojené účty…'
+              : currentEmail
+                ? `${pairedAccounts.length} spárovaných účtů · ${currentEmail}`
+                : 'Správa napojení na Bazoš, Sbazar a vlastní e-shop.'}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Seller / Account Switcher */}
           {isAdmin && (
-            <div className="shrink-0">
-              <SellerAccountSwitcher
-                currentEmail={currentEmail}
-                myEmail={myEmail}
-                onSelectAccount={handleSelectSeller}
-              />
-            </div>
+            <SellerAccountSwitcher
+              currentEmail={currentEmail}
+              myEmail={myEmail}
+              onSelectAccount={handleSelectSeller}
+            />
           )}
-
-          <Link
-            href="/shop"
-            target="_blank"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-50 transition-all active:scale-95"
-          >
-            <span>🛍️ Vlastní E-shop</span>
-            <span className="text-slate-400">↗</span>
-          </Link>
           <Link
             href="/create"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
           >
             <span>+</span>
             <span>Vložit nabídku</span>
           </Link>
-        </div>
-      </div>
-
-      {/* Seller Subaccounts Banner */}
-      <div className="mb-6 rounded-2xl border border-slate-200/90 bg-linear-to-r from-slate-900 via-slate-950 to-slate-900 p-4 sm:p-5 text-white shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="rounded-md bg-amber-500/20 border border-amber-400/30 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                AKTIVNÍ PRODEJCE
-              </span>
-              <span className="text-xs font-bold text-slate-300 font-mono">{currentEmail}</span>
-            </div>
-            <h3 className="text-sm sm:text-base font-black text-white">
-              Nalezeno {pairedAccounts.length} spárovaných subúčtů v centrální databázi
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-300">
-              Všechny tyto účty sdílejí napojení a můžete je spravovat kliknutím na Bazoš nebo Sbazar.
-            </p>
-          </div>
-
-          {/* Quick Subaccounts chips preview */}
-          <div className="flex flex-wrap items-center gap-1.5 max-w-xl">
-            {pairedAccounts.slice(0, 7).map((acc) => (
-              <span
-                key={acc.id}
-                className="rounded-lg bg-white/10 border border-white/10 px-2 py-1 text-[11px] font-medium text-slate-200"
-                title={`${acc.email} • ${acc.telephone1 || ''}`}
-              >
-                {acc.bazos_name || acc.email.split('@')[0]}
-              </span>
-            ))}
-            {pairedAccounts.length > 7 && (
-              <span className="rounded-lg bg-white/20 px-2 py-1 text-[11px] font-bold text-white">
-                +{pairedAccounts.length - 7} dalších
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
@@ -539,7 +475,7 @@ export default function AccountsView() {
           return (
             <div
               key={channel.id}
-              onClick={() => setSelectedChannel(channel)}
+              onClick={() => openChannel(channel)}
               className={`group relative flex flex-col justify-between rounded-3xl p-5 cursor-pointer transition-all duration-200 ${
                 isReady
                   ? 'border border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 shadow-2xs'
@@ -642,37 +578,8 @@ export default function AccountsView() {
         })}
       </div>
 
-      {/* Multichannel sync info banner */}
-      <div className="mt-8 rounded-2xl border border-slate-200/90 bg-linear-to-r from-slate-900 via-slate-950 to-slate-900 p-5 sm:p-6 text-white shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="rounded-md bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                MULTIKANÁLOVÝ CENTRÁLNÍ ENGINE
-              </span>
-              <span className="text-xs text-slate-400">Jeden centrální sklad pro všechny kanály</span>
-            </div>
-            <h3 className="text-base sm:text-lg font-black text-white">
-              Vložte nabídku jednou – Prodejomat ji rozešle na všechny vaše účty
-            </h3>
-            <p className="mt-1 text-xs text-slate-300 leading-relaxed">
-              Položku zadáte jednou. Prodejomat ji propíše na vybrané kanály (Bazoš, Sbazar, vlastní e-shop) a jakmile se prodá, okamžitě ji odepíše ze skladu a stáhne z ostatních portálů.
-            </p>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <Link
-              href="/create"
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-950 hover:bg-slate-100 transition-all shadow-xs"
-            >
-              <span>+ Vložit novou nabídku</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
       {/* Active Modals */}
-      {selectedChannel?.id === 'bazos' && (
+      {selectedChannel?.id === 'bazos' && pairedAccounts.length > 0 && (
         <BazosAccountsModal
           onClose={() => setSelectedChannel(null)}
           accounts={pairedAccounts}
@@ -682,7 +589,7 @@ export default function AccountsView() {
         />
       )}
 
-      {selectedChannel?.id === 'sbazar' && (
+      {selectedChannel?.id === 'sbazar' && pairedAccounts.length > 0 && (
         <SbazarAccountsModal
           onClose={() => setSelectedChannel(null)}
           accounts={pairedAccounts}
@@ -691,7 +598,7 @@ export default function AccountsView() {
         />
       )}
 
-      {selectedChannel?.id === 'sellin-shop' && (
+      {selectedChannel?.id === 'sellin-shop' && !loading && (
         <CustomShopModal
           onClose={() => setSelectedChannel(null)}
           sellerEmail={currentEmail || 'duplux@seznam.cz'}

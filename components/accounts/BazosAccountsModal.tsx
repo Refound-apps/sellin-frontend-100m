@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '@/lib/types';
 import { updateCredential, createCredential } from '@/lib/api';
 
@@ -10,6 +10,24 @@ interface BazosAccountsModalProps {
   mainEmail: string;
   onAccountsUpdated: (updatedAccount: User) => void;
   onAccountCreated?: (newAccount: User) => void;
+}
+
+function buildBazosForm(account: User): Partial<User> {
+  return {
+    bazos_name: account.bazos_name || '',
+    bazos_email: account.bazos_email || account.email || '',
+    bazos_password: account.bazos_password || '',
+    bazos_bkod: account.bazos_bkod || '',
+    bazos_sk_bkod: account.bazos_sk_bkod || '',
+    telephone1: account.telephone1 || '',
+    location: account.location || '',
+    zipcode: account.zipcode ? String(account.zipcode) : '',
+    zipcode_sk: account.zipcode_sk || '',
+    bazos_rewrite: account.bazos_rewrite ?? true,
+    bazos_top_max: account.bazos_top_max ?? 0,
+    status_cz: account.status_cz || 'OK',
+    status_sk: account.status_sk || '',
+  };
 }
 
 export default function BazosAccountsModal({
@@ -26,8 +44,8 @@ export default function BazosAccountsModal({
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const lastSyncedId = useRef<number | null>(accounts[0]?.id ?? null);
 
-  // New account draft
   const [newDraft, setNewDraft] = useState({
     email: '',
     bazos_name: '',
@@ -43,36 +61,21 @@ export default function BazosAccountsModal({
     status_cz: 'OK',
   });
 
-  // Current selected account
   const currentAccount = useMemo(() => {
     return accounts.find((a) => a.id === selectedId) || accounts[0] || null;
   }, [accounts, selectedId]);
 
-  // Editable form state for current account
-  const [form, setForm] = useState<Partial<User>>({});
+  const [form, setForm] = useState<Partial<User>>(() =>
+    accounts[0] ? buildBazosForm(accounts[0]) : {}
+  );
 
-  // Sync form when selected account changes
-  useMemo(() => {
-    if (currentAccount) {
-      setForm({
-        bazos_name: currentAccount.bazos_name || '',
-        bazos_email: currentAccount.bazos_email || currentAccount.email || '',
-        bazos_password: currentAccount.bazos_password || '',
-        bazos_bkod: currentAccount.bazos_bkod || '',
-        bazos_sk_bkod: currentAccount.bazos_sk_bkod || '',
-        telephone1: currentAccount.telephone1 || '',
-        location: currentAccount.location || '',
-        zipcode: currentAccount.zipcode ? String(currentAccount.zipcode) : '',
-        zipcode_sk: currentAccount.zipcode_sk || '',
-        bazos_rewrite: currentAccount.bazos_rewrite ?? true,
-        bazos_top_max: currentAccount.bazos_top_max ?? 0,
-        status_cz: currentAccount.status_cz || 'OK',
-        status_sk: currentAccount.status_sk || '',
-      });
-      setSaveSuccess(false);
-      setError(null);
-    }
-  }, [currentAccount?.id]);
+  useEffect(() => {
+    if (!currentAccount || lastSyncedId.current === currentAccount.id) return;
+    lastSyncedId.current = currentAccount.id;
+    setForm(buildBazosForm(currentAccount));
+    setSaveSuccess(false);
+    setError(null);
+  }, [currentAccount]);
 
   // Filter accounts by search
   const filteredAccounts = useMemo(() => {
@@ -153,7 +156,7 @@ export default function BazosAccountsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60"
       onClick={onClose}
     >
       <div
@@ -254,7 +257,13 @@ export default function BazosAccountsModal({
                     type="button"
                     onClick={() => {
                       setIsAddingNew(false);
-                      setSelectedId(acc.id);
+                      if (acc.id !== selectedId) {
+                        lastSyncedId.current = acc.id;
+                        setSelectedId(acc.id);
+                        setForm(buildBazosForm(acc));
+                        setSaveSuccess(false);
+                        setError(null);
+                      }
                     }}
                     className={`w-full text-left rounded-2xl p-3 transition-all border ${
                       isSelected

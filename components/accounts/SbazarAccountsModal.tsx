@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '@/lib/types';
 import { updateCredential } from '@/lib/api';
 
@@ -9,6 +9,20 @@ interface SbazarAccountsModalProps {
   accounts: User[];
   mainEmail: string;
   onAccountsUpdated: (updatedAccount: User) => void;
+}
+
+function buildSbazarForm(account: User, mainEmail: string): Partial<User> {
+  return {
+    sbazar_email: account.sbazar_email || mainEmail || '',
+    sbazar_password: account.sbazar_password || '',
+    telephone1: account.telephone1 || '',
+    sbazar_profile: account.sbazar_profile || '',
+    sbazar_cookie_ds: account.sbazar_cookie_ds || '',
+    proxy_ip_sbazar: account.proxy_ip_sbazar || '',
+    location: account.location || '',
+    zipcode: account.zipcode ? String(account.zipcode) : '',
+    status_cz: account.status_cz || 'OK',
+  };
 }
 
 export default function SbazarAccountsModal({
@@ -23,32 +37,23 @@ export default function SbazarAccountsModal({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const lastSyncedId = useRef<number | null>(accounts[0]?.id ?? null);
 
-  // Current selected account
   const currentAccount = useMemo(() => {
     return accounts.find((a) => a.id === selectedId) || accounts[0] || null;
   }, [accounts, selectedId]);
 
-  // Form state
-  const [form, setForm] = useState<Partial<User>>({});
+  const [form, setForm] = useState<Partial<User>>(() =>
+    accounts[0] ? buildSbazarForm(accounts[0], mainEmail) : {}
+  );
 
-  useMemo(() => {
-    if (currentAccount) {
-      setForm({
-        sbazar_email: currentAccount.sbazar_email || mainEmail || '',
-        sbazar_password: currentAccount.sbazar_password || '',
-        telephone1: currentAccount.telephone1 || '',
-        sbazar_profile: currentAccount.sbazar_profile || '',
-        sbazar_cookie_ds: currentAccount.sbazar_cookie_ds || '',
-        proxy_ip_sbazar: currentAccount.proxy_ip_sbazar || '',
-        location: currentAccount.location || '',
-        zipcode: currentAccount.zipcode ? String(currentAccount.zipcode) : '',
-        status_cz: currentAccount.status_cz || 'OK',
-      });
-      setSaveSuccess(false);
-      setError(null);
-    }
-  }, [currentAccount?.id, mainEmail]);
+  useEffect(() => {
+    if (!currentAccount || lastSyncedId.current === currentAccount.id) return;
+    lastSyncedId.current = currentAccount.id;
+    setForm(buildSbazarForm(currentAccount, mainEmail));
+    setSaveSuccess(false);
+    setError(null);
+  }, [currentAccount, mainEmail]);
 
   const filteredAccounts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -85,7 +90,7 @@ export default function SbazarAccountsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60"
       onClick={onClose}
     >
       <div
@@ -152,7 +157,14 @@ export default function SbazarAccountsModal({
                   <button
                     key={acc.id}
                     type="button"
-                    onClick={() => setSelectedId(acc.id)}
+                    onClick={() => {
+                      if (acc.id === selectedId) return;
+                      lastSyncedId.current = acc.id;
+                      setSelectedId(acc.id);
+                      setForm(buildSbazarForm(acc, mainEmail));
+                      setSaveSuccess(false);
+                      setError(null);
+                    }}
                     className={`w-full text-left rounded-2xl p-3 transition-all border ${
                       isSelected
                         ? 'border-red-400 bg-red-50/80 shadow-xs ring-1 ring-red-300'
