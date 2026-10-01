@@ -2,7 +2,11 @@
 
 import { FormEvent, useState } from 'react';
 
-export default function TestEmailForm() {
+type Props = {
+  onSent?: () => void;
+};
+
+export default function TestEmailForm({ onSent }: Props) {
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('Sellin – test Resend');
   const [message, setMessage] = useState(
@@ -36,6 +40,7 @@ export default function TestEmailForm() {
         ok: true,
         text: data.id ? `Odesláno. Resend ID: ${data.id}` : 'Odesláno.',
       });
+      onSent?.();
     } catch (err: any) {
       setResult({
         ok: false,

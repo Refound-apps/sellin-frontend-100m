@@ -154,7 +154,7 @@ export default function Navigation() {
     { href: '/admin/force-renew', label: 'Force renew', exact: false },
     { href: '/admin/users', label: 'Uživatelé', exact: false },
     { href: '/admin/eshop', label: 'E-shopy', exact: false },
-    { href: '/admin/email', label: 'Test e-mail', exact: false },
+    { href: '/admin/email', label: 'E-maily', exact: false },
   ];
 
   if (isAdminSection) {
