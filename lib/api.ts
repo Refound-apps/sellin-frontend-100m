@@ -582,6 +582,27 @@ export async function updateOfferById(
   }
 }
 
+export async function deleteOfferById(
+  id: number
+): Promise<{ success: boolean; message?: string; queued?: number }> {
+  try {
+    const response = await apiFetch(`/api/offers/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => null);
+      throw new Error(errorJson?.error || 'Nepodařilo se smazat inzerát');
+    }
+
+    const data = await response.json().catch(() => ({ success: true }));
+    return data;
+  } catch (error) {
+    console.error('Error deleting offer:', error);
+    throw error;
+  }
+}
+
 export async function getTransactions(params: {
   limit?: number;
   offset?: number;

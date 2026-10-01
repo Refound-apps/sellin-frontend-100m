@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Offer, OfferDetail } from '@/lib/types';
-import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2 } from '@/lib/api';
+import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, deleteOfferById } from '@/lib/api';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
 import {
   formatOfferDate,
@@ -315,22 +315,35 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
   };
 
   const handleToggleArchive = async () => {
-    const isArchived = offer.state === 'app_archive';
+    const isArchived =
+      offer.state === 'app_archive' ||
+      offer.state === 'app_delete' ||
+      offer.state === 'ok_deleted';
     const nextState = isArchived ? 'app_active' : 'app_archive';
     const confirmText = isArchived
       ? 'Chcete tento inzerát vrátit zpět mezi aktivní?'
-      : 'Opravdu chcete tento inzerát přesunout do archivu?';
+      : 'Opravdu chcete tento inzerát smazat a zařadit do fronty na odstranění z inzertních serverů?';
 
     if (!window.confirm(confirmText)) return;
 
     setSaving(true);
     try {
-      await updateOfferById(offer.id, { state: nextState });
-      offer.state = nextState;
-      window.location.reload();
-    } catch (err) {
+      if (nextState === 'app_archive') {
+        await deleteOfferById(offer.id);
+        offer.state = 'app_archive';
+        setSaveSuccessMessage('Inzerát byl zařazen do fronty pro smazání na portálech.');
+      } else {
+        await updateOfferById(offer.id, { state: nextState });
+        offer.state = nextState;
+        setSaveSuccessMessage('Inzerát byl úspěšně aktivován.');
+      }
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 5000);
+      onOfferUpdated?.(offer);
+    } catch (err: any) {
       console.error(err);
-      alert('Chyba při ukládání');
+      setSaveError(err?.message || 'Chyba při ukládání');
+      setTimeout(() => setSaveError(null), 5000);
     } finally {
       setSaving(false);
     }
@@ -443,12 +456,16 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                   onClick={handleToggleArchive}
                   disabled={saving}
                   className={`hidden sm:inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all active:scale-95 ${
-                    offer.state === 'app_archive'
+                    offer.state === 'app_archive' || offer.state === 'app_delete' || offer.state === 'ok_deleted'
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-rose-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
                   }`}
                 >
-                  <span>{offer.state === 'app_archive' ? 'Obnovit z archivu' : 'Archivovat'}</span>
+                  <span>
+                    {offer.state === 'app_archive' || offer.state === 'app_delete' || offer.state === 'ok_deleted'
+                      ? 'Obnovit z archivu'
+                      : 'Smazat inzerát'}
+                  </span>
                 </button>
               </div>
             ) : (
@@ -851,7 +868,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                       <span>🛍️</span>
                       <span className="font-bold text-slate-900 truncate">E-shop Duplux</span>
                       <span className="rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                        {offer.state === 'app_archive' ? 'Archiv' : 'Aktivní'}
+                        {offer.state === 'app_archive' || offer.state === 'app_delete' || offer.state === 'ok_deleted' ? 'Archiv' : 'Aktivní'}
                       </span>
                     </div>
                     <a
@@ -1227,7 +1244,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                     disabled={saving}
                     className="rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 active:scale-95 shadow-2xs"
                   >
-                    {offer.state === 'app_archive' ? 'Aktivovat' : 'Archiv'}
+                    {offer.state === 'app_archive' || offer.state === 'app_delete' || offer.state === 'ok_deleted' ? 'Aktivovat' : 'Smazat'}
                   </button>
                   <button
                     type="button"

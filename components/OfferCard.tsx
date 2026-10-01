@@ -67,7 +67,7 @@ export default function OfferCard({ offer, onClick, priority = false }: OfferCar
       {/* Image Container with grounding border and zoom */}
       <div className="relative h-48 sm:h-52 w-full overflow-hidden rounded-2xl bg-slate-100/90 border border-slate-200/80 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]">
         {/* Top-left status badge */}
-        <div className="absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold shadow-[0_2px_6px_rgba(0,0,0,0.06)] border backdrop-blur-md bg-white/95 border-slate-200/90 text-slate-800">
+        <div className={`absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold shadow-[0_2px_6px_rgba(0,0,0,0.06)] border backdrop-blur-md ${statusInfo.badge}`}>
           <span className={`h-2 w-2 rounded-full ${statusInfo.dot}`} />
           <span>{statusInfo.label}</span>
         </div>
