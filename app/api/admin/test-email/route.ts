@@ -48,9 +48,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const to = String(body?.to || body?.recipient || '').trim();
-    const subject = String(body?.subject || 'Sellin – test Resend').trim();
+    const subject = String(body?.subject || 'Prodejomat – test Resend').trim();
     const message = String(
-      body?.message || body?.text || 'Testovací e-mail ze Sellin. Pokud tohle vidíš, Resend funguje.'
+      body?.message || body?.text || 'Testovací e-mail z Prodejomatu. Pokud tohle vidíš, Resend funguje.'
     ).trim();
 
     if (!to || !to.includes('@')) {

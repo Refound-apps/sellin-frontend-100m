@@ -8,9 +8,9 @@ type Props = {
 
 export default function TestEmailForm({ onSent }: Props) {
   const [to, setTo] = useState('');
-  const [subject, setSubject] = useState('Sellin – test Resend');
+  const [subject, setSubject] = useState('Prodejomat – test Resend');
   const [message, setMessage] = useState(
-    'Testovací e-mail ze Sellin. Pokud tohle vidíš, Resend funguje.'
+    'Testovací e-mail z Prodejomatu. Pokud tohle vidíš, Resend funguje.'
   );
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);

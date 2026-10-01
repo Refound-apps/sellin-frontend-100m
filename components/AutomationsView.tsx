@@ -77,6 +77,13 @@ const ACTION_TYPES: { id: CronActionType; label: string; desc: string; icon: str
     badgeColor: 'bg-amber-500/10 text-amber-800 border-amber-200',
   },
   {
+    id: 'daily_report',
+    label: 'Denní report (e-mail)',
+    desc: 'Pošle denní report (cookie + obnovy Bazoš/Sbazar) na vybraného příjemce',
+    icon: '📧',
+    badgeColor: 'bg-teal-500/10 text-teal-800 border-teal-200',
+  },
+  {
     id: 'api_request',
     label: 'Vlastní backend webhook / API akce',
     desc: 'Volání jakékoliv routy na backendu (GET/POST s parametry)',
@@ -113,6 +120,7 @@ export default function AutomationsView() {
   const [formAutotop, setFormAutotop] = useState(false);
   const [formCustomEndpoint, setFormCustomEndpoint] = useState('/testsellin');
   const [formCustomMethod, setFormCustomMethod] = useState<'GET' | 'POST'>('POST');
+  const [formReportTo, setFormReportTo] = useState('obchod@sellin.cz');
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -167,6 +175,7 @@ export default function AutomationsView() {
     setFormAutotop(false);
     setFormCustomEndpoint('/testsellin');
     setFormCustomMethod('POST');
+    setFormReportTo('obchod@sellin.cz');
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -187,6 +196,9 @@ export default function AutomationsView() {
     setFormAutotop(Boolean(job.settings?.autotop));
     setFormCustomEndpoint(job.settings?.endpoint || '/testsellin');
     setFormCustomMethod(job.settings?.method || 'POST');
+    setFormReportTo(
+      String(job.settings?.report_to || job.settings?.to || 'obchod@sellin.cz')
+    );
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -241,6 +253,11 @@ export default function AutomationsView() {
       return;
     }
 
+    if (formActionType === 'daily_report' && emailsToSave.length === 0) {
+      setFormError('Pro denní report vyber aspoň jeden prodejce (e-mail účtu).');
+      return;
+    }
+
     setFormSaving(true);
     setFormError(null);
 
@@ -269,6 +286,9 @@ export default function AutomationsView() {
           autotop: formAutotop,
           ...(formActionType === 'api_request'
             ? { endpoint: formCustomEndpoint, method: formCustomMethod }
+            : {}),
+          ...(formActionType === 'daily_report'
+            ? { report_to: formReportTo.trim() || 'obchod@sellin.cz' }
             : {}),
         },
       };
@@ -895,12 +915,16 @@ export default function AutomationsView() {
               {/* Cílové účty (E-maily) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700">
-                  {formActionType.startsWith('cookies_')
+                  {formActionType === 'daily_report'
+                    ? 'Prodejce v reportu (e-mail účtu)'
+                    : formActionType.startsWith('cookies_')
                     ? 'Účty pro cookie check (e-maily)'
                     : 'Cílové e-mailové účty (pro které inzeráty provést akci)'}
                 </label>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  {formActionType.startsWith('cookies_')
+                  {formActionType === 'daily_report'
+                    ? 'První e-mail = prodejce, pro kterého se sestaví denní report (+ spárované subúčty).'
+                    : formActionType.startsWith('cookies_')
                     ? 'Zadej hlavní e-mail (např. duplux@seznam.cz) a Přidej. Při běhu se automaticky zahrnou i všechny spárované účty přes sbazar_email (jako v Moje nabídka).'
                     : 'Můžete vybrat z registrovaných prodejců nebo zadat konkrétní e-mail. Pokud nezadáte žádný, platí pro všechny účty.'}
                 </p>
@@ -965,6 +989,22 @@ export default function AutomationsView() {
               </div>
 
               {/* Dodatečné parametry */}
+              {formActionType === 'daily_report' && (
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-700">Příjemce reportu</label>
+                  <input
+                    type="email"
+                    value={formReportTo}
+                    onChange={(e) => setFormReportTo(e.target.value)}
+                    placeholder="obchod@sellin.cz"
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 outline-none focus:border-indigo-600"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Kam se e-mail pošle (default obchod@sellin.cz).
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2 border-t border-slate-100">
                 <div>
                   <label className="block text-xs font-bold text-slate-700">Max inzerátů na běh</label>
@@ -975,11 +1015,17 @@ export default function AutomationsView() {
                     value={formMaxItems}
                     onChange={(e) => setFormMaxItems(Number(e.target.value))}
                     className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 outline-none focus:border-indigo-600"
+                    disabled={formActionType === 'daily_report'}
                   />
-                  <p className="mt-1 text-[11px] text-slate-400">Běžně 40–50 inzerátů na jednu dávku.</p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {formActionType === 'daily_report'
+                      ? 'U denního reportu se nepoužívá.'
+                      : 'Běžně 40–50 inzerátů na jednu dávku.'}
+                  </p>
                 </div>
 
                 <div className="space-y-2 pt-1">
+                  {formActionType !== 'daily_report' && (
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
                     <input
                       type="checkbox"
@@ -993,8 +1039,9 @@ export default function AutomationsView() {
                         : 'Ochrana proti blokaci (náhodné zpoždění 0–90 min)'}
                     </span>
                   </label>
+                  )}
 
-                  {!formActionType.startsWith('cookies_') && (
+                  {formActionType !== 'daily_report' && !formActionType.startsWith('cookies_') && (
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
                     <input
                       type="checkbox"

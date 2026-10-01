@@ -426,7 +426,28 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    // 6. Volný API request
+    // 6. Denní report e-mail
+    else if (job.action_type === 'daily_report') {
+      const { sendDailyReportEmail } = await import('@/lib/sendDailyReport');
+      const seller =
+        String(targetEmails[0] || settings.seller || settings.seller_email || '').trim() ||
+        'duplux@seznam.cz';
+      const to =
+        String(settings.report_to || settings.to || settings.recipient || '').trim() ||
+        'obchod@sellin.cz';
+
+      const sent = await sendDailyReportEmail({ supabase, seller, to });
+      processedCount = 1;
+      resultMessage = `Denní report odeslán: ${seller} → ${sent.to} (${sent.subject})`;
+      details = {
+        seller,
+        to: sent.to,
+        subject: sent.subject,
+        resendId: sent.id,
+        totals: sent.report.totals,
+      };
+    }
+    // 7. Volný API request
     else {
       const endpoint = settings.endpoint || '/testsellin';
       const method = settings.method || 'POST';

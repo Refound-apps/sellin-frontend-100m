@@ -161,6 +161,7 @@ export type CronActionType =
   | 'recreate_sbazar'
   | 'cookies_bazos'
   | 'cookies_bazos_sk'
+  | 'daily_report'
   | 'api_request';
 
 export type CronTriggerType = 'cron' | 'manual';
