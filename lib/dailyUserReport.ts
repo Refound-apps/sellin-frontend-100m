@@ -147,11 +147,11 @@ export function createDailyUserReportHtml(report: DailyUserReport) {
     .map((account) => {
       const cookie = cookieLabel(account.status_cz, account.has_bazos_cookie);
       const cookieTone = toneColor(cookie.tone);
-      const name = account.bazos_name?.trim() || '—';
+      const phone = account.telephone1?.trim() || '—';
       return `
         <tr>
           <td style="padding:12px;border-bottom:1px solid #e2e8f0;">
-            <div style="font-weight:700;color:#0f172a;font-size:14px;">${escapeHtml(name)}</div>
+            <div style="font-weight:700;color:#0f172a;font-size:14px;">${escapeHtml(phone)}</div>
             <div style="color:#64748b;font-size:12px;margin-top:2px;">${escapeHtml(account.email)}</div>
           </td>
           <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:center;">
