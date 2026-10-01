@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -63,6 +63,10 @@ function CreateOfferContent() {
   const [categorySearch, setCategorySearch] = useState('');
   const [imageList, setImageList] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dropzoneActive, setDropzoneActive] = useState(false);
+  const dragFromRef = useRef<number | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -341,9 +345,9 @@ function CreateOfferContent() {
     }));
   };
 
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const uploadImageFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (fileArray.length === 0) return;
 
     const remainingSlots = 9 - imageList.length;
     if (remainingSlots <= 0) {
@@ -351,7 +355,7 @@ function CreateOfferContent() {
       return;
     }
 
-    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+    const selectedFiles = fileArray.slice(0, remainingSlots);
     setUploadingImages(true);
     setError(null);
 
@@ -374,6 +378,15 @@ function CreateOfferContent() {
       setError('Nepodařilo se nahrát obrázky: ' + (err.message || 'Zkuste to prosím znovu.'));
     } finally {
       setUploadingImages(false);
+    }
+  };
+
+  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    try {
+      await uploadImageFiles(files);
+    } finally {
       e.target.value = '';
     }
   };
@@ -383,13 +396,45 @@ function CreateOfferContent() {
   };
 
   const handleMoveImage = (from: number, to: number) => {
-    if (to < 0 || to >= imageList.length) return;
+    if (from === to || from < 0 || to < 0) return;
     setImageList((prev) => {
+      if (to >= prev.length) return prev;
       const copy = [...prev];
       const item = copy.splice(from, 1)[0];
       copy.splice(to, 0, item);
       return copy;
     });
+  };
+
+  const clearPhotoDrag = () => {
+    dragFromRef.current = null;
+    setDragFromIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handlePhotoDragStart = (index: number, e: React.DragEvent) => {
+    dragFromRef.current = index;
+    setDragFromIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handlePhotoDragOver = (index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) setDragOverIndex(index);
+  };
+
+  const handlePhotoDrop = (toIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    const from =
+      dragFromRef.current ??
+      (e.dataTransfer.getData('text/plain')
+        ? Number(e.dataTransfer.getData('text/plain'))
+        : null);
+    clearPhotoDrag();
+    if (from == null || Number.isNaN(from)) return;
+    handleMoveImage(from, toIndex);
   };
 
   // Filtered and grouped categories
@@ -620,7 +665,31 @@ function CreateOfferContent() {
               </div>
 
               {/* Upload Dropzone */}
-              <div className="relative">
+              <div
+                className="relative"
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  if (uploadingImages || imageList.length >= 9) return;
+                  if (e.dataTransfer.types.includes('Files')) setDropzoneActive(true);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.types.includes('Files')) e.dataTransfer.dropEffect = 'copy';
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDropzoneActive(false);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDropzoneActive(false);
+                  if (uploadingImages || imageList.length >= 9) return;
+                  if (e.dataTransfer.files?.length) {
+                    void uploadImageFiles(e.dataTransfer.files);
+                  }
+                }}
+              >
                 <input
                   type="file"
                   id="image_file_input"
@@ -634,6 +703,8 @@ function CreateOfferContent() {
                   className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 sm:p-8 text-center transition-all ${
                     uploadingImages
                       ? 'border-emerald-500 bg-emerald-50/50'
+                      : dropzoneActive
+                      ? 'border-emerald-500 bg-emerald-50 scale-[1.01]'
                       : imageList.length >= 9
                       ? 'border-slate-200 bg-slate-50 opacity-60'
                       : 'border-slate-300 hover:border-slate-500 bg-slate-50/60 hover:bg-slate-50'
@@ -653,6 +724,8 @@ function CreateOfferContent() {
                       <p className="text-sm font-bold text-slate-800">
                         {imageList.length >= 9
                           ? 'Dosažen maximální počet 9 fotografií'
+                          : dropzoneActive
+                          ? 'Pusťte fotografie sem'
                           : 'Vyberte fotografie z mobilu / počítače'}
                       </p>
                       <p className="text-xs text-slate-500 mt-1 max-w-sm">
@@ -666,17 +739,32 @@ function CreateOfferContent() {
               {/* Náhledy fotografií */}
               {imageList.length > 0 && (
                 <div className="mt-4">
+                  <p className="mb-2 text-xs text-slate-500">
+                    Přetáhněte fotky pro změnu pořadí. První = hlavní.
+                  </p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                     {imageList.map((url, index) => (
                       <div
-                        key={index}
-                        className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-200/90 bg-slate-100 shadow-2xs"
+                        key={`${url}-${index}`}
+                        draggable={!uploadingImages}
+                        onDragStart={(e) => handlePhotoDragStart(index, e)}
+                        onDragOver={(e) => handlePhotoDragOver(index, e)}
+                        onDrop={(e) => handlePhotoDrop(index, e)}
+                        onDragEnd={clearPhotoDrag}
+                        className={`group relative aspect-square rounded-2xl overflow-hidden border bg-slate-100 shadow-2xs cursor-grab active:cursor-grabbing touch-none select-none transition-all ${
+                          dragFromIndex === index
+                            ? 'opacity-40 border-emerald-400 scale-95'
+                            : dragOverIndex === index
+                            ? 'border-emerald-500 ring-2 ring-emerald-400/60 scale-[1.03]'
+                            : 'border-slate-200/90'
+                        }`}
                       >
                         <Image
                           src={url}
                           alt={`Fotografie ${index + 1}`}
                           fill
-                          className="object-cover"
+                          draggable={false}
+                          className="object-cover pointer-events-none"
                         />
 
                         {/* Badge pro hlavní foto */}
@@ -686,12 +774,19 @@ function CreateOfferContent() {
                           </div>
                         )}
 
+                        <div className="absolute top-1.5 right-1.5 rounded-md bg-slate-950/55 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-70 group-hover:opacity-100">
+                          {index + 1}
+                        </div>
+
                         {/* Překryv s akcemi */}
                         <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
                           {index > 0 && (
                             <button
                               type="button"
-                              onClick={() => handleMoveImage(index, index - 1)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveImage(index, index - 1);
+                              }}
                               title="Posunout dopředu"
                               className="h-7 w-7 rounded-lg bg-white/90 text-slate-900 font-bold hover:bg-white text-xs flex items-center justify-center shadow-xs"
                             >
@@ -700,7 +795,10 @@ function CreateOfferContent() {
                           )}
                           <button
                             type="button"
-                            onClick={() => handleRemoveImage(index)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveImage(index);
+                            }}
                             title="Smazat fotografii"
                             className="h-7 w-7 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-700 text-xs flex items-center justify-center shadow-xs"
                           >
@@ -709,7 +807,10 @@ function CreateOfferContent() {
                           {index < imageList.length - 1 && (
                             <button
                               type="button"
-                              onClick={() => handleMoveImage(index, index + 1)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveImage(index, index + 1);
+                              }}
                               title="Posunout dozadu"
                               className="h-7 w-7 rounded-lg bg-white/90 text-slate-900 font-bold hover:bg-white text-xs flex items-center justify-center shadow-xs"
                             >
