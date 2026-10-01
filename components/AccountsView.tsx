@@ -1,353 +1,345 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { User, ShopConfigData } from '@/lib/types';
+import { getUsers, getUserShop } from '@/lib/api';
+import { resolvePairedUserAccounts } from '@/lib/sellerAccounts';
+import SellerAccountSwitcher from '@/components/SellerAccountSwitcher';
+import BazosAccountsModal from './accounts/BazosAccountsModal';
+import SbazarAccountsModal from './accounts/SbazarAccountsModal';
+import CustomShopModal from './accounts/CustomShopModal';
+import ShoptetImportModal from './accounts/ShoptetImportModal';
+import ShopifyImportModal from './accounts/ShopifyImportModal';
+import ComingSoonModal from './accounts/ComingSoonModal';
 
-export type ChannelCategory = 'all' | 'portals' | 'marketplaces' | 'eshops' | 'comparators';
-export type ChannelStatus = 'connected' | 'ready' | 'planned';
+export type ChannelCategory = 'all' | 'portals' | 'eshops' | 'marketplaces' | 'comparators';
 
 export interface ChannelItem {
   id: string;
   name: string;
-  category: 'portals' | 'marketplaces' | 'eshops' | 'comparators';
+  category: 'portals' | 'eshops' | 'marketplaces' | 'comparators';
   categoryLabel: string;
-  brandColor: string;
-  bgLight: string;
-  status: ChannelStatus;
+  isReady: boolean;
   statusLabel: string;
   tagline: string;
   shortDesc: string;
   tags: string[];
-  config: {
-    username?: string;
-    email?: string;
-    phone?: string;
-    apiKey?: string;
-    shopUrl?: string;
-    feedUrl?: string;
-    availabilityFeedUrl?: string;
-    bkod?: string;
-    autoTop?: boolean;
-    autoRenew?: boolean;
-    syncStock?: boolean;
-    syncOrders?: boolean;
-    location?: string;
-    zipcode?: string;
-  };
 }
 
-// Pořadí: 1 Bazoš → 2 Sbazar → 3 Vlastní e-shop → 4 Google → 5 Facebook → 6 Aukro → 7 Shopify → 8 Shoptet → 9 Allegro → ostatní
 const ALL_CHANNELS: ChannelItem[] = [
-  // 1. BAZOŠ.CZ / SK
+  // 1. BAZOŠ.CZ / SK - AKTIVNÍ
   {
     id: 'bazos',
     name: 'Bazoš.cz / SK',
     category: 'portals',
     categoryLabel: 'Inzertní portál',
-    brandColor: '#F59E0B',
-    bgLight: 'bg-amber-500/10 text-amber-700 border-amber-200/80',
-    status: 'connected',
+    isReady: true,
     statusLabel: 'Aktivní synchronizace',
-    tagline: 'Přímý prodej bez provizí',
-    shortDesc: 'Nejvyšší obrat použitého zboží v ČR a SK. Přímé telefonické i e-mailové poptávky, nulové transakční poplatky.',
-    tags: ['0 % provize', 'Přímý kontakt', 'Auto-TOP'],
-    config: {
-      username: 'Centrální prodejce',
-      email: 'prodej@sellin.cz',
-      phone: '+420 777 000 111',
-      bkod: 'B-84920',
-      autoTop: true,
-      autoRenew: true,
-      syncStock: true,
-      location: 'Praha',
-      zipcode: '100 00',
-    },
+    tagline: 'Přímý prodej bez provizí • B-kód autorizace',
+    shortDesc: 'Nejvyšší obrat inzerce v ČR a SK. Přímé telefonické i e-mailové poptávky, nulové transakční poplatky a okamžitá obnova.',
+    tags: ['0 % provize', 'B-kód autorizace', 'Auto-TOP', 'CZ & SK'],
   },
 
-  // 2. SBAZAR.CZ
+  // 2. SBAZAR.CZ - AKTIVNÍ
   {
     id: 'sbazar',
     name: 'Sbazar.cz',
     category: 'portals',
     categoryLabel: 'Inzertní portál',
-    brandColor: '#DC2626',
-    bgLight: 'bg-rose-500/10 text-rose-700 border-rose-200/80',
-    status: 'connected',
+    isReady: true,
     statusLabel: 'Aktivní synchronizace',
     tagline: 'Bezplatná inzerce na Seznamu',
-    shortDesc: 'Silný regionální dosah z vyhledávání Seznam.cz. Přímý kontakt se zájemci bez transakčních srážek.',
-    tags: ['0 % provize', 'Seznam.cz', 'Auto-obnova'],
-    config: {
-      email: 'seznam.prodej@sellin.cz',
-      shopUrl: 'https://sbazar.cz/sellin-pneu',
-      syncStock: true,
-      autoRenew: true,
-      location: 'Praha',
-      zipcode: '100 00',
-    },
+    shortDesc: 'Silný regionální dosah z vyhledávání Seznam.cz. Přímý kontakt se zájemci bez transakčních srážek s podporou Cookie DS.',
+    tags: ['0 % provize', 'Seznam.cz', 'Cookie DS', 'Auto-obnova'],
   },
 
-  // 3. VLASTNÍ E-SHOP (STOREFRONT)
+  // 3. VLASTNÍ E-SHOP (STOREFRONT) - AKTIVNÍ
   {
     id: 'sellin-shop',
     name: 'Vlastní E-shop (Storefront)',
     category: 'eshops',
     categoryLabel: 'Vlastní e-shop',
-    brandColor: '#10B981',
-    bgLight: 'bg-emerald-500/10 text-emerald-800 border-emerald-200/80',
-    status: 'connected',
+    isReady: true,
     statusLabel: 'Aktivní storefront',
-    tagline: 'Přímý prodej se 100% marží',
-    shortDesc: 'Plná marže bez zprostředkovatelských provizí. Přímý nákup přes webový košík a budování vlastní zákaznické báze.',
-    tags: ['100 % marže', 'Online košík', 'Vlastní zákazníci'],
-    config: {
-      shopUrl: '/shop',
-      syncStock: true,
-      syncOrders: true,
-    },
+    tagline: 'Přímý prodej se 100% marží na vlastní doméně',
+    shortDesc: 'Plná marže bez zprostředkovatelských provizí. Přímý nákup přes webový košík, vlastní doména a napojení všech skladů.',
+    tags: ['100 % marže', 'Vlastní doména', 'Online košík', 'Centrální sklad'],
   },
 
-  // 4. GOOGLE NÁKUPY
-  {
-    id: 'google-shopping',
-    name: 'Google Nákupy',
-    category: 'comparators',
-    categoryLabel: 'Google Ads & PMax',
-    brandColor: '#4285F4',
-    bgLight: 'bg-sky-500/10 text-sky-700 border-sky-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Výkonnostní kampaně ve vyhledávání',
-    shortDesc: 'Zobrazení produktů ve vyhledávači se štítkem used/refurbished. Cílený nákupní záměr přímo do vašeho e-shopu.',
-    tags: ['Google Merchant', 'Used / Refurbished', 'PMax kampaně'],
-    config: {
-      feedUrl: 'https://sellin.cz/api/feeds/google-merchant.xml',
-      syncStock: true,
-    },
-  },
-
-  // 5. FACEBOOK MARKETPLACE
-  {
-    id: 'facebook',
-    name: 'Facebook Marketplace',
-    category: 'marketplaces',
-    categoryLabel: 'Sociální inzerce',
-    brandColor: '#1877F2',
-    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Lokální poptávka bez poplatků',
-    shortDesc: 'Rychlý lokální odbyt bez prodejních provizí. Poptávky přímo do Messengeru a okamžitý osobní odběr.',
-    tags: ['0 % provize', 'Messenger chat', 'Lokální odběr'],
-    config: {
-      feedUrl: 'https://sellin.cz/api/feeds/meta-catalog.xml',
-      syncStock: true,
-    },
-  },
-
-  // 6. AUKRO.CZ
-  {
-    id: 'aukro',
-    name: 'Aukro.cz',
-    category: 'portals',
-    categoryLabel: 'Online tržiště',
-    brandColor: '#FF7900',
-    bgLight: 'bg-orange-500/10 text-orange-700 border-orange-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Pevné ceny i aukce s garancí',
-    shortDesc: 'Vysoká důvěra kupujících a ochrana plateb. Rychlý odbyt použitého zboží formou Kup teď i aukcí.',
-    tags: ['Bezpečná platba', 'Kup teď & Aukce', 'API synchronizace'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
-  },
-
-  // 7. SHOPIFY
-  {
-    id: 'shopify',
-    name: 'Shopify',
-    category: 'eshops',
-    categoryLabel: 'E-shop platforma',
-    brandColor: '#008060',
-    bgLight: 'bg-teal-500/10 text-teal-800 border-teal-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Globální e-commerce systém',
-    shortDesc: 'Real-time synchronizace zásob a objednávek s platformou Shopify přes Admin API s podporou více měn.',
-    tags: ['Admin API', 'Webhooky', 'Multi-měna'],
-    config: {
-      shopUrl: 'https://vas-obchod.myshopify.com',
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
-  },
-
-  // 8. SHOPTET
+  // 4. SHOPTET - API IMPORT PŘIPRAVEN
   {
     id: 'shoptet',
     name: 'Shoptet',
     category: 'eshops',
     categoryLabel: 'E-shop platforma',
-    brandColor: '#0284C7',
-    bgLight: 'bg-sky-500/10 text-sky-700 border-sky-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
-    tagline: 'Obousměrné propojení skladu',
-    shortDesc: 'Prodejomat centrálně řídí zásoby a automaticky synchronizuje počty kusů i ceny do vašeho Shoptetu.',
-    tags: ['Obousměrný sklad', 'API doplněk', 'Import objednávek'],
-    config: {
-      shopUrl: 'https://vas-obchod.myshoptet.cz',
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-      feedUrl: 'https://sellin.cz/api/feeds/shoptet-import.xml',
-    },
+    isReady: true,
+    statusLabel: 'API import připraven',
+    tagline: 'Vytažení produktů & Obousměrný sklad',
+    shortDesc: 'Předpřipravené API rozhraní pro vytažení produktů, cen a stavu skladu z existujícího Shoptetu přes kompletní XML feed nebo Partner API.',
+    tags: ['API Import', 'Kompletní XML', 'Obousměrný sklad'],
   },
 
-  // 9. ALLEGRO.CZ
+  // 5. SHOPIFY - API IMPORT PŘIPRAVEN
+  {
+    id: 'shopify',
+    name: 'Shopify',
+    category: 'eshops',
+    categoryLabel: 'E-shop platforma',
+    isReady: true,
+    statusLabel: 'API import připraven',
+    tagline: 'Globální e-commerce systém & Admin API',
+    shortDesc: 'Předpřipravené API rozhraní pro načtení produktů, variant a fotek z existujícího Shopify obchodu přes Shopify Admin REST & GraphQL API.',
+    tags: ['Admin API', 'REST / GraphQL', 'Import produktů'],
+  },
+
+  // 6. GOOGLE NÁKUPY - PŘIPRAVUJEME (ZAŠEDLÉ)
+  {
+    id: 'google-shopping',
+    name: 'Google Nákupy',
+    category: 'comparators',
+    categoryLabel: 'Srovnávač & Ads',
+    isReady: false,
+    statusLabel: 'Připravujeme',
+    tagline: 'Výkonnostní kampaně ve vyhledávání (PMax)',
+    shortDesc: 'Zobrazení produktů ve vyhledávači se štítkem used/refurbished. Cílený nákupní záměr přímo do vašeho e-shopu.',
+    tags: ['Google Merchant', 'PMax kampaně', 'Ve vývoji'],
+  },
+
+  // 7. FACEBOOK MARKETPLACE - PŘIPRAVUJEME (ZAŠEDLÉ)
+  {
+    id: 'facebook',
+    name: 'Facebook Marketplace',
+    category: 'marketplaces',
+    categoryLabel: 'Sociální inzerce',
+    isReady: false,
+    statusLabel: 'Připravujeme',
+    tagline: 'Lokální poptávka bez poplatků',
+    shortDesc: 'Rychlý lokální odbyt bez prodejních provizí. Poptávky přímo do Messengeru a okamžitý osobní odběr v regionu.',
+    tags: ['Messenger chat', 'Lokální odběr', 'Ve vývoji'],
+  },
+
+  // 8. AUKRO.CZ - PŘIPRAVUJEME (ZAŠEDLÉ)
+  {
+    id: 'aukro',
+    name: 'Aukro.cz',
+    category: 'marketplaces',
+    categoryLabel: 'Online tržiště',
+    isReady: false,
+    statusLabel: 'Připravujeme',
+    tagline: 'Pevné ceny i aukce s garancí',
+    shortDesc: 'Vysoká důvěra kupujících a ochrana plateb. Rychlý odbyt použitého zboží formou Kup teď i aukcí se zabezpečenou platbou.',
+    tags: ['Bezpečná platba', 'Kup teď & Aukce', 'Ve vývoji'],
+  },
+
+  // 9. ALLEGRO.CZ - PŘIPRAVUJEME (ZAŠEDLÉ)
   {
     id: 'allegro',
     name: 'Allegro.cz',
     category: 'marketplaces',
     categoryLabel: 'Marketplace',
-    brandColor: '#FF5A00',
-    bgLight: 'bg-orange-500/10 text-orange-800 border-orange-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
+    isReady: false,
+    statusLabel: 'Připravujeme',
     tagline: 'Široký odbyt v ČR a Polsku',
     shortDesc: 'Hromadný odbyt v sekcích Outlet a Použité zboží. Program Allegro Smart zvyšuje konverzi a rychlost prodeje.',
-    tags: ['CZ a PL trh', 'Allegro Smart', 'REST API'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
+    tags: ['CZ a PL trh', 'Allegro Smart', 'Ve vývoji'],
   },
 
-  // 10. VINTED
+  // 10. VINTED - PŘIPRAVUJEME (ZAŠEDLÉ)
   {
     id: 'vinted',
     name: 'Vinted',
     category: 'portals',
     categoryLabel: 'Second-hand bazar',
-    brandColor: '#09B1BA',
-    bgLight: 'bg-teal-500/10 text-teal-700 border-teal-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
+    isReady: false,
+    statusLabel: 'Připravujeme',
     tagline: 'Second-hand prodej bez poplatků',
     shortDesc: 'Nulové poplatky pro prodejce s integrovanou zlevněnou dopravou. Platba předem garantovaná platformou.',
-    tags: ['0 % prodejci', 'Integrovaná doprava', 'Platba předem'],
-    config: {
-      syncStock: true,
-    },
+    tags: ['0 % poplatky', 'Integrovaná doprava', 'Ve vývoji'],
   },
 
-  // 11. EBAY MOTORS & GOODS
+  // 11. EBAY MOTORS - PŘIPRAVUJEME (ZAŠEDLÉ)
   {
     id: 'ebay',
     name: 'eBay Motors & Goods',
     category: 'marketplaces',
     categoryLabel: 'Globální export',
-    brandColor: '#3B82F6',
-    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
+    isReady: false,
+    statusLabel: 'Připravujeme',
     tagline: 'Export do EU za vyšší EUR ceny',
-    shortDesc: 'Prodej autodílů a zboží do Německa a celé EU. Podstatně vyšší prodejní ceny kompenzují poplatky tržiště.',
-    tags: ['Export v EUR', 'Trh celé EU', 'Vyšší prodejní ceny'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
+    shortDesc: 'Prodej autodílů a zboží do Německa a celé EU. Podstatně vyšší prodejní ceny kompenzují transakční poplatky tržiště.',
+    tags: ['Export v EUR', 'Trh celé EU', 'Ve vývoji'],
   },
 
-  // 12. KAUFLAND GLOBAL
+  // 12. KAUFLAND GLOBAL - PŘIPRAVUJEME (ZAŠEDLÉ)
   {
     id: 'kaufland',
     name: 'Kaufland Global',
     category: 'marketplaces',
     categoryLabel: 'Marketplace',
-    brandColor: '#E10915',
-    bgLight: 'bg-red-500/10 text-red-700 border-red-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
+    isReady: false,
+    statusLabel: 'Připravujeme',
     tagline: 'Zákaznická báze v CZ, SK a DE',
     shortDesc: 'Vhodné pro outlet, repasy a nadnormativní zásoby. Automatická rezervace skladu a zajištěné platby.',
-    tags: ['CZ, SK & DE', 'Katalog Kaufland', 'Zajištěné platby'],
-    config: {
-      apiKey: '',
-      syncStock: true,
-      syncOrders: true,
-    },
+    tags: ['CZ, SK & DE', 'Katalog Kaufland', 'Ve vývoji'],
   },
 
-  // 13. ZBOŽÍ.CZ
+  // 13. ZBOŽÍ.CZ - PŘIPRAVUJEME (ZAŠEDLÉ)
   {
     id: 'zbozi',
     name: 'Zboží.cz',
     category: 'comparators',
     categoryLabel: 'Srovnávač cen',
-    brandColor: '#DC2626',
-    bgLight: 'bg-red-500/10 text-red-700 border-red-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
+    isReady: false,
+    statusLabel: 'Připravujeme',
     tagline: 'PPC z vyhledávání Seznamu',
     shortDesc: 'Akvizice zákazníků ze srovnávače Seznam.cz s přímou podporou sekce bazarového a rozbaleného zboží.',
-    tags: ['Seznam Nákupy', 'Bazarová sekce', 'Zboží XML'],
-    config: {
-      feedUrl: 'https://sellin.cz/api/feeds/zbozi.xml',
-      apiKey: '',
-      syncStock: true,
-    },
+    tags: ['Seznam Nákupy', 'Bazarová sekce', 'Ve vývoji'],
   },
 
-  // 14. HEUREKA.CZ / SK
+  // 14. HEUREKA.CZ / SK - PŘIPRAVUJEME (ZAŠEDLÉ)
   {
     id: 'heureka',
     name: 'Heureka.cz / SK',
     category: 'comparators',
     categoryLabel: 'Srovnávač cen',
-    brandColor: '#2563EB',
-    bgLight: 'bg-blue-500/10 text-blue-700 border-blue-200/80',
-    status: 'ready',
-    statusLabel: 'Připraveno k napojení',
+    isReady: false,
+    statusLabel: 'Připravujeme',
     tagline: 'Produktový a dostupnostní srovnávač',
     shortDesc: 'Generování produktového XML a depo feedu. Efektivní pro standardizované skladové položky a autodíly.',
-    tags: ['Produktový feed', 'Dostupnostní depo', 'Měření konverzí'],
-    config: {
-      feedUrl: 'https://sellin.cz/api/feeds/heureka.xml',
-      availabilityFeedUrl: 'https://sellin.cz/api/feeds/heureka-dostupnost.xml',
-      apiKey: '',
-      syncStock: true,
-    },
+    tags: ['Produktový feed', 'Dostupnostní depo', 'Ve vývoji'],
   },
 ];
 
 const CATEGORIES: { id: ChannelCategory; label: string; icon: string }[] = [
   { id: 'all', label: 'Všechny kanály', icon: '⚡' },
   { id: 'portals', label: 'Inzerce & Bazary', icon: '🏷️' },
-  { id: 'marketplaces', label: 'Marketplaces & Sítě', icon: '🛍️' },
   { id: 'eshops', label: 'E-shopy & Platformy', icon: '🌐' },
+  { id: 'marketplaces', label: 'Marketplaces', icon: '🛍️' },
   { id: 'comparators', label: 'Srovnávače cen', icon: '📊' },
 ];
 
 export default function AccountsView() {
-  const [channels, setChannels] = useState<ChannelItem[]>(ALL_CHANNELS);
   const [activeCategory, setActiveCategory] = useState<ChannelCategory>('all');
   const [search, setSearch] = useState('');
   const [selectedChannel, setSelectedChannel] = useState<ChannelItem | null>(null);
-  const [copiedFeed, setCopiedFeed] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [testing, setTesting] = useState(false);
-  const [testSuccess, setTestSuccess] = useState(false);
 
+  // Users & seller data
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+  const [myEmail, setMyEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [shopConfig, setShopConfig] = useState<ShopConfigData | null>(null);
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        setLoading(true);
+
+        // 1. Get current auth user
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        const authEmail = authUser?.email || null;
+        if (isMounted) setMyEmail(authEmail);
+
+        // 2. Fetch all credentials
+        const users = await getUsers();
+        if (isMounted) setAllUsers(users);
+
+        // 3. Determine if admin
+        let userIsAdmin = false;
+        if (authUser) {
+          const { data: userCreds } = await supabase
+            .from('credential_pg')
+            .select('role')
+            .or(`user_id.eq.${authUser.id},email.ilike.${authEmail}`)
+            .eq('role', 'admin')
+            .limit(1);
+
+          userIsAdmin = Boolean(userCreds && userCreds.length > 0);
+        }
+        if (isMounted) setIsAdmin(userIsAdmin);
+
+        // 4. Default seller email:
+        // If user is seller -> their email.
+        // If admin -> default to duplux@seznam.cz or first seller in DB.
+        let defaultSellerEmail = 'duplux@seznam.cz';
+        if (authEmail && !userIsAdmin) {
+          defaultSellerEmail = authEmail;
+        } else {
+          // Check if duplux exists in users
+          const duplux = users.find((u) => u.email?.toLowerCase().includes('duplux'));
+          if (duplux) {
+            defaultSellerEmail = duplux.email;
+          } else if (users.length > 0) {
+            defaultSellerEmail = users[0].email;
+          }
+        }
+
+        if (isMounted) setCurrentEmail(defaultSellerEmail);
+
+        // 5. Load shop info for this seller
+        try {
+          const shopRes = await getUserShop(`?seller=${encodeURIComponent(defaultSellerEmail)}`);
+          if (isMounted && shopRes.shop) {
+            setShopConfig(shopRes.shop);
+          }
+        } catch (e) {
+          console.error('Failed to load shop in AccountsView:', e);
+        }
+      } catch (err) {
+        console.error('Failed to initialize AccountsView:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Compute paired subaccounts for the active seller
+  const pairedAccounts = useMemo(() => {
+    if (!currentEmail || allUsers.length === 0) return [];
+    return resolvePairedUserAccounts(currentEmail, allUsers);
+  }, [currentEmail, allUsers]);
+
+  // When switcher changes seller
+  const handleSelectSeller = (user: User | null, customEmail?: string) => {
+    const newEmail = user ? user.email : customEmail || myEmail || 'duplux@seznam.cz';
+    setCurrentEmail(newEmail);
+
+    // Refresh shop for new seller
+    getUserShop(`?seller=${encodeURIComponent(newEmail)}`)
+      .then((res) => {
+        setShopConfig(res.shop || null);
+      })
+      .catch((err) => console.error(err));
+  };
+
+  // Callback when an account is updated in Bazos/Sbazar modals
+  const handleAccountUpdated = (updatedAccount: User) => {
+    setAllUsers((prev) =>
+      prev.map((u) => (u.id === updatedAccount.id ? { ...u, ...updatedAccount } : u))
+    );
+  };
+
+  const handleAccountCreated = (newAccount: User) => {
+    setAllUsers((prev) => [newAccount, ...prev]);
+  };
+
+  // Filter channels by category & search query
   const filteredChannels = useMemo(() => {
-    return channels.filter((c) => {
+    return ALL_CHANNELS.filter((c) => {
       if (activeCategory !== 'all') {
         if (c.category !== activeCategory) return false;
       }
@@ -361,80 +353,54 @@ export default function AccountsView() {
         c.tags.some((t) => t.toLowerCase().includes(q))
       );
     });
-  }, [channels, activeCategory, search]);
+  }, [activeCategory, search]);
 
   const stats = useMemo(() => {
-    const connected = channels.filter((c) => c.status === 'connected').length;
-    const total = channels.length;
-    return { connected, total };
-  }, [channels]);
-
-  const showNotification = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const copyUrl = (url: string, title: string) => {
-    if (navigator?.clipboard) {
-      navigator.clipboard.writeText(url);
-      setCopiedFeed(title);
-      showNotification(`URL feedu pro ${title} byla zkopírována!`);
-      setTimeout(() => setCopiedFeed(null), 2500);
-    }
-  };
-
-  const handleTest = () => {
-    setTesting(true);
-    setTestSuccess(false);
-    setTimeout(() => {
-      setTesting(false);
-      setTestSuccess(true);
-    }, 1100);
-  };
-
-  const saveConfig = (updated: ChannelItem) => {
-    setChannels((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-    setSelectedChannel(null);
-    showNotification(`Nastavení pro ${updated.name} bylo uloženo`);
-  };
+    const ready = ALL_CHANNELS.filter((c) => c.isReady).length;
+    const total = ALL_CHANNELS.length;
+    return { ready, total, pairedCount: pairedAccounts.length };
+  }, [pairedAccounts]);
 
   return (
     <div className="pb-16">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-2xl border border-slate-900 bg-slate-950 px-4 py-3 text-xs font-semibold text-white shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">
-            ✓
-          </span>
-          <span>{toast}</span>
-        </div>
-      )}
-
-      {/* Top Clean Header */}
+      {/* Top Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Centrální synchronizace skladu
+              Centrální správa napojení
             </span>
-            <span className="text-xs font-semibold text-slate-400">
-              {stats.connected} z {stats.total} aktivní
+
+            <span className="text-xs font-semibold text-slate-500">
+              {stats.ready} kanálů aktivních / připravených • {stats.pairedCount} spárovaných subúčtů
             </span>
           </div>
+
           <h1 className="mt-1.5 text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
-            Prodejní kanály & Integrace
+            Napojení účtů a prodejních kanálů
           </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-            Centrální sklad propojený na prodejní kanály – od přímé inzerce přes vlastní e-shop až po tržiště a srovnávače.
+          <p className="mt-0.5 text-xs sm:text-sm text-slate-500 max-w-3xl">
+            Správa přihlašovacích credentials pro Bazoš, Sbazar a vlastní e-shop. Vyberte kanál pro úpravu B-kódů a údajů jednotlivých subúčtů.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Seller / Account Switcher */}
+          {isAdmin && (
+            <div className="shrink-0">
+              <SellerAccountSwitcher
+                currentEmail={currentEmail}
+                myEmail={myEmail}
+                onSelectAccount={handleSelectSeller}
+              />
+            </div>
+          )}
+
           <Link
             href="/shop"
             target="_blank"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-50 transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-50 transition-all active:scale-95"
           >
             <span>🛍️ Vlastní E-shop</span>
             <span className="text-slate-400">↗</span>
@@ -449,15 +415,52 @@ export default function AccountsView() {
         </div>
       </div>
 
+      {/* Seller Subaccounts Banner */}
+      <div className="mb-6 rounded-2xl border border-slate-200/90 bg-linear-to-r from-slate-900 via-slate-950 to-slate-900 p-4 sm:p-5 text-white shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="rounded-md bg-amber-500/20 border border-amber-400/30 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                AKTIVNÍ PRODEJCE
+              </span>
+              <span className="text-xs font-bold text-slate-300 font-mono">{currentEmail}</span>
+            </div>
+            <h3 className="text-sm sm:text-base font-black text-white">
+              Nalezeno {pairedAccounts.length} spárovaných subúčtů v centrální databázi
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-300">
+              Všechny tyto účty sdílejí napojení a můžete je spravovat kliknutím na Bazoš nebo Sbazar.
+            </p>
+          </div>
+
+          {/* Quick Subaccounts chips preview */}
+          <div className="flex flex-wrap items-center gap-1.5 max-w-xl">
+            {pairedAccounts.slice(0, 7).map((acc) => (
+              <span
+                key={acc.id}
+                className="rounded-lg bg-white/10 border border-white/10 px-2 py-1 text-[11px] font-medium text-slate-200"
+                title={`${acc.email} • ${acc.telephone1 || ''}`}
+              >
+                {acc.bazos_name || acc.email.split('@')[0]}
+              </span>
+            ))}
+            {pairedAccounts.length > 7 && (
+              <span className="rounded-lg bg-white/20 px-2 py-1 text-[11px] font-bold text-white">
+                +{pairedAccounts.length - 7} dalších
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Category Pills & Search */}
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
           {CATEGORIES.map((cat) => {
             const count =
               cat.id === 'all'
-                ? channels.length
-                : channels.filter((c) => c.category === cat.id).length;
-
+                ? ALL_CHANNELS.length
+                : ALL_CHANNELS.filter((c) => c.category === cat.id).length;
             const isActive = activeCategory === cat.id;
 
             return (
@@ -468,7 +471,7 @@ export default function AccountsView() {
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-slate-950 text-white shadow-xs'
-                    : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
                 }`}
               >
                 <span>{cat.icon}</span>
@@ -485,33 +488,21 @@ export default function AccountsView() {
           })}
         </div>
 
-        {/* Compact Search */}
-        <div className="relative w-full md:w-64">
-          <svg
-            className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+        {/* Search */}
+        <div className="relative w-full md:w-72">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
           <input
-            type="search"
+            type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Hledat kanál nebo platformu..."
-            className="w-full rounded-xl border border-slate-200/90 bg-white py-1.5 pl-8 pr-8 text-xs font-medium text-slate-950 shadow-2xs outline-none focus:border-slate-400 transition-all placeholder:text-slate-400"
+            className="w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs text-slate-950 placeholder:text-slate-400 shadow-2xs focus:border-slate-400 outline-none"
           />
           {search && (
             <button
               type="button"
               onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 font-bold"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-600"
             >
               ✕
             </button>
@@ -519,78 +510,132 @@ export default function AccountsView() {
         </div>
       </div>
 
-      {/* Grid of Clean, Visual Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+      {/* Grid of Channels */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredChannels.map((channel) => {
-          const isConnected = channel.status === 'connected';
+          const isReady = channel.isReady;
+
+          // Badges and stats
+          let dynamicBadge = channel.statusLabel;
+          let dynamicBadgeStyle = 'bg-slate-100 text-slate-600 border-slate-200';
+
+          if (channel.id === 'bazos') {
+            dynamicBadge = `Aktivní (${pairedAccounts.length} účtů)`;
+            dynamicBadgeStyle = 'bg-amber-50 text-amber-900 border-amber-200 font-bold';
+          } else if (channel.id === 'sbazar') {
+            dynamicBadge = `Aktivní (${pairedAccounts.length} účtů)`;
+            dynamicBadgeStyle = 'bg-red-50 text-red-900 border-red-200 font-bold';
+          } else if (channel.id === 'sellin-shop') {
+            dynamicBadge = shopConfig?.is_active ? 'Aktivní storefront' : 'Vlastní storefront';
+            dynamicBadgeStyle = 'bg-emerald-50 text-emerald-900 border-emerald-200 font-bold';
+          } else if (channel.id === 'shoptet' || channel.id === 'shopify') {
+            dynamicBadge = 'API Import připraven';
+            dynamicBadgeStyle = 'bg-sky-50 text-sky-900 border-sky-200 font-bold';
+          } else {
+            dynamicBadge = 'Připravujeme';
+            dynamicBadgeStyle = 'bg-slate-100 text-slate-500 border-slate-200 font-medium';
+          }
 
           return (
             <div
               key={channel.id}
-              onClick={() => {
-                setTestSuccess(false);
-                setSelectedChannel(channel);
-              }}
-              className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs hover:border-slate-300 hover:shadow-md transition-all duration-150 cursor-pointer"
+              onClick={() => setSelectedChannel(channel)}
+              className={`group relative flex flex-col justify-between rounded-3xl p-5 cursor-pointer transition-all duration-200 ${
+                isReady
+                  ? 'border border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 shadow-2xs'
+                  : 'border border-dashed border-slate-300 bg-slate-50/60 opacity-70 saturate-50 hover:opacity-90 hover:saturate-85 hover:border-slate-400 hover:bg-white shadow-none'
+              }`}
             >
+              {/* Card Header */}
               <div>
-                {/* Header Row: Logo + Status */}
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2.5">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3">
                     <ChannelLogo channelId={channel.id} name={channel.name} />
                     <div>
-                      <h3 className="font-bold text-sm sm:text-base text-slate-950 leading-tight group-hover:text-blue-600 transition-colors">
+                      <h3 className="text-base font-black text-slate-950 group-hover:text-slate-900">
                         {channel.name}
                       </h3>
-                      <span className="text-[11px] font-medium text-slate-400">
-                        {channel.categoryLabel}
-                      </span>
+                      <p className="text-[11px] text-slate-400 font-medium">{channel.categoryLabel}</p>
                     </div>
                   </div>
 
-                  {isConnected && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Aktivní</span>
-                    </span>
-                  )}
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] ${dynamicBadgeStyle}`}
+                  >
+                    {isReady && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                    <span>{dynamicBadge}</span>
+                  </span>
                 </div>
 
-                {/* 1-Line Tagline & Short Desc */}
-                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-3">
+                <p className="text-xs font-semibold text-slate-800 mb-1 leading-snug">
+                  {channel.tagline}
+                </p>
+                <p className="text-[11px] text-slate-500 leading-relaxed mb-4">
                   {channel.shortDesc}
                 </p>
+              </div>
 
-                {/* Visual Minimal Tags */}
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {channel.tags.map((tag) => (
+              {/* Card Footer */}
+              <div>
+                {/* Specific Preview Badges for Active Channels */}
+                {channel.id === 'bazos' && (
+                  <div className="mb-3 rounded-xl bg-amber-50/60 border border-amber-200/60 p-2.5 text-[11px] text-amber-900">
+                    <span className="font-bold block mb-0.5">Spárované Bazoš účty:</span>
+                    <span className="text-amber-800/90 line-clamp-1">
+                      {pairedAccounts.map((a) => a.bazos_name || a.email.split('@')[0]).join(', ') || 'Žádné účty'}
+                    </span>
+                  </div>
+                )}
+
+                {channel.id === 'sbazar' && (
+                  <div className="mb-3 rounded-xl bg-red-50/60 border border-red-200/60 p-2.5 text-[11px] text-red-900">
+                    <span className="font-bold block mb-0.5">Seznam přihlášení:</span>
+                    <span className="font-mono text-red-800/90">{currentEmail}</span>
+                  </div>
+                )}
+
+                {channel.id === 'sellin-shop' && (
+                  <div className="mb-3 rounded-xl bg-emerald-50/60 border border-emerald-200/60 p-2.5 text-[11px] text-emerald-900">
+                    <span className="font-bold block mb-0.5">
+                      {shopConfig?.shop_name || 'Alu Bazar Plzeň'}
+                    </span>
+                    <span className="font-mono text-emerald-800/90">
+                      {shopConfig?.custom_domain || '/shop'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Tags */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                  {channel.tags.map((t) => (
                     <span
-                      key={tag}
-                      className="inline-flex items-center rounded-md bg-slate-50 border border-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
+                      key={t}
+                      className="rounded-lg bg-slate-100/90 px-2 py-0.5 text-[10px] font-bold text-slate-600"
                     >
-                      {tag}
+                      {t}
                     </span>
                   ))}
                 </div>
-              </div>
 
-              {/* Bottom Action Strip */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-[11px] font-semibold text-slate-400">
-                  {isConnected ? '● Synchronizováno' : 'K napojení'}
-                </span>
-
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                    isConnected
-                      ? 'bg-slate-100 text-slate-800 group-hover:bg-slate-900 group-hover:text-white'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-transparent'
-                  }`}
-                >
-                  <span>{isConnected ? 'Spravovat' : '+ Napojit'}</span>
-                  <span className="text-[10px]">→</span>
-                </button>
+                {/* Action Row */}
+                <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold">
+                  {isReady ? (
+                    <>
+                      <span className="text-slate-800 group-hover:text-slate-950 flex items-center gap-1">
+                        <span>Upravit credentials & napojení</span>
+                        <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                      </span>
+                      <span className="text-slate-400 text-[11px]">Nastavit</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-slate-400 flex items-center gap-1">
+                        <span>Integrace ve vývoji</span>
+                      </span>
+                      <span className="text-slate-400 text-[11px]">Více info ↗</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -603,15 +648,15 @@ export default function AccountsView() {
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 mb-1.5">
               <span className="rounded-md bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                MULTIKANÁLOVÁ SYNCHRONIZACE
+                MULTIKANÁLOVÝ CENTRÁLNÍ ENGINE
               </span>
-              <span className="text-xs text-slate-400">Automatický odpočet skladu v reálném čase</span>
+              <span className="text-xs text-slate-400">Jeden centrální sklad pro všechny kanály</span>
             </div>
             <h3 className="text-base sm:text-lg font-black text-white">
-              Jeden sklad pro všechny prodejní kanály bez duplicit
+              Vložte nabídku jednou – Prodejomat ji rozešle na všechny vaše účty
             </h3>
             <p className="mt-1 text-xs text-slate-300 leading-relaxed">
-              Položku zadáte jednou. Prodejomat ji propíše na vybrané kanály a jakmile se prodá, okamžitě ji odepíše ze skladu a stáhne z ostatních portálů.
+              Položku zadáte jednou. Prodejomat ji propíše na vybrané kanály (Bazoš, Sbazar, vlastní e-shop) a jakmile se prodá, okamžitě ji odepíše ze skladu a stáhne z ostatních portálů.
             </p>
           </div>
 
@@ -620,30 +665,61 @@ export default function AccountsView() {
               href="/create"
               className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-950 hover:bg-slate-100 transition-all shadow-xs"
             >
-              <span>+ Vložit nabídku</span>
+              <span>+ Vložit novou nabídku</span>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Clean Interactive Modal */}
-      {selectedChannel && (
-        <ChannelModal
-          channel={selectedChannel}
+      {/* Active Modals */}
+      {selectedChannel?.id === 'bazos' && (
+        <BazosAccountsModal
           onClose={() => setSelectedChannel(null)}
-          onSave={saveConfig}
-          onCopy={copyUrl}
-          copiedFeed={copiedFeed}
-          onTest={handleTest}
-          testing={testing}
-          testSuccess={testSuccess}
+          accounts={pairedAccounts}
+          mainEmail={currentEmail || 'duplux@seznam.cz'}
+          onAccountsUpdated={handleAccountUpdated}
+          onAccountCreated={handleAccountCreated}
+        />
+      )}
+
+      {selectedChannel?.id === 'sbazar' && (
+        <SbazarAccountsModal
+          onClose={() => setSelectedChannel(null)}
+          accounts={pairedAccounts}
+          mainEmail={currentEmail || 'duplux@seznam.cz'}
+          onAccountsUpdated={handleAccountUpdated}
+        />
+      )}
+
+      {selectedChannel?.id === 'sellin-shop' && (
+        <CustomShopModal
+          onClose={() => setSelectedChannel(null)}
+          sellerEmail={currentEmail || 'duplux@seznam.cz'}
+          pairedAccounts={pairedAccounts}
+          onShopSaved={(savedShop) => setShopConfig(savedShop)}
+        />
+      )}
+
+      {selectedChannel?.id === 'shoptet' && (
+        <ShoptetImportModal onClose={() => setSelectedChannel(null)} />
+      )}
+
+      {selectedChannel?.id === 'shopify' && (
+        <ShopifyImportModal onClose={() => setSelectedChannel(null)} />
+      )}
+
+      {selectedChannel && !selectedChannel.isReady && (
+        <ComingSoonModal
+          channel={selectedChannel}
+          userEmail={currentEmail || myEmail || ''}
+          onClose={() => setSelectedChannel(null)}
         />
       )}
     </div>
   );
 }
 
-// Logo helper with native authentic original brand icons & SVGs
+// Brand Logos helper
 function ChannelLogo({ channelId, name }: { channelId: string; name: string }) {
   switch (channelId) {
     case 'bazos':
@@ -665,90 +741,7 @@ function ChannelLogo({ channelId, name }: { channelId: string; name: string }) {
     case 'sbazar':
       return (
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#DC2626] shadow-2xs p-1.5 overflow-hidden text-white font-bold" title={name}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://d790-a.sdn.cz/d_790/c_static_p8_A/kY1K2LlXQDnuVLFOMF5AcTA/6084/favicons/favicon.svg"
-            alt="Sbazar"
-            className="w-full h-full object-contain"
-            loading="lazy"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
-              if (fallback) fallback.style.display = 'flex';
-            }}
-          />
-          <div style={{ display: 'none' }} className="w-full h-full items-center justify-center text-xs tracking-tighter">
-            Sbazar
-          </div>
-        </div>
-      );
-
-    case 'aukro':
-      return (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0055A5] shadow-2xs overflow-hidden" title={name}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://aukro.cz/assets/icon/pwa/icon-128x128.png"
-            alt="Aukro"
-            className="w-full h-full object-contain p-0.5"
-            loading="lazy"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
-              if (fallback) fallback.style.display = 'flex';
-            }}
-          />
-          <div style={{ display: 'none' }} className="w-full h-full items-center justify-center text-[10px] font-black text-white tracking-tight">
-            aukro
-          </div>
-        </div>
-      );
-
-    case 'vinted':
-      return (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#09B1BA] shadow-2xs p-2 text-white" title={name}>
-          <svg role="img" viewBox="0 0 24 24" className="w-full h-full fill-white" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19.316 0c-.258 0-.571.217-1.415.953-.3.108-.627.027-1.008.613-2.15 3.09-3.825 14.648-5.255 17.984-.286-1.444-.885-10.837-1.116-13.41-.028-.477.027-1.076.027-1.43 0-2.368-.516-3.567-2.886-3.567-1.198 0-2.382.436-3.008 1.226-.299.408-.409.708-.409 1.443 0 4.915 1.171 12.973 2.478 18.228C7.132 23.688 8.603 24 9.99 24c.654 0 1.307-.081 2.233-.544 3.212-1.567 4.07-5.84 4.9-9.993.15-.749.899-4.37 1.253-6.275.476-2.6 1.02-5.54 1.347-6.617C19.833.245 19.63 0 19.317 0z" />
-          </svg>
-        </div>
-      );
-
-    case 'facebook':
-      return (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1877F2] shadow-2xs p-2 text-white" title={name}>
-          <svg role="img" viewBox="0 0 24 24" className="w-full h-full fill-white" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z" />
-          </svg>
-        </div>
-      );
-
-    case 'allegro':
-      return (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FF5A00] shadow-2xs p-1.5 text-white" title={name}>
-          <svg role="img" viewBox="0 0 24 24" className="w-full h-full fill-white" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4.59 7.981a.124.124 0 0 0-.122.124v5.917a.124.124 0 0 0 .124.124h.72a.124.124 0 0 0 .124-.124h-.002V8.105a.124.124 0 0 0-.124-.124Zm1.691 0a.124.124 0 0 0-.124.124v5.917a.124.124 0 0 0 .124.124h.72a.124.124 0 0 0 .123-.124V8.105a.124.124 0 0 0-.122-.124Zm12.667 1.776a1.868 1.868 0 0 0-1.317.532 1.674 1.674 0 0 0-.531 1.254v2.48a.124.124 0 0 0 .123.123h.72a.124.124 0 0 0 .124-.124v-2.427c0-.752.5-1.113 1.314-.946a.13.13 0 0 0 .168-.142v-.495c0-.13-.014-.18-.1-.208a2.794 2.794 0 0 0-.501-.047Zm-4.626 0a2.193 2.193 0 0 0-1.732.849 2.355 2.355 0 0 0 0 2.678 2.13 2.131 0 0 0 1.732.849 2.21 2.21 0 0 0 1.234-.372v.53c0 .717-.627.848-1.03.873a4.73 4.73 0 0 1-.826-.045c-.11-.017-.188 0-.188.119v.636a.109.109 0 0 0 .114.103c.933.08 1.56.064 2.032-.206a1.537 1.537 0 0 0 .69-.875 2.928 2.928 0 0 0 .117-.874v-2.077h.002a2.245 2.245 0 0 0-.412-1.34 2.193 2.193 0 0 0-1.733-.848Zm-12.255.002a2.903 2.903 0 0 0-1.465.39.092.092 0 0 0-.045.08l.038.63a.112.112 0 0 0 .185.065c.627-.387 1.38-.459 1.764-.265a.67.67 0 0 1 .335.605v.092H1.832c-.45 0-1.83.167-1.83 1.434v.014a1.229 1.229 0 0 0 .45 1.017 1.768 1.768 0 0 0 1.118.32h2.118a.124.124 0 0 0 .124-.125v-2.51l-.002.004c0-.57-.127-1.004-.402-1.303-.274-.3-.827-.45-1.34-.45zm7.707 0c-1.28 0-1.84.858-2.02 1.585a2.44 2.44 0 0 0-.074.6 2.277 2.277 0 0 0 .412 1.338 2.198 2.198 0 0 0 1.733.85c.691.024 1.153-.093 1.506-.294a.196.196 0 0 0 .084-.212v-.558c0-.114-.069-.167-.167-.098a2.185 2.185 0 0 1-1.393.334 1.14 1.14 0 0 1-1.118-1.016h2.845a.117.117 0 0 0 .117-.116c.05-.778-.175-2.413-1.925-2.413Zm12.08 0a2.193 2.193 0 0 0-1.731.848 2.275 2.275 0 0 0-.412 1.34 2.275 2.275 0 0 0 .412 1.339 2.193 2.193 0 0 0 3.465 0 2.277 2.277 0 0 0 .412-1.34 2.277 2.277 0 0 0-.412-1.339 2.193 2.193 0 0 0-1.733-.848Zm-7.532.833c1.157 0 1.196 1.18 1.196 1.351 0 .171-.039 1.351-1.196 1.351-.517 0-.89-.378-1.047-.849a1.552 1.552 0 0 1 0-1.004c.157-.47.53-.849 1.047-.849zm-4.546.004a.86.86 0 0 1 .91.922H8.754a.968.968 0 0 1 1.024-.922zm12.078 0c.515-.012.89.378 1.048.848a1.553 1.553 0 0 1 0 1.003v.002c-.158.47-.531.837-1.048.848-.518.012-.89-.378-1.047-.848a1.552 1.552 0 0 1 0-1.005c.158-.47.53-.837 1.047-.848zM1.89 12.121h.99v1.246H1.63a.773.773 0 0 1-.444-.156.492.492 0 0 1-.21-.412c0-.226.153-.678.914-.678z" />
-          </svg>
-        </div>
-      );
-
-    case 'ebay':
-      return (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-2xs p-1" title={name}>
-          <span className="font-black text-sm tracking-tighter flex items-center select-none">
-            <span className="text-[#E53238]">e</span>
-            <span className="text-[#0064D2]">b</span>
-            <span className="text-[#F5AF02]">a</span>
-            <span className="text-[#86B817]">y</span>
-          </span>
-        </div>
-      );
-
-    case 'kaufland':
-      return (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E10915] shadow-2xs p-2 text-white" title={name}>
-          <svg role="img" viewBox="0 0 24 24" className="w-full h-full fill-white" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 24h24V0H0zm23.008-.989H.989V.989h22.022zM3.773 3.776h7.651v7.65H3.773zm8.801 0v7.652l7.653-7.652zm-8.801 8.8h7.651v7.651H3.773zm8.801-.004v7.652h7.653z" />
-          </svg>
+          <span className="text-xl font-black">S</span>
         </div>
       );
 
@@ -783,27 +776,10 @@ function ChannelLogo({ channelId, name }: { channelId: string; name: string }) {
         </div>
       );
 
-    case 'zbozi':
+    case 'aukro':
       return (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-2xs p-1.5" title={name}>
-          <svg viewBox="0 0 30 24" className="w-full h-full" fill="none">
-            <path
-              d="M27.1787879,7.83460811 C23.3078788,9.77468919 13.2190909,12.8936757 11.8672727,13.3611351 C10.9842424,13.6660405 8.06969697,14.7168919 7.91424242,15.8258649 C7.69787879,17.3671757 11.1293939,17.7566216 13.1157576,17.9965676 C14.4548485,18.1585 17.7239394,18.5209054 20.6939394,18.360527 C23.5830303,18.2045 27.6272727,17.5825676 27.7145455,18.2302973 C27.8157576,18.9843243 22.7809091,20.8031892 20.7445455,21.2852568 C19.0081818,21.6961486 13.6330303,22.5362703 10.0527273,22.4498649 C7.07484848,22.3783784 2.24787879,21.9864459 0.511212121,19.0729054 C-0.0945454545,18.0565541 -0.0945454545,16.0235405 0.475454545,15.1399054 C1.10757576,14.1602297 1.79666667,13.183973 3.32787879,12.5092027 C6.24606061,11.2230676 19.5048485,6.27589189 19.9057576,6.1897973 C20.7930303,5.99771622 21.960303,5.42333784 19.6254545,5.23218919 C17.7784848,5.0802027 15.9260606,4.9822973 14.0727273,4.98291892 C13.1857576,4.98354054 12.3009091,5.01555405 11.4154545,5.06062162 C10.7036364,5.0972973 9.88424242,5.17095946 9.33121212,4.61087838 C8.83939394,4.11358108 8.44333333,3.14354054 8.33181818,2.45012162 C8.2269697,1.80083784 8.46,1.25443243 8.97606061,0.868716216 C10.0772727,0.0469324324 11.7942424,0.143283784 13.0827273,0.174364865 C13.7672727,0.190837838 17.69,0.501027027 18.970303,0.607324324 C22.3409091,0.887054054 27.1012121,1.51427027 28.5536364,4.97918919 C29.3509091,6.88166216 27.1787879,7.83460811 27.1787879,7.83460811"
-              fill="#DC1F27"
-            />
-          </svg>
-        </div>
-      );
-
-    case 'heureka':
-      return (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-2xs p-1" title={name}>
-          <svg viewBox="0 0 32 32" className="w-full h-full" fill="none">
-            <rect width="32" height="32" rx="7" fill="#0096FF" />
-            <path d="M7 8h4v6h6V8h4v16h-4v-6h-6v6H7V8z" fill="#ffffff" />
-            <circle cx="26" cy="10" r="2.2" fill="#FF660A" />
-            <rect x="24.8" y="14" width="2.4" height="10" rx="1.2" fill="#FF660A" />
-          </svg>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0055A5] shadow-2xs text-white font-black text-xs" title={name}>
+          aukro
         </div>
       );
 
@@ -819,6 +795,62 @@ function ChannelLogo({ channelId, name }: { channelId: string; name: string }) {
         </div>
       );
 
+    case 'facebook':
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1877F2] shadow-2xs p-2 text-white" title={name}>
+          <svg role="img" viewBox="0 0 24 24" className="w-full h-full fill-white" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z" />
+          </svg>
+        </div>
+      );
+
+    case 'allegro':
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FF5A00] shadow-2xs p-1.5 text-white" title={name}>
+          <span className="font-bold text-xs tracking-tighter">allegro</span>
+        </div>
+      );
+
+    case 'vinted':
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#09B1BA] shadow-2xs p-2 text-white font-black text-xs" title={name}>
+          vinted
+        </div>
+      );
+
+    case 'ebay':
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-2xs p-1" title={name}>
+          <span className="font-black text-sm tracking-tighter flex items-center select-none">
+            <span className="text-[#E53238]">e</span>
+            <span className="text-[#0064D2]">b</span>
+            <span className="text-[#F5AF02]">a</span>
+            <span className="text-[#86B817]">y</span>
+          </span>
+        </div>
+      );
+
+    case 'kaufland':
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E10915] shadow-2xs p-1 text-white font-black text-xs" title={name}>
+          K
+        </div>
+      );
+
+    case 'zbozi':
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-2xs p-1.5" title={name}>
+          <span className="font-black text-red-600 text-xs">zboží.cz</span>
+        </div>
+      );
+
+    case 'heureka':
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 shadow-2xs p-1 text-white font-black text-xs" title={name}>
+          !H
+        </div>
+      );
+
     default:
       return (
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 font-black text-white text-base shadow-2xs" title={name}>
@@ -826,346 +858,4 @@ function ChannelLogo({ channelId, name }: { channelId: string; name: string }) {
         </div>
       );
   }
-}
-
-// Modal Component for Channel Details & Settings
-interface ModalProps {
-  channel: ChannelItem;
-  onClose: () => void;
-  onSave: (channel: ChannelItem) => void;
-  onCopy: (url: string, label: string) => void;
-  copiedFeed: string | null;
-  onTest: () => void;
-  testing: boolean;
-  testSuccess: boolean;
-}
-
-function ChannelModal({
-  channel,
-  onClose,
-  onSave,
-  onCopy,
-  copiedFeed,
-  onTest,
-  testing,
-  testSuccess,
-}: ModalProps) {
-  const [data, setData] = useState<ChannelItem>({ ...channel });
-
-  const updateConfig = (key: string, val: unknown) => {
-    setData((prev) => ({
-      ...prev,
-      config: {
-        ...prev.config,
-        [key]: val,
-      },
-    }));
-  };
-
-  const toggleStatus = () => {
-    setData((prev) => ({
-      ...prev,
-      status: prev.status === 'connected' ? 'ready' : 'connected',
-    }));
-  };
-
-  const isConnected = data.status === 'connected';
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60 backdrop-blur-xs"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200/90 bg-white shadow-2xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <ChannelLogo channelId={data.id} name={data.name} />
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-950 leading-tight">{data.name}</h3>
-                {isConnected && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    <span>Aktivní</span>
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">{data.tagline}</p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-5 sm:p-6 space-y-5 text-xs">
-          {/* Status Toggle Box */}
-          <div className="flex items-center justify-between rounded-xl border border-slate-200/90 bg-slate-50/70 p-3.5">
-            <div>
-              <p className="font-bold text-slate-900">Stav synchronizace kanálu</p>
-              <p className="text-[11px] text-slate-500">
-                {isConnected
-                  ? 'Kanál je aktivní. Nabídky se automaticky přenáší ze skladu.'
-                  : 'Kanál není aktivně propojený. Nastavte údaje a aktivujte.'}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={toggleStatus}
-              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all shadow-2xs ${
-                isConnected
-                  ? 'border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                  : 'bg-slate-950 text-white hover:bg-slate-800'
-              }`}
-            >
-              {isConnected ? '✓ Aktivní' : '+ Aktivovat'}
-            </button>
-          </div>
-
-          {/* Form Fields Depending on Channel Type */}
-          {(data.category === 'portals' || data.id === 'facebook') && (
-            <div className="space-y-3">
-              <h4 className="font-bold uppercase tracking-wider text-slate-400 text-[10px]">
-                Přihlašovací údaje pro inzerci
-              </h4>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Přihlašovací e-mail
-                  </label>
-                  <input
-                    type="email"
-                    value={data.config.email || ''}
-                    onChange={(e) => updateConfig('email', e.target.value)}
-                    placeholder="vas@email.cz"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-slate-400 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Telefon pro SMS autorizaci
-                  </label>
-                  <input
-                    type="tel"
-                    value={data.config.phone || ''}
-                    onChange={(e) => updateConfig('phone', e.target.value)}
-                    placeholder="+420 777 000 111"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-slate-400 outline-none"
-                  />
-                </div>
-
-                {data.id === 'bazos' && (
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
-                      Ověřovací B-kód (rychlé vystavení)
-                    </label>
-                    <input
-                      type="text"
-                      value={data.config.bkod || ''}
-                      onChange={(e) => updateConfig('bkod', e.target.value)}
-                      placeholder="B-84920"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-xs font-medium text-slate-950 focus:border-slate-400 outline-none"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Výchozí lokalita & PSČ
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={data.config.location || ''}
-                      onChange={(e) => updateConfig('location', e.target.value)}
-                      placeholder="Praha"
-                      className="w-2/3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-slate-400 outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={data.config.zipcode || ''}
-                      onChange={(e) => updateConfig('zipcode', e.target.value)}
-                      placeholder="100 00"
-                      className="w-1/3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-slate-400 outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Switches */}
-              <div className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-3 space-y-2">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="font-semibold text-slate-800">
-                    Automatické prodlužování před expirací (60 dní)
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={data.config.autoRenew ?? true}
-                    onChange={(e) => updateConfig('autoRenew', e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-slate-950"
-                  />
-                </label>
-
-                {data.id === 'bazos' && (
-                  <label className="flex items-center justify-between cursor-pointer pt-2 border-t border-slate-200/60">
-                    <span className="font-semibold text-slate-800">
-                      Automatické TOPování nejlepších nabídek
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={data.config.autoTop ?? true}
-                      onChange={(e) => updateConfig('autoTop', e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-slate-950"
-                    />
-                  </label>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* E-shop / Marketplace API Keys */}
-          {(data.category === 'eshops' ||
-            data.id === 'allegro' ||
-            data.id === 'ebay' ||
-            data.id === 'aukro' ||
-            data.id === 'kaufland') &&
-            data.id !== 'sellin-shop' && (
-              <div className="space-y-3">
-                <h4 className="font-bold uppercase tracking-wider text-slate-400 text-[10px]">
-                  API Napojení & Token
-                </h4>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">URL obchodu / profilu</label>
-                  <input
-                    type="url"
-                    value={data.config.shopUrl || ''}
-                    onChange={(e) => updateConfig('shopUrl', e.target.value)}
-                    placeholder="https://muj-obchod.cz"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-slate-400 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    API Klíč / Access Token
-                  </label>
-                  <input
-                    type="password"
-                    value={data.config.apiKey || ''}
-                    onChange={(e) => updateConfig('apiKey', e.target.value)}
-                    placeholder="Vložte tajný API klíč z administrace..."
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-xs font-medium text-slate-950 focus:border-slate-400 outline-none"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <button
-                    type="button"
-                    disabled={testing}
-                    onClick={onTest}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-100 transition-all shadow-2xs"
-                  >
-                    {testing ? 'Testuji spojení…' : '🔌 Otestovat API spojení'}
-                  </button>
-
-                  {testSuccess && (
-                    <span className="font-bold text-emerald-700">✓ Spojení navázáno (HTTP 200 OK)</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-          {/* Vlastní E-shop Special Box */}
-          {data.id === 'sellin-shop' && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-emerald-950 text-sm">Váš veřejný Storefront</span>
-                  <p className="text-emerald-800/80 text-[11px]">
-                    Prodej bez provizí zprostředkovatelům (100 % marže pro vás).
-                  </p>
-                </div>
-                <Link
-                  href="/shop"
-                  target="_blank"
-                  className="rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 transition-all shadow-2xs"
-                >
-                  Přejít do e-shopu ↗
-                </Link>
-              </div>
-
-              <div className="pt-2 border-t border-emerald-200/80 text-emerald-900 space-y-1">
-                <div className="flex justify-between font-mono text-[11px]">
-                  <span>Adresa:</span>
-                  <span className="font-bold">https://prodejomat.cz/shop</span>
-                </div>
-                <div className="flex justify-between font-mono text-[11px]">
-                  <span>Provize platformě:</span>
-                  <span className="font-bold text-emerald-700">0 %</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* XML Feeds (Zboží, Heureka, Google, Meta) */}
-          {data.config.feedUrl && (
-            <div className="space-y-3">
-              <h4 className="font-bold uppercase tracking-wider text-slate-400 text-[10px]">
-                Exportní XML Feed
-              </h4>
-
-              <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-3 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900">URL Feed</span>
-                  <button
-                    type="button"
-                    onClick={() => onCopy(data.config.feedUrl!, data.name)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800 hover:bg-slate-50 shadow-2xs transition-all active:scale-95"
-                  >
-                    <span>{copiedFeed === data.name ? '✓ Zkopírováno' : '📋 Kopírovat feed'}</span>
-                  </button>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-2 font-mono text-[10px] text-slate-700 break-all select-all">
-                  {data.config.feedUrl}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex shrink-0 items-center justify-between border-t border-slate-100 bg-slate-50/50 px-5 py-3.5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-200/90 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
-          >
-            Zavřít
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSave(data)}
-            className="rounded-xl bg-slate-950 px-5 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-xs"
-          >
-            Uložit konfiguraci
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }

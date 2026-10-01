@@ -5,15 +5,18 @@ import Link from 'next/link';
 import ShopHeader from '@/components/shop/ShopHeader';
 import ShopFooter from '@/components/shop/ShopFooter';
 import { useShop } from '@/components/shop/ShopContext';
+import { submitShopInquiry } from '@/lib/api';
 
 export default function KontaktPage() {
   const [formSent, setFormSent] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const {
-    shopName,
+    shop,
     addressLine,
     addressCity,
     region,
@@ -27,9 +30,29 @@ export default function KontaktPage() {
     mapLink,
   } = useShop();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phone) return;
+    if (!name || !phone || submitting) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    const result = await submitShopInquiry({
+      type: 'contact',
+      shop_id: shop.id,
+      shop: shop.custom_domain || shop.slug || undefined,
+      name: name.trim(),
+      phone: phone.trim(),
+      message: message.trim() || undefined,
+    });
+
+    setSubmitting(false);
+
+    if (!result.success) {
+      setError(result.error || 'Odeslání selhalo.');
+      return;
+    }
+
     setFormSent(true);
   };
 
@@ -232,11 +255,16 @@ export default function KontaktPage() {
                   />
                 </div>
 
+                {error && (
+                  <p className="text-xs text-red-600">{error}</p>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-[hsl(142_71%_45%)] py-3 text-sm font-semibold text-white shadow-2xs transition-colors hover:bg-[hsl(142_71%_35%)] active:scale-98"
+                  disabled={submitting}
+                  className="w-full rounded-xl bg-[hsl(142_71%_45%)] py-3 text-sm font-semibold text-white shadow-2xs transition-colors hover:bg-[hsl(142_71%_35%)] active:scale-98 disabled:opacity-60"
                 >
-                  Odeslat zprávu
+                  {submitting ? 'Odesílám…' : 'Odeslat zprávu'}
                 </button>
 
                 <p className="text-center text-[11px] text-[hsl(215_16%_55%)]">

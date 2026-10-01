@@ -302,6 +302,39 @@ export async function getShopOffers(
   }
 }
 
+export type ShopInquiryPayload = {
+  type: 'dimension' | 'contact' | 'reservation';
+  shop_id?: string;
+  shop?: string;
+  name?: string;
+  contact?: string;
+  phone?: string;
+  message?: string;
+  size?: string;
+  offer_id?: string;
+  offer_title?: string;
+  offer_price?: string | number | null;
+  pickup?: string;
+};
+
+export async function submitShopInquiry(payload: ShopInquiryPayload): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('/api/shop/inquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.success) {
+      return { success: false, error: json.error || 'Odeslání poptávky selhalo.' };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error submitting shop inquiry:', error);
+    return { success: false, error: 'Nepodařilo se odeslat poptávku. Zkuste to znovu.' };
+  }
+}
+
 export async function resolveShopConfig(domainOrSlug?: string, forceRefresh: boolean = false): Promise<ShopConfigData | null> {
   const cacheKey = (domainOrSlug || '__default__').toLowerCase().trim();
   if (!forceRefresh && typeof window !== 'undefined') {
@@ -427,7 +460,10 @@ export async function getUsers(): Promise<User[]> {
       telephone1: (row.telephone1 as string | null) ?? null,
       telephone2: (row.telephone2 as string | null) ?? null,
       bazos_email: (row.bazos_email as string | null) ?? null,
+      bazos_password: (row.bazos_password as string | null) ?? null,
       sbazar_email: (row.sbazar_email as string | null) ?? null,
+      sbazar_password: (row.sbazar_password as string | null) ?? null,
+      sbazar_cookie_ds: (row.sbazar_cookie_ds as string | null) ?? null,
       facebook_email: (row.facebook_email as string | null) ?? null,
       bazos_name: (row.bazos_name as string | null) ?? null,
       location: (row.location as string | null) ?? null,
@@ -440,9 +476,66 @@ export async function getUsers(): Promise<User[]> {
       bazos_rewrite: (row.bazos_rewrite as boolean | null) ?? null,
       bazos_top_max: (row.bazos_top_max as number | null) ?? null,
       bazos_bkod: (row.bazos_bkod as string | null) ?? null,
+      bazos_sk_bkod: (row.bazos_sk_bkod as string | null) ?? null,
+      proxy_ip: (row.proxy_ip as string | null) ?? null,
+      proxy_ip_sbazar: (row.proxy_ip_sbazar as string | null) ?? null,
+      role: (row.role as string | null) ?? null,
+      user_id: (row.user_id as string | null) ?? null,
+      created_at: (row.created_at as string | null) ?? null,
     }));
   } catch (error) {
     console.error('Error fetching users:', error);
+    throw error;
+  }
+}
+
+export async function updateCredential(
+  id: number,
+  updates: Partial<User>
+): Promise<User> {
+  try {
+    const response = await apiFetch(`/api/credentials/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Chyba při ukládání údajů účtu (${response.status})`);
+    }
+
+    const data: ApiResponse<User> = await response.json();
+    return data.data;
+  } catch (error) {
+    console.error('Error updating credential:', error);
+    throw error;
+  }
+}
+
+export async function createCredential(
+  credentialData: Partial<User>
+): Promise<User> {
+  try {
+    const response = await apiFetch('/api/credentials', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentialData),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Chyba při vytváření účtu (${response.status})`);
+    }
+
+    const data: ApiResponse<User> = await response.json();
+    return data.data;
+  } catch (error) {
+    console.error('Error creating credential:', error);
     throw error;
   }
 }

@@ -409,7 +409,7 @@ export default function ShopManager() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700">Kontaktní e-mail</label>
+              <label className="block text-xs font-semibold text-slate-700">E-mail pro poptávky</label>
               <input
                 type="email"
                 value={email}
@@ -417,6 +417,9 @@ export default function ShopManager() {
                 placeholder="např. info@mojedomena.cz"
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
               />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Na tento e-mail chodí poptávky a rezervace z e-shopu (odesílá Prodejomat).
+              </p>
             </div>
 
             <div>

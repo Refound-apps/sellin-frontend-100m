@@ -101,6 +101,15 @@ export interface User {
   bazos_rewrite: boolean | null;
   bazos_top_max: number | null;
   bazos_bkod?: string | null;
+  bazos_password?: string | null;
+  bazos_sk_bkod?: string | null;
+  sbazar_password?: string | null;
+  sbazar_cookie_ds?: string | null;
+  proxy_ip?: string | null;
+  proxy_ip_sbazar?: string | null;
+  role?: string | null;
+  user_id?: string | null;
+  created_at?: string | null;
 }
 
 export interface ApiResponse<T> {

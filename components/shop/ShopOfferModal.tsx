@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { ShopOffer } from '@/lib/types';
-import { getShopOfferImages } from '@/lib/api';
+import { getShopOfferImages, submitShopInquiry } from '@/lib/api';
 import { formatCzk, getOfferPricingInfo, getOfferSpecsList, getOfferTags } from './offerMeta';
 import { useShop } from './ShopContext';
 
@@ -70,6 +70,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
   const [reservePickup, setReservePickup] = useState<'osobni' | 'posta'>('osobni');
   const [reserveNote, setReserveNote] = useState('');
   const [orderSent, setOrderSent] = useState(false);
+  const [reserveSubmitting, setReserveSubmitting] = useState(false);
+  const [reserveError, setReserveError] = useState<string | null>(null);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -156,9 +158,33 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
     }
   };
 
-  const handleReserveSubmit = (e: React.FormEvent) => {
+  const handleReserveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reservePhone.trim()) return;
+    if (!reservePhone.trim() || reserveSubmitting) return;
+
+    setReserveSubmitting(true);
+    setReserveError(null);
+
+    const result = await submitShopInquiry({
+      type: 'reservation',
+      shop_id: shop.id,
+      shop: shop.custom_domain || shop.slug || undefined,
+      phone: reservePhone.trim(),
+      name: reserveName.trim() || undefined,
+      message: reserveNote.trim() || undefined,
+      offer_id: String(offer.id),
+      offer_title: offer.title || undefined,
+      offer_price: offer.price ?? null,
+      pickup: reservePickup,
+    });
+
+    setReserveSubmitting(false);
+
+    if (!result.success) {
+      setReserveError(result.error || 'Odeslání rezervace selhalo.');
+      return;
+    }
+
     setOrderSent(true);
   };
 
@@ -739,11 +765,15 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                 </div>
 
                 <div className="pt-2">
+                  {reserveError && (
+                    <p className="mb-2 text-xs text-red-600">{reserveError}</p>
+                  )}
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-[hsl(142_71%_45%)] py-3 text-sm font-bold text-white shadow-xs hover:bg-[hsl(142_71%_35%)] active:scale-98 transition-all"
+                    disabled={reserveSubmitting}
+                    className="w-full rounded-xl bg-[hsl(142_71%_45%)] py-3 text-sm font-bold text-white shadow-xs hover:bg-[hsl(142_71%_35%)] active:scale-98 transition-all disabled:opacity-60"
                   >
-                    Odeslat nezávaznou rezervaci
+                    {reserveSubmitting ? 'Odesílám…' : 'Odeslat nezávaznou rezervaci'}
                   </button>
                   <p className="mt-1.5 text-center text-[10px] text-slate-500">
                     Rezervace je nezávazná. Platba probíhá až při předání či dobírce.
