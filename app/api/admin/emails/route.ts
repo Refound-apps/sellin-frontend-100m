@@ -66,11 +66,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const listOpts: { limit: number; after?: string; before?: string } = { limit };
-    if (after) listOpts.after = after;
-    if (before) listOpts.before = before;
-
-    const { data, error } = await resend.emails.list(listOpts);
+    const { data, error } = await resend.emails.list(
+      after
+        ? { limit, after }
+        : before
+          ? { limit, before }
+          : { limit }
+    );
 
     if (error) {
       console.error('Resend emails.list failed:', error);
