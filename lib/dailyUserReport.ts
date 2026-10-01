@@ -41,12 +41,27 @@ function escapeHtml(value: string) {
     .replace(/"/g, '&quot;');
 }
 
+const TZ = 'Europe/Prague';
+
 function formatCsDate(d: Date) {
   return d.toLocaleDateString('cs-CZ', {
+    timeZone: TZ,
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+  });
+}
+
+function formatCsDateTime(d: Date) {
+  return d.toLocaleString('cs-CZ', {
+    timeZone: TZ,
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -121,7 +136,7 @@ export function buildDailyUserReportFromRows(opts: {
   return {
     sellerEmail,
     generatedAt: until.toISOString(),
-    periodLabel: `posledních 24 hodin (do ${until.toLocaleString('cs-CZ')})`,
+    periodLabel: `posledních 24 hodin (do ${formatCsDateTime(until)})`,
     accounts,
     totals: {
       accounts: accounts.length,
@@ -249,7 +264,7 @@ export function createDailyUserReportHtml(report: DailyUserReport) {
 }
 
 export function createDailyUserReportSubject(report: DailyUserReport) {
-  const day = new Date(report.generatedAt).toLocaleDateString('cs-CZ');
+  const day = new Date(report.generatedAt).toLocaleDateString('cs-CZ', { timeZone: TZ });
   const issue = report.totals.cookiesBad > 0 ? '⚠️ ' : '';
   return `${issue}Prodejomat denní report · ${day} · ${report.sellerEmail}`;
 }
