@@ -105,15 +105,20 @@ export async function PUT(
       if (!(key in body)) continue;
 
       let val = body[key];
-      if (key === 'zipcode' && val !== null && val !== undefined && val !== '') {
-        val = parseFloat(String(val).replace(/\s+/g, '')) || null;
-      } else if (key === 'bazos_top_max' && val !== null && val !== undefined && val !== '') {
-        val = parseFloat(String(val)) || null;
+
+      // Numeric columns (real) — empty string must become null, never ""
+      if (key === 'zipcode' || key === 'bazos_top_max') {
+        if (val === null || val === undefined || val === '') {
+          val = null;
+        } else {
+          const parsed = parseFloat(String(val).replace(/\s+/g, ''));
+          val = Number.isFinite(parsed) ? parsed : null;
+        }
       } else if (typeof val === 'string') {
         val = val.trim();
+        if (val === '') val = null;
       }
 
-      // Dynamic key assignment into typed Update payload
       (updates as Record<string, unknown>)[key] = val;
     }
 

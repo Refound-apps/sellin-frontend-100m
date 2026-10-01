@@ -36,6 +36,7 @@ export default function SbazarAccountsModal({
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const lastSyncedId = useRef<number | null>(accounts[0]?.id ?? null);
 
@@ -53,6 +54,7 @@ export default function SbazarAccountsModal({
     setForm(buildSbazarForm(currentAccount, mainEmail));
     setSaveSuccess(false);
     setError(null);
+    setFieldErrors({});
   }, [currentAccount, mainEmail]);
 
   const filteredAccounts = useMemo(() => {
@@ -67,16 +69,41 @@ export default function SbazarAccountsModal({
     });
   }, [accounts, search]);
 
+  const validateSbazarForm = (data: Partial<User>): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    if (!String(data.sbazar_email || '').trim()) errs.sbazar_email = 'Povinné';
+    if (!String(data.sbazar_password || '').trim()) errs.sbazar_password = 'Povinné';
+    if (!String(data.telephone1 || '').trim()) errs.telephone1 = 'Povinné';
+    if (!String(data.location || '').trim()) errs.location = 'Povinné';
+    const zip = String(data.zipcode ?? '').replace(/\s+/g, '');
+    if (!zip) errs.zipcode = 'Povinné';
+    else if (!/^\d{5}$/.test(zip)) errs.zipcode = 'Zadejte 5 číslic (např. 30100)';
+    return errs;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentAccount) return;
+
+    const errs = validateSbazarForm(form);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setError('Vyplňte všechna povinná pole označená *.');
+      return;
+    }
 
     try {
       setSaving(true);
       setError(null);
       setSaveSuccess(false);
 
-      const updated = await updateCredential(currentAccount.id, form);
+      const zipRaw = String(form.zipcode).replace(/\s+/g, '');
+      const payload: Partial<User> = {
+        ...form,
+        zipcode: parseFloat(zipRaw),
+      };
+
+      const updated = await updateCredential(currentAccount.id, payload);
       onAccountsUpdated(updated);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -164,6 +191,7 @@ export default function SbazarAccountsModal({
                       setForm(buildSbazarForm(acc, mainEmail));
                       setSaveSuccess(false);
                       setError(null);
+                      setFieldErrors({});
                     }}
                     className={`w-full text-left rounded-2xl p-3 transition-all border ${
                       isSelected
@@ -246,21 +274,30 @@ export default function SbazarAccountsModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Seznam přihlašovací e-mail
+                        Seznam přihlašovací e-mail <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="email"
+                        required
                         value={form.sbazar_email || ''}
-                        onChange={(e) => setForm((p) => ({ ...p, sbazar_email: e.target.value }))}
+                        onChange={(e) => {
+                          setForm((p) => ({ ...p, sbazar_email: e.target.value }));
+                          setFieldErrors((p) => ({ ...p, sbazar_email: '' }));
+                        }}
                         placeholder="duplux@seznam.cz"
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none"
+                        className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none ${
+                          fieldErrors.sbazar_email ? 'border-rose-400' : 'border-slate-200'
+                        }`}
                       />
+                      {fieldErrors.sbazar_email && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.sbazar_email}</p>
+                      )}
                     </div>
 
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-xs font-semibold text-slate-700">
-                          Heslo k Seznam účtu
+                          Heslo k Seznam účtu <span className="text-rose-500">*</span>
                         </label>
                         <button
                           type="button"
@@ -272,24 +309,42 @@ export default function SbazarAccountsModal({
                       </div>
                       <input
                         type={showPassword ? 'text' : 'password'}
+                        required
                         value={form.sbazar_password || ''}
-                        onChange={(e) => setForm((p) => ({ ...p, sbazar_password: e.target.value }))}
+                        onChange={(e) => {
+                          setForm((p) => ({ ...p, sbazar_password: e.target.value }));
+                          setFieldErrors((p) => ({ ...p, sbazar_password: '' }));
+                        }}
                         placeholder="Heslo k Seznam účtu..."
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none"
+                        className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none ${
+                          fieldErrors.sbazar_password ? 'border-rose-400' : 'border-slate-200'
+                        }`}
                       />
+                      {fieldErrors.sbazar_password && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.sbazar_password}</p>
+                      )}
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Telefon pro autorizaci
+                        Telefon pro autorizaci <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="tel"
+                        required
                         value={form.telephone1 || ''}
-                        onChange={(e) => setForm((p) => ({ ...p, telephone1: e.target.value }))}
+                        onChange={(e) => {
+                          setForm((p) => ({ ...p, telephone1: e.target.value }));
+                          setFieldErrors((p) => ({ ...p, telephone1: '' }));
+                        }}
                         placeholder="+420 777 000 111"
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none"
+                        className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none ${
+                          fieldErrors.telephone1 ? 'border-rose-400' : 'border-slate-200'
+                        }`}
                       />
+                      {fieldErrors.telephone1 && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.telephone1}</p>
+                      )}
                     </div>
 
                     <div>
@@ -371,28 +426,49 @@ export default function SbazarAccountsModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Lokalita pro Sbazar
+                      Lokalita pro Sbazar <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
+                      required
                       value={form.location || ''}
-                      onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
+                      onChange={(e) => {
+                        setForm((p) => ({ ...p, location: e.target.value }));
+                        setFieldErrors((p) => ({ ...p, location: '' }));
+                      }}
                       placeholder="Praha, Plzeň, Brno..."
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none"
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none ${
+                        fieldErrors.location ? 'border-rose-400' : 'border-slate-200'
+                      }`}
                     />
+                    {fieldErrors.location && (
+                      <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.location}</p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      PSČ
+                      PSČ <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
+                      required
+                      inputMode="numeric"
                       value={form.zipcode || ''}
-                      onChange={(e) => setForm((p) => ({ ...p, zipcode: e.target.value }))}
-                      placeholder="110 00"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none"
+                      onChange={(e) => {
+                        setForm((p) => ({ ...p, zipcode: e.target.value }));
+                        setFieldErrors((p) => ({ ...p, zipcode: '' }));
+                      }}
+                      placeholder="30100"
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-red-500 outline-none ${
+                        fieldErrors.zipcode ? 'border-rose-400' : 'border-slate-200'
+                      }`}
                     />
+                    {fieldErrors.zipcode ? (
+                      <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.zipcode}</p>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-slate-400">5 číslic bez mezery</p>
+                    )}
                   </div>
                 </div>
 

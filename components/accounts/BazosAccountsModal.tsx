@@ -42,6 +42,7 @@ export default function BazosAccountsModal({
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const lastSyncedId = useRef<number | null>(accounts[0]?.id ?? null);
@@ -75,6 +76,7 @@ export default function BazosAccountsModal({
     setForm(buildBazosForm(currentAccount));
     setSaveSuccess(false);
     setError(null);
+    setFieldErrors({});
   }, [currentAccount]);
 
   // Filter accounts by search
@@ -99,16 +101,44 @@ export default function BazosAccountsModal({
     });
   }, [accounts, search]);
 
+  const validateBazosForm = (data: Partial<User>): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    if (!String(data.bazos_name || '').trim()) errs.bazos_name = 'Povinné';
+    if (!String(data.bazos_email || '').trim()) errs.bazos_email = 'Povinné';
+    if (!String(data.bazos_password || '').trim()) errs.bazos_password = 'Povinné';
+    if (!String(data.telephone1 || '').trim()) errs.telephone1 = 'Povinné';
+    if (!String(data.bazos_bkod || '').trim()) errs.bazos_bkod = 'Povinné pro vystavení bez SMS';
+    if (!String(data.location || '').trim()) errs.location = 'Povinné';
+    const zip = String(data.zipcode ?? '').replace(/\s+/g, '');
+    if (!zip) errs.zipcode = 'Povinné';
+    else if (!/^\d{5}$/.test(zip)) errs.zipcode = 'Zadejte 5 číslic (např. 30100)';
+    return errs;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentAccount) return;
+
+    const errs = validateBazosForm(form);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setError('Vyplňte všechna povinná pole označená *.');
+      return;
+    }
 
     try {
       setSaving(true);
       setError(null);
       setSaveSuccess(false);
 
-      const updated = await updateCredential(currentAccount.id, form);
+      const zipRaw = String(form.zipcode).replace(/\s+/g, '');
+      const payload: Partial<User> = {
+        ...form,
+        zipcode: parseFloat(zipRaw),
+        bazos_top_max: Number(form.bazos_top_max) || 0,
+      };
+
+      const updated = await updateCredential(currentAccount.id, payload);
       onAccountsUpdated(updated);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -263,6 +293,7 @@ export default function BazosAccountsModal({
                         setForm(buildBazosForm(acc));
                         setSaveSuccess(false);
                         setError(null);
+                        setFieldErrors({});
                       }
                     }}
                     className={`w-full text-left rounded-2xl p-3 transition-all border ${
@@ -465,34 +496,52 @@ export default function BazosAccountsModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Jméno prodejce na Bazoši
+                        Jméno prodejce na Bazoši <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
+                        required
                         value={form.bazos_name || ''}
-                        onChange={(e) => setForm((p) => ({ ...p, bazos_name: e.target.value }))}
+                        onChange={(e) => {
+                          setForm((p) => ({ ...p, bazos_name: e.target.value }));
+                          setFieldErrors((p) => ({ ...p, bazos_name: '' }));
+                        }}
                         placeholder="např. Vašek nebo Disky a Pneu"
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+                        className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none ${
+                          fieldErrors.bazos_name ? 'border-rose-400' : 'border-slate-200'
+                        }`}
                       />
+                      {fieldErrors.bazos_name && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.bazos_name}</p>
+                      )}
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Bazoš přihlašovací e-mail
+                        Bazoš přihlašovací e-mail <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="email"
+                        required
                         value={form.bazos_email || ''}
-                        onChange={(e) => setForm((p) => ({ ...p, bazos_email: e.target.value }))}
+                        onChange={(e) => {
+                          setForm((p) => ({ ...p, bazos_email: e.target.value }));
+                          setFieldErrors((p) => ({ ...p, bazos_email: '' }));
+                        }}
                         placeholder="vas@email.cz"
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none"
+                        className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none ${
+                          fieldErrors.bazos_email ? 'border-rose-400' : 'border-slate-200'
+                        }`}
                       />
+                      {fieldErrors.bazos_email && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.bazos_email}</p>
+                      )}
                     </div>
 
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-xs font-semibold text-slate-700">
-                          Bazoš heslo
+                          Bazoš heslo <span className="text-rose-500">*</span>
                         </label>
                         <button
                           type="button"
@@ -504,24 +553,42 @@ export default function BazosAccountsModal({
                       </div>
                       <input
                         type={showPassword ? 'text' : 'password'}
+                        required
                         value={form.bazos_password || ''}
-                        onChange={(e) => setForm((p) => ({ ...p, bazos_password: e.target.value }))}
+                        onChange={(e) => {
+                          setForm((p) => ({ ...p, bazos_password: e.target.value }));
+                          setFieldErrors((p) => ({ ...p, bazos_password: '' }));
+                        }}
                         placeholder="Heslo k Bazoš účtu..."
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none"
+                        className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none ${
+                          fieldErrors.bazos_password ? 'border-rose-400' : 'border-slate-200'
+                        }`}
                       />
+                      {fieldErrors.bazos_password && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.bazos_password}</p>
+                      )}
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Telefon pro autorizaci (SMS)
+                        Telefon pro autorizaci (SMS) <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="tel"
+                        required
                         value={form.telephone1 || ''}
-                        onChange={(e) => setForm((p) => ({ ...p, telephone1: e.target.value }))}
+                        onChange={(e) => {
+                          setForm((p) => ({ ...p, telephone1: e.target.value }));
+                          setFieldErrors((p) => ({ ...p, telephone1: '' }));
+                        }}
                         placeholder="+420 777 000 111"
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none"
+                        className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none ${
+                          fieldErrors.telephone1 ? 'border-rose-400' : 'border-slate-200'
+                        }`}
                       />
+                      {fieldErrors.telephone1 && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.telephone1}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -543,15 +610,21 @@ export default function BazosAccountsModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <div>
                       <label className="block text-xs font-bold text-amber-950 mb-1">
-                        B-kód pro ČR (Bazoš.cz)
+                        B-kód pro ČR (Bazoš.cz) <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
                         <input
                           type="text"
+                          required
                           value={form.bazos_bkod || ''}
-                          onChange={(e) => setForm((p) => ({ ...p, bazos_bkod: e.target.value.toUpperCase() }))}
+                          onChange={(e) => {
+                            setForm((p) => ({ ...p, bazos_bkod: e.target.value.toUpperCase() }));
+                            setFieldErrors((p) => ({ ...p, bazos_bkod: '' }));
+                          }}
                           placeholder="např. LK5994TGJM"
-                          className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 font-mono text-xs font-bold text-slate-950 focus:border-amber-600 outline-none"
+                          className={`w-full rounded-xl border bg-white px-3 py-2 font-mono text-xs font-bold text-slate-950 focus:border-amber-600 outline-none ${
+                            fieldErrors.bazos_bkod ? 'border-rose-400' : 'border-amber-300'
+                          }`}
                         />
                         {form.bazos_bkod && (
                           <button
@@ -568,6 +641,9 @@ export default function BazosAccountsModal({
                           </button>
                         )}
                       </div>
+                      {fieldErrors.bazos_bkod && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.bazos_bkod}</p>
+                      )}
                     </div>
 
                     <div>
@@ -589,28 +665,49 @@ export default function BazosAccountsModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Výchozí město / Lokalita
+                      Výchozí město / Lokalita <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
+                      required
                       value={form.location || ''}
-                      onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
+                      onChange={(e) => {
+                        setForm((p) => ({ ...p, location: e.target.value }));
+                        setFieldErrors((p) => ({ ...p, location: '' }));
+                      }}
                       placeholder="Praha, Plzeň, Brno..."
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none"
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none ${
+                        fieldErrors.location ? 'border-rose-400' : 'border-slate-200'
+                      }`}
                     />
+                    {fieldErrors.location && (
+                      <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.location}</p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Výchozí PSČ (ČR)
+                      Výchozí PSČ (ČR) <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
+                      required
+                      inputMode="numeric"
                       value={form.zipcode || ''}
-                      onChange={(e) => setForm((p) => ({ ...p, zipcode: e.target.value }))}
-                      placeholder="např. 110 00 nebo 301 00"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none"
+                      onChange={(e) => {
+                        setForm((p) => ({ ...p, zipcode: e.target.value }));
+                        setFieldErrors((p) => ({ ...p, zipcode: '' }));
+                      }}
+                      placeholder="např. 30100"
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-medium text-slate-950 focus:border-amber-500 outline-none ${
+                        fieldErrors.zipcode ? 'border-rose-400' : 'border-slate-200'
+                      }`}
                     />
+                    {fieldErrors.zipcode ? (
+                      <p className="mt-1 text-[11px] font-semibold text-rose-600">{fieldErrors.zipcode}</p>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-slate-400">5 číslic bez mezery — nutné pro vystavení inzerátu</p>
+                    )}
                   </div>
                 </div>
 
