@@ -84,6 +84,13 @@ const ACTION_TYPES: { id: CronActionType; label: string; desc: string; icon: str
     badgeColor: 'bg-teal-500/10 text-teal-800 border-teal-200',
   },
   {
+    id: 'proxy_health',
+    label: 'Proxy health check',
+    desc: 'Ověří průchodnost Bright Data IP na Bazoš/Sbazar, flagnout blokované a nahradit volnými',
+    icon: '🛡️',
+    badgeColor: 'bg-sky-500/10 text-sky-800 border-sky-200',
+  },
+  {
     id: 'api_request',
     label: 'Vlastní backend webhook / API akce',
     desc: 'Volání jakékoliv routy na backendu (GET/POST s parametry)',
@@ -289,6 +296,13 @@ export default function AutomationsView() {
             : {}),
           ...(formActionType === 'daily_report'
             ? { report_to: formReportTo.trim() || 'obchod@sellin.cz' }
+            : {}),
+          ...(formActionType === 'proxy_health'
+            ? {
+                auto_replace: true,
+                platforms: ['bazos_cz', 'bazos_sk', 'sbazar'],
+                zone: 'data_center',
+              }
             : {}),
         },
       };
@@ -553,6 +567,8 @@ export default function AutomationsView() {
             <option value="recreate_sbazar">Pře-vytvořit Sbazar</option>
             <option value="cookies_bazos">Cookie check Bazoš.cz</option>
             <option value="cookies_bazos_sk">Cookie check Bazoš.sk</option>
+            <option value="proxy_health">Proxy health check</option>
+            <option value="daily_report">Denní report</option>
             <option value="api_request">API Webhook</option>
           </select>
         </div>
@@ -917,6 +933,8 @@ export default function AutomationsView() {
                 <label className="block text-xs font-bold text-slate-700">
                   {formActionType === 'daily_report'
                     ? 'Prodejce v reportu (e-mail účtu)'
+                    : formActionType === 'proxy_health'
+                    ? 'Cílové e-maily (nepoužívá se)'
                     : formActionType.startsWith('cookies_')
                     ? 'Účty pro cookie check (e-maily)'
                     : 'Cílové e-mailové účty (pro které inzeráty provést akci)'}
@@ -924,6 +942,8 @@ export default function AutomationsView() {
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   {formActionType === 'daily_report'
                     ? 'První e-mail = prodejce, pro kterého se sestaví denní report (+ spárované subúčty).'
+                    : formActionType === 'proxy_health'
+                    ? 'Proxy health kontroluje všechny přiřazené IP — e-mailový filtr se ignoruje.'
                     : formActionType.startsWith('cookies_')
                     ? 'Zadej hlavní e-mail (např. duplux@seznam.cz) a Přidej. Při běhu se automaticky zahrnou i všechny spárované účty přes sbazar_email (jako v Moje nabídka).'
                     : 'Můžete vybrat z registrovaných prodejců nebo zadat konkrétní e-mail. Pokud nezadáte žádný, platí pro všechny účty.'}
@@ -1005,6 +1025,14 @@ export default function AutomationsView() {
                 </div>
               )}
 
+              {formActionType === 'proxy_health' && (
+                <div className="pt-2 border-t border-slate-100 rounded-xl bg-sky-50/70 px-3 py-2 text-[11px] text-sky-900">
+                  Kontroluje všechny přiřazené Bright Data IP na Bazoš.cz / Bazoš.sk / Sbazar.cz.
+                  Blokované IP flagnout do <code>proxy_health</code> a automaticky nahradí volnými
+                  z poolu. E-mailový výběr se nepoužívá.
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2 border-t border-slate-100">
                 <div>
                   <label className="block text-xs font-bold text-slate-700">Max inzerátů na běh</label>
@@ -1015,17 +1043,17 @@ export default function AutomationsView() {
                     value={formMaxItems}
                     onChange={(e) => setFormMaxItems(Number(e.target.value))}
                     className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 outline-none focus:border-indigo-600"
-                    disabled={formActionType === 'daily_report'}
+                    disabled={formActionType === 'daily_report' || formActionType === 'proxy_health'}
                   />
                   <p className="mt-1 text-[11px] text-slate-400">
-                    {formActionType === 'daily_report'
-                      ? 'U denního reportu se nepoužívá.'
+                    {formActionType === 'daily_report' || formActionType === 'proxy_health'
+                      ? 'U této akce se nepoužívá.'
                       : 'Běžně 40–50 inzerátů na jednu dávku.'}
                   </p>
                 </div>
 
                 <div className="space-y-2 pt-1">
-                  {formActionType !== 'daily_report' && (
+                  {formActionType !== 'daily_report' && formActionType !== 'proxy_health' && (
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
                     <input
                       type="checkbox"
@@ -1041,7 +1069,9 @@ export default function AutomationsView() {
                   </label>
                   )}
 
-                  {formActionType !== 'daily_report' && !formActionType.startsWith('cookies_') && (
+                  {formActionType !== 'daily_report' &&
+                    formActionType !== 'proxy_health' &&
+                    !formActionType.startsWith('cookies_') && (
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
                     <input
                       type="checkbox"

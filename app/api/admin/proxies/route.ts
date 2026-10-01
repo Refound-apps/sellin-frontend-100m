@@ -52,18 +52,20 @@ async function buildOverview(supabase: Awaited<ReturnType<typeof createClient>>,
   const { defaultZone } = getBrightDataConfig();
   const selectedZone = zone || defaultZone;
 
-  const [zones, balance, status, zoneIps, zoneInfo, credsRes, proxyRes] = await Promise.all([
-    listBrightDataZones(),
-    getBrightDataBalance().catch(() => null),
-    getBrightDataStatus().catch(() => null),
-    getBrightDataZoneIps(selectedZone),
-    getBrightDataZoneInfo(selectedZone).catch(() => null),
-    supabase
-      .from('credential_pg')
-      .select('id, email, proxy_ip, proxy_ip_sbazar, bazos_email, sbazar_email, status_cz')
-      .order('email', { ascending: true }),
-    supabase.from('proxy').select('id, ip, used, bb_email').order('id', { ascending: true }),
-  ]);
+  const [zones, balance, status, zoneIps, zoneInfo, credsRes, proxyRes, healthRes] =
+    await Promise.all([
+      listBrightDataZones(),
+      getBrightDataBalance().catch(() => null),
+      getBrightDataStatus().catch(() => null),
+      getBrightDataZoneIps(selectedZone),
+      getBrightDataZoneInfo(selectedZone).catch(() => null),
+      supabase
+        .from('credential_pg')
+        .select('id, email, proxy_ip, proxy_ip_sbazar, bazos_email, sbazar_email, status_cz')
+        .order('email', { ascending: true }),
+      supabase.from('proxy').select('id, ip, used, bb_email').order('id', { ascending: true }),
+      supabase.from('proxy_health').select('*').order('updated_at', { ascending: false }),
+    ]);
 
   if (credsRes.error) {
     throw new Error(credsRes.error.message);
@@ -71,6 +73,8 @@ async function buildOverview(supabase: Awaited<ReturnType<typeof createClient>>,
 
   const credentials = credsRes.data || [];
   const proxyPool = proxyRes.data || [];
+  const healthRows = healthRes.error ? [] : healthRes.data || [];
+  const healthByIp = new Map(healthRows.map((h) => [h.ip, h]));
 
   const byIp = new Map<
     string,
@@ -97,6 +101,7 @@ async function buildOverview(supabase: Awaited<ReturnType<typeof createClient>>,
   const ips = zoneIps
     .map((item) => {
       const assigned = byIp.get(item.ip) || { bazos: [], sbazar: [] };
+      const health = healthByIp.get(item.ip) || null;
       return {
         ip: item.ip,
         country: item.country,
@@ -104,6 +109,18 @@ async function buildOverview(supabase: Awaited<ReturnType<typeof createClient>>,
         assigned_sbazar: assigned.sbazar,
         used_count: assigned.bazos.length + assigned.sbazar.length,
         is_free: assigned.bazos.length === 0 && assigned.sbazar.length === 0,
+        health: health
+          ? {
+              status: health.status,
+              bazos_cz_status: health.bazos_cz_status,
+              bazos_sk_status: health.bazos_sk_status,
+              sbazar_status: health.sbazar_status,
+              blocked_platforms: health.blocked_platforms || [],
+              last_checked_at: health.last_checked_at,
+              last_error: health.last_error,
+              replaced_by: health.replaced_by,
+            }
+          : null,
       };
     })
     .sort((a, b) => {
@@ -113,12 +130,23 @@ async function buildOverview(supabase: Awaited<ReturnType<typeof createClient>>,
 
   const orphans = Array.from(byIp.entries())
     .filter(([ip]) => !zoneIpSet.has(ip))
-    .map(([ip, assigned]) => ({
-      ip,
-      assigned_bazos: assigned.bazos,
-      assigned_sbazar: assigned.sbazar,
-      used_count: assigned.bazos.length + assigned.sbazar.length,
-    }))
+    .map(([ip, assigned]) => {
+      const health = healthByIp.get(ip) || null;
+      return {
+        ip,
+        assigned_bazos: assigned.bazos,
+        assigned_sbazar: assigned.sbazar,
+        used_count: assigned.bazos.length + assigned.sbazar.length,
+        health: health
+          ? {
+              status: health.status,
+              last_checked_at: health.last_checked_at,
+              last_error: health.last_error,
+              replaced_by: health.replaced_by,
+            }
+          : null,
+      };
+    })
     .sort((a, b) => b.used_count - a.used_count);
 
   const accountsWithoutProxy = credentials
@@ -133,6 +161,10 @@ async function buildOverview(supabase: Awaited<ReturnType<typeof createClient>>,
     }));
 
   const freeIps = ips.filter((x) => x.is_free);
+  const healthBlocked = healthRows.filter(
+    (h) => h.status === 'blocked' || h.status === 'dead'
+  ).length;
+  const healthOk = healthRows.filter((h) => h.status === 'ok').length;
 
   return {
     zone: selectedZone,
@@ -153,11 +185,15 @@ async function buildOverview(supabase: Awaited<ReturnType<typeof createClient>>,
             .filter(Boolean)
         ).size,
       proxy_table_rows: proxyPool.length,
+      health_ok: healthOk,
+      health_blocked: healthBlocked,
+      health_checked: healthRows.length,
     },
     ips,
     orphans,
     accounts_without_proxy: accountsWithoutProxy,
     proxy_table: proxyPool,
+    health: healthRows,
   };
 }
 
@@ -296,6 +332,67 @@ export async function POST(request: NextRequest) {
         success: true,
         data: refreshed,
         meta: { synced: freeIps.length },
+      });
+    } else if (action === 'run_health_check') {
+      const { getScraperActionUrl } = await import('@/lib/backend');
+      const overview = await buildOverview(supabase, zone);
+      const assigned = new Set<string>();
+      for (const row of overview.ips) {
+        if (!row.is_free) assigned.add(row.ip);
+      }
+      for (const orphan of overview.orphans) {
+        assigned.add(orphan.ip);
+      }
+
+      const ips = Array.from(assigned);
+      const candidateFreeIps = overview.ips.filter((x) => x.is_free).map((x) => x.ip);
+      const autoReplace = body.auto_replace !== false;
+      const platforms = Array.isArray(body.platforms)
+        ? body.platforms.map(String)
+        : ['bazos_cz', 'bazos_sk', 'sbazar'];
+
+      if (ips.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Žádné přiřazené IP ke kontrole' },
+          { status: 400 }
+        );
+      }
+
+      const backendUrl = getScraperActionUrl('/proxyhealthcheck');
+      const backendRes = await fetch(backendUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ips,
+          platforms,
+          auto_replace: autoReplace,
+          candidate_free_ips: candidateFreeIps,
+          with_delay: false,
+          stagger_ms: Number(body.stagger_ms || 10_000),
+        }),
+      });
+
+      const backendBody = await backendRes.json().catch(() => ({}));
+      if (!backendRes.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              backendBody?.error ||
+              `Backend health check selhal (${backendRes.status})`,
+          },
+          { status: 502 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: overview,
+        meta: {
+          queued: ips.length,
+          candidateFreeIps: candidateFreeIps.length,
+          backend: backendBody,
+        },
       });
     } else {
       return NextResponse.json(

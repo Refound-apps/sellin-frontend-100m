@@ -231,6 +231,54 @@ export type Database = {
         }
         Relationships: []
       }
+      proxy_health: {
+        Row: {
+          ip: string
+          status: string
+          bazos_cz_status: string | null
+          bazos_sk_status: string | null
+          sbazar_status: string | null
+          blocked_platforms: string[]
+          last_checked_at: string | null
+          last_ok_at: string | null
+          last_error: string | null
+          check_details: Json
+          replaced_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          ip: string
+          status?: string
+          bazos_cz_status?: string | null
+          bazos_sk_status?: string | null
+          sbazar_status?: string | null
+          blocked_platforms?: string[]
+          last_checked_at?: string | null
+          last_ok_at?: string | null
+          last_error?: string | null
+          check_details?: Json
+          replaced_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          ip?: string
+          status?: string
+          bazos_cz_status?: string | null
+          bazos_sk_status?: string | null
+          sbazar_status?: string | null
+          blocked_platforms?: string[]
+          last_checked_at?: string | null
+          last_ok_at?: string | null
+          last_error?: string | null
+          check_details?: Json
+          replaced_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scraper_tasks: {
         Row: {
           bb_email: string | null

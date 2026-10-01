@@ -447,7 +447,117 @@ export async function POST(request: NextRequest) {
         totals: sent.report.totals,
       };
     }
-    // 7. Volný API request
+    // 7. Proxy health check (Bright Data IP průchodnost)
+    else if (job.action_type === 'proxy_health') {
+      const { getBrightDataConfig, getBrightDataZoneIps } = await import('@/lib/brightdata');
+      const zone = String(settings.zone || getBrightDataConfig().defaultZone || 'data_center');
+      const autoReplace = settings.auto_replace !== false;
+      const platforms = Array.isArray(settings.platforms)
+        ? settings.platforms.map(String)
+        : ['bazos_cz', 'bazos_sk', 'sbazar'];
+
+      const { data: creds, error: credsErr } = await supabase
+        .from('credential_pg')
+        .select('proxy_ip, proxy_ip_sbazar');
+      if (credsErr) throw new Error(`Chyba načítání credentials: ${credsErr.message}`);
+
+      const assigned = new Set<string>();
+      for (const c of creds || []) {
+        const a = String(c.proxy_ip || '').trim();
+        const b = String(c.proxy_ip_sbazar || '').trim();
+        if (a) assigned.add(a);
+        if (b) assigned.add(b);
+      }
+
+      const zoneIps = await getBrightDataZoneIps(zone);
+      const zoneIpList = zoneIps.map((x) => x.ip);
+      const zoneSet = new Set(zoneIpList);
+      const ipsToCheck = Array.from(assigned);
+      const candidateFreeIps = zoneIpList.filter((ip) => !assigned.has(ip));
+
+      // Also re-check assigned IPs that are no longer in Bright Data pool (likely dead)
+      for (const ip of assigned) {
+        if (!zoneSet.has(ip) && !ipsToCheck.includes(ip)) ipsToCheck.push(ip);
+      }
+
+      processedCount = ipsToCheck.length;
+
+      if (ipsToCheck.length === 0) {
+        resultMessage = 'Žádné přiřazené proxy IP k health checku.';
+        details = { zone, assigned: 0, freeCandidates: candidateFreeIps.length };
+      } else {
+        const useDelay = Boolean(settings.with_delay) || triggeredBy === 'cron';
+        const backendUrl = getScraperActionUrl('/proxyhealthcheck');
+        const payload = {
+          ips: ipsToCheck,
+          platforms,
+          auto_replace: autoReplace,
+          candidate_free_ips: candidateFreeIps,
+          with_delay: useDelay,
+          stagger_ms: Number(settings.stagger_ms || 15_000),
+        };
+
+        const backendPromise = fetch(backendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        type RaceResult =
+          | { kind: 'response'; res: Response }
+          | { kind: 'error'; error: any }
+          | { kind: 'timeout' };
+
+        const raced: RaceResult = await Promise.race([
+          backendPromise.then(
+            (res) => ({ kind: 'response' as const, res }),
+            (error) => ({ kind: 'error' as const, error })
+          ),
+          new Promise<RaceResult>((resolve) =>
+            setTimeout(() => resolve({ kind: 'timeout' }), 6000)
+          ),
+        ]);
+
+        if (raced.kind === 'error') {
+          throw new Error(
+            `Backend nedostupný (${backendUrl}): ${raced.error?.message || 'connection failed'}`
+          );
+        }
+
+        if (raced.kind === 'timeout') {
+          backendPromise.catch((err) => console.error('Proxy health late error:', err));
+          resultMessage = `Proxy health check odeslán (${ipsToCheck.length} IP, free candidates ${candidateFreeIps.length}). Backend běží na pozadí.`;
+          details = {
+            count: ipsToCheck.length,
+            zone,
+            autoReplace,
+            platforms,
+            candidateFreeIps,
+            ips: ipsToCheck,
+            pending: true,
+            backendUrl,
+          };
+        } else if (!raced.res.ok) {
+          const text = await raced.res.text().catch(() => '');
+          throw new Error(`Backend ${backendUrl} vrátil ${raced.res.status}: ${text}`);
+        } else {
+          const body = await raced.res.json().catch(() => ({}));
+          resultMessage = `Proxy health check přijat (${ipsToCheck.length} IP) → /proxyhealthcheck.`;
+          details = {
+            count: ipsToCheck.length,
+            zone,
+            autoReplace,
+            platforms,
+            candidateFreeIps,
+            ips: ipsToCheck,
+            backend: body,
+            backendUrl,
+            status: raced.res.status,
+          };
+        }
+      }
+    }
+    // 8. Volný API request
     else {
       const endpoint = settings.endpoint || '/testsellin';
       const method = settings.method || 'POST';

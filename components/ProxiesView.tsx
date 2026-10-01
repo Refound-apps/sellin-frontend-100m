@@ -4,6 +4,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type AssignedAccount = { id: number; email: string };
 
+type ProxyHealthInfo = {
+  status: string;
+  bazos_cz_status?: string | null;
+  bazos_sk_status?: string | null;
+  sbazar_status?: string | null;
+  blocked_platforms?: string[];
+  last_checked_at?: string | null;
+  last_error?: string | null;
+  replaced_by?: string | null;
+};
+
 type ProxyIpRow = {
   ip: string;
   country: string | null;
@@ -11,6 +22,7 @@ type ProxyIpRow = {
   assigned_sbazar: AssignedAccount[];
   used_count: number;
   is_free: boolean;
+  health?: ProxyHealthInfo | null;
 };
 
 type OrphanIp = {
@@ -18,6 +30,7 @@ type OrphanIp = {
   assigned_bazos: AssignedAccount[];
   assigned_sbazar: AssignedAccount[];
   used_count: number;
+  health?: ProxyHealthInfo | null;
 };
 
 type AccountWithoutProxy = {
@@ -42,6 +55,9 @@ type ProxiesOverview = {
     accounts_without_proxy: number;
     assigned_unique: number;
     proxy_table_rows: number;
+    health_ok: number;
+    health_blocked: number;
+    health_checked: number;
   };
   ips: ProxyIpRow[];
   orphans: OrphanIp[];
@@ -65,6 +81,20 @@ function countryLabel(code: string | null) {
   if (!code) return '—';
   const key = code.toLowerCase();
   return COUNTRY_LABELS[key] || code.toUpperCase();
+}
+
+function healthBadge(status?: string | null) {
+  const s = (status || 'unknown').toLowerCase();
+  if (s === 'ok') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+  }
+  if (s === 'blocked') {
+    return 'border-rose-200 bg-rose-50 text-rose-800';
+  }
+  if (s === 'dead') {
+    return 'border-amber-200 bg-amber-50 text-amber-900';
+  }
+  return 'border-slate-200 bg-slate-50 text-slate-600';
 }
 
 export default function ProxiesView() {
@@ -134,6 +164,11 @@ export default function ProxiesView() {
       }
       if (typeof json.meta?.synced === 'number') {
         setMessage(`Synchronizováno ${json.meta.synced} volných IP do tabulky proxy`);
+      }
+      if (typeof json.meta?.queued === 'number') {
+        setMessage(
+          `Health check zařazen: ${json.meta.queued} IP (volných kandidátů ${json.meta.candidateFreeIps ?? 0})`
+        );
       }
       return true;
     } catch (err) {
@@ -209,6 +244,26 @@ export default function ProxiesView() {
           >
             Obnovit
           </button>
+          <button
+            type="button"
+            disabled={busy || loading}
+            onClick={() => {
+              if (
+                !confirm(
+                  'Spustit health check všech přiřazených proxy IP?\nBlokované IP se flagnout a nahradí volnými.'
+                )
+              ) {
+                return;
+              }
+              runAction(
+                { action: 'run_health_check', auto_replace: true },
+                'Health check zařazen do fronty na backendu'
+              );
+            }}
+            className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-2xs hover:bg-sky-500 disabled:opacity-50"
+          >
+            Spustit health check
+          </button>
         </div>
       </div>
 
@@ -229,7 +284,7 @@ export default function ProxiesView() {
         </div>
       ) : data ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
             <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Kredit</p>
               <p className="mt-1 text-2xl font-black tracking-tight text-slate-950">
@@ -273,6 +328,15 @@ export default function ProxiesView() {
                 {data.stats.accounts_without_proxy}
               </p>
               <p className="mt-0.5 text-[11px] text-slate-400">účtů bez proxy_ip</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Health OK</p>
+              <p className="mt-1 text-2xl font-black tracking-tight text-emerald-700">
+                {data.stats.health_ok ?? 0}
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                blocked/dead {data.stats.health_blocked ?? 0}
+              </p>
             </div>
           </div>
 
@@ -469,6 +533,7 @@ export default function ProxiesView() {
                     <th className="px-4 py-3 font-bold">IP</th>
                     <th className="px-4 py-3 font-bold">Země</th>
                     <th className="px-4 py-3 font-bold">Stav</th>
+                    <th className="px-4 py-3 font-bold">Health</th>
                     <th className="px-4 py-3 font-bold">Bazoš (proxy_ip)</th>
                     <th className="px-4 py-3 font-bold">Sbazar</th>
                     <th className="px-4 py-3 font-bold">Akce</th>
@@ -493,6 +558,27 @@ export default function ProxiesView() {
                         >
                           {row.is_free ? 'Volná' : `${row.used_count}×`}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-flex w-fit rounded-md border px-2 py-0.5 text-[11px] font-bold ${healthBadge(
+                              row.health?.status
+                            )}`}
+                          >
+                            {row.health?.status || 'neověřeno'}
+                          </span>
+                          {row.health?.last_checked_at && (
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(row.health.last_checked_at).toLocaleString('cs-CZ')}
+                            </span>
+                          )}
+                          {row.health?.replaced_by && (
+                            <span className="text-[10px] font-medium text-amber-700">
+                              → {row.health.replaced_by}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <AccountChips
@@ -531,7 +617,7 @@ export default function ProxiesView() {
                   ))}
                   {filteredIps.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">
+                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                         Žádné IP neodpovídají filtru.
                       </td>
                     </tr>

@@ -559,7 +559,7 @@ export async function updateOfferById(
     image8?: string | null;
     image9?: string | null;
   }
-): Promise<void> {
+): Promise<{ success: boolean; message?: string; queued?: number; offer?: any }> {
   try {
     const response = await apiFetch(`/api/offers/${id}`, {
       method: 'PUT',
@@ -568,10 +568,14 @@ export async function updateOfferById(
       },
       body: JSON.stringify(updates),
     });
-    
+
     if (!response.ok) {
-      throw new Error('Failed to update offer');
+      const errorJson = await response.json().catch(() => null);
+      throw new Error(errorJson?.error || 'Nepodařilo se aktualizovat inzerát');
     }
+
+    const data = await response.json().catch(() => ({ success: true }));
+    return data;
   } catch (error) {
     console.error('Error updating offer:', error);
     throw error;

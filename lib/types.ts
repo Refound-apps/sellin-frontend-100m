@@ -170,6 +170,7 @@ export type CronActionType =
   | 'recreate_sbazar'
   | 'cookies_bazos'
   | 'cookies_bazos_sk'
+  | 'proxy_health'
   | 'daily_report'
   | 'api_request';
 

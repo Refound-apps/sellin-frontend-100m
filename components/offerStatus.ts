@@ -1,11 +1,15 @@
 export function offerStatusLabel(state: string | null | undefined) {
   if (!state) return 'Aktivní';
   if (state === 'app_active' || state === 'app_create') return 'Aktivní';
+  if (state === 'app_update') return 'Aktualizace ve frontě';
   if (state === 'app_archive') return 'Archiv';
   return state;
 }
 
 export function offerStatusTone(state: string | null | undefined) {
+  if (state === 'app_update') {
+    return 'bg-amber-100/90 text-amber-900 ring-amber-300';
+  }
   if (state === 'app_active' || state === 'app_create' || state?.includes('ok_')) {
     return 'bg-[hsl(142_45%_92%)] text-[hsl(142_55%_24%)] ring-[hsl(142_30%_80%)]';
   }
@@ -25,6 +29,13 @@ export interface StatusStyle {
 }
 
 export function getOfferStatusInfo(state: string | null | undefined): StatusStyle {
+  if (state === 'app_update') {
+    return {
+      label: 'Aktualizace ve frontě',
+      badge: 'bg-amber-50 text-amber-900 border-amber-200/90',
+      dot: 'bg-amber-500 animate-pulse',
+    };
+  }
   if (state === 'app_archive') {
     return {
       label: 'Archiv',

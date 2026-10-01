@@ -77,6 +77,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
   });
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const getInitialImages = useCallback(() => {
@@ -234,15 +235,17 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
     setSaving(true);
     setSaveError(null);
     try {
-      await updateOfferById(offer.id, {
+      const res = await updateOfferById(offer.id, {
         ...editedOffer,
         images: editedImages,
+        state: 'app_update',
       });
 
       offer.title = editedOffer.title;
       offer.description = editedOffer.description;
       offer.price = editedOffer.price;
       offer.autorenew_freq = editedOffer.autorenew_freq;
+      offer.state = 'app_update';
       offer.preview_image = editedImages[0] || '';
       offer.image2 = editedImages[1] || null;
       offer.image3 = editedImages[2] || null;
@@ -261,8 +264,11 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
         prev.map((d) => ({ ...d, autorenew_freq: editedOffer.autorenew_freq }))
       );
       setIsEditing(false);
+      setSaveSuccessMessage(
+        res?.message || 'Změny byly úspěšně uloženy a zařazeny do fronty pro aktualizaci na portálech.'
+      );
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3500);
+      setTimeout(() => setSaveSuccess(false), 5000);
     } catch (error: any) {
       console.error('Error saving offer:', error);
       setSaveError('Chyba při ukládání: ' + (error.message || 'Chyba při komunikaci se serverem.'));
@@ -492,20 +498,26 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
 
         {/* Feedback Banners */}
         {saveSuccess && (
-          <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2.5 text-xs font-bold text-emerald-800 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5">
-              <span>✓</span>
-              <span>Změny v inzerátu byly úspěšně uloženy.</span>
+          <div className="bg-emerald-50 border-b border-emerald-200/90 px-4 py-2.5 text-xs font-bold text-emerald-900 flex items-center justify-between animate-fade-in shadow-2xs">
+            <span className="inline-flex items-center gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-[11px]">
+                ✓
+              </span>
+              <span>{saveSuccessMessage || 'Změny v inzerátu byly úspěšně uloženy a zařazeny do fronty pro aktualizaci.'}</span>
             </span>
-            <button onClick={() => setSaveSuccess(false)} className="text-emerald-700 hover:underline">
-              Zavřít
+            <button
+              onClick={() => setSaveSuccess(false)}
+              className="text-emerald-700 hover:text-emerald-950 font-bold p-1 text-sm ml-2"
+              title="Zavřít oznámení"
+            >
+              ✕
             </button>
           </div>
         )}
         {saveError && (
           <div className="bg-rose-50 border-b border-rose-200 px-4 py-2.5 text-xs font-bold text-rose-800 flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5">
-              <span>⚠</span>
+              <span>⚠️</span>
               <span>{saveError}</span>
             </span>
             <button onClick={() => setSaveError(null)} className="text-rose-700 hover:underline">
