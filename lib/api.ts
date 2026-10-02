@@ -586,7 +586,7 @@ export async function updateOfferById(
 
 export async function deleteOfferById(
   id: number
-): Promise<{ success: boolean; message?: string; queued?: number }> {
+): Promise<{ success: boolean; message?: string; queued?: number; offer?: any }> {
   try {
     const response = await apiFetch(`/api/offers/${id}`, {
       method: 'DELETE',

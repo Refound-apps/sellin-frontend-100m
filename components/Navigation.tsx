@@ -150,6 +150,7 @@ export default function Navigation() {
     { href: '/admin/transactions', label: 'Transakce', exact: false },
     { href: '/admin/automations', label: 'Automatizace & Cron', exact: false },
     { href: '/admin/force-renew', label: 'Force renew', exact: false },
+    { href: '/admin/recreate', label: 'Recreate', exact: false },
     { href: '/admin/proxies', label: 'Proxy IP', exact: false },
     { href: '/admin/users', label: 'Uživatelé', exact: false },
     { href: '/admin/eshop', label: 'E-shopy', exact: false },

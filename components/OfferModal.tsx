@@ -327,19 +327,28 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
     if (!window.confirm(confirmText)) return;
 
     setSaving(true);
+    setSaveError(null);
     try {
       if (nextState === 'app_archive') {
-        await deleteOfferById(offer.id);
-        offer.state = 'app_delete';
-        setSaveSuccessMessage('Inzerát byl zařazen do fronty pro smazání na portálech.');
+        const result = await deleteOfferById(offer.id);
+        const updated = {
+          ...offer,
+          ...(result?.offer || {}),
+          state: 'app_delete' as const,
+        };
+        Object.assign(offer, updated);
+        setSaveSuccessMessage(result?.message || 'Inzerát byl zařazen do fronty pro smazání na portálech.');
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 5000);
+        onOfferUpdated?.(updated);
       } else {
         await updateOfferById(offer.id, { state: nextState });
         offer.state = nextState;
         setSaveSuccessMessage('Inzerát byl úspěšně aktivován.');
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 5000);
+        onOfferUpdated?.(offer);
       }
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 5000);
-      onOfferUpdated?.(offer);
     } catch (err: any) {
       console.error(err);
       setSaveError(err?.message || 'Chyba při ukládání');
