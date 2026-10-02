@@ -30,21 +30,21 @@ const ACTION_TYPES: { id: CronActionType; label: string; desc: string; icon: str
   {
     id: 'renew_sbazar',
     label: 'Obnova Sbazar (Sbazar.cz)',
-    desc: 'Odešle batch request s inzeráty k obnovení na Sbazaru',
+    desc: 'Večerní cron: vybere N nejstarších inzerátů vybraných účtů a pošle renew na backend (jako Budibase)',
     icon: '🔄',
     badgeColor: 'bg-rose-500/10 text-rose-700 border-rose-200',
   },
   {
     id: 'renew_bazos',
     label: 'Obnova Bazoš (Bazoš.cz)',
-    desc: 'Odešle inzeráty k obnově + automaticky přiřadí vouchery pro TOP',
+    desc: 'Stejný princip jako Sbazar — účty + max inzerátů → fronta renew (vouchery/TOP dle nabídky)',
     icon: '⚡',
     badgeColor: 'bg-amber-500/10 text-amber-700 border-amber-200',
   },
   {
     id: 'renew_bazos_sk',
     label: 'Obnova Bazoš.sk (Slovensko)',
-    desc: 'Pravidelná obnova inzerátů pro slovenské pobočky a účty',
+    desc: 'Pravidelná obnova inzerátů pro slovenské účty — čas, e-maily, max dávka',
     icon: '🇸🇰',
     badgeColor: 'bg-blue-500/10 text-blue-700 border-blue-200',
   },
@@ -177,7 +177,7 @@ export default function AutomationsView() {
     setFormScheduleCron('0 21 * * *');
     setFormActionType('renew_sbazar');
     setFormTargetEmails([]);
-    setFormMaxItems(40);
+    setFormMaxItems(30);
     setFormWithDelay(false);
     setFormAutotop(false);
     setFormCustomEndpoint('/testsellin');
@@ -224,6 +224,21 @@ export default function AutomationsView() {
     }
   };
 
+  const handleActionTypeChange = (actionType: CronActionType) => {
+    setFormActionType(actionType);
+    // Večerní renew = stejný default jako Budibase (21:00, max 30)
+    if (actionType.startsWith('renew_')) {
+      if (formSchedulePreset === 'daily_21' || !editingJob) {
+        setFormSchedulePreset('daily_21');
+        setFormTriggerType('cron');
+        setFormScheduleCron('0 21 * * *');
+      }
+      if (!editingJob && (formMaxItems === 40 || formMaxItems === 1)) {
+        setFormMaxItems(30);
+      }
+    }
+  };
+
   const handleAddEmail = (emailToAdd: string) => {
     const clean = emailToAdd.trim().toLowerCase();
     if (!clean) return;
@@ -262,6 +277,16 @@ export default function AutomationsView() {
 
     if (formActionType === 'daily_report' && emailsToSave.length === 0) {
       setFormError('Pro denní report vyber aspoň jeden prodejce (e-mail účtu).');
+      return;
+    }
+
+    if (formActionType.startsWith('renew_') && emailsToSave.length === 0) {
+      setFormError('Pro obnovu vyber aspoň jeden e-mail účtu (jako v Budibase Email / Email2 / …).');
+      return;
+    }
+
+    if (formActionType.startsWith('recreate_') && emailsToSave.length === 0) {
+      setFormError('Pro pře-vytvoření vyber aspoň jeden e-mail účtu.');
       return;
     }
 
@@ -872,7 +897,7 @@ export default function AutomationsView() {
                     return (
                       <div
                         key={act.id}
-                        onClick={() => setFormActionType(act.id)}
+                        onClick={() => handleActionTypeChange(act.id)}
                         className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all ${
                           isSelected
                             ? 'border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600'
@@ -938,6 +963,8 @@ export default function AutomationsView() {
                     ? 'Cílové e-maily (nepoužívá se)'
                     : formActionType.startsWith('cookies_')
                     ? 'Účty pro cookie check (e-maily)'
+                    : formActionType.startsWith('renew_')
+                    ? 'Účty k obnově (e-maily)'
                     : 'Cílové e-mailové účty (pro které inzeráty provést akci)'}
                 </label>
                 <p className="text-[11px] text-slate-500 mt-0.5">
@@ -947,6 +974,8 @@ export default function AutomationsView() {
                     ? 'Proxy health kontroluje všechny přiřazené IP — e-mailový filtr se ignoruje.'
                     : formActionType.startsWith('cookies_')
                     ? 'Zadej hlavní e-mail (např. duplux@seznam.cz) a Přidej. Při běhu se automaticky zahrnou i všechny spárované účty přes sbazar_email (jako v Moje nabídka).'
+                    : formActionType.startsWith('renew_')
+                    ? 'Stejně jako Budibase Email / Email2 / … — backend načte nejstarší inzeráty těchto účtů a zařadí obnovu do fronty.'
                     : 'Můžete vybrat z registrovaných prodejců nebo zadat konkrétní e-mail. Pokud nezadáte žádný, platí pro všechny účty.'}
                 </p>
 
@@ -996,7 +1025,7 @@ export default function AutomationsView() {
                 {/* Rychlý výběr existujících účtů */}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                   <span className="font-semibold text-slate-400">Rychlý výběr:</span>
-                  {users.slice(0, 6).map((u) => (
+                  {users.slice(0, 12).map((u) => (
                     <button
                       type="button"
                       key={u.email}
@@ -1049,6 +1078,8 @@ export default function AutomationsView() {
                   <p className="mt-1 text-[11px] text-slate-400">
                     {formActionType === 'daily_report' || formActionType === 'proxy_health'
                       ? 'U této akce se nepoužívá.'
+                      : formActionType.startsWith('renew_')
+                      ? 'Jako Budibase Max — kolik inzerátů obnovit za jeden běh (typicky 30).'
                       : 'Běžně 40–50 inzerátů na jednu dávku.'}
                   </p>
                 </div>
