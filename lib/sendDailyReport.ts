@@ -122,10 +122,13 @@ export async function sendDailyReportEmail(opts: {
   }
 
   const payload = await loadDailyReport(opts.supabase, opts.seller);
+  const toNorm = to.toLowerCase().trim();
+  const bcc = toNorm === 'obchod@sellin.cz' ? undefined : ['obchod@sellin.cz'];
   const resend = new Resend(apiKey);
   const { data, error } = await resend.emails.send({
     from: 'Prodejomat <robot@prodejomat.cz>',
     to: [to],
+    ...(bcc ? { bcc } : {}),
     replyTo: 'obchod@sellin.cz',
     subject: payload.subject,
     html: payload.html,

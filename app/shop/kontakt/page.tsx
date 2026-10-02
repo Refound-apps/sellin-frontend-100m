@@ -11,6 +11,7 @@ export default function KontaktPage() {
   const [formSent, setFormSent] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +33,13 @@ export default function KontaktPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phone || submitting) return;
+    const phoneValue = phone.trim();
+    const emailValue = email.trim();
+    if (!name.trim() || submitting) return;
+    if (!phoneValue && !emailValue) {
+      setError('Vyplňte alespoň telefon nebo e-mail.');
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -42,7 +49,8 @@ export default function KontaktPage() {
       shop_id: shop.id,
       shop: shop.custom_domain || shop.slug || undefined,
       name: name.trim(),
-      phone: phone.trim(),
+      phone: phoneValue || undefined,
+      email: emailValue || undefined,
       message: message.trim() || undefined,
     });
 
@@ -233,12 +241,36 @@ export default function KontaktPage() {
                     type="tel"
                     inputMode="tel"
                     autoComplete="tel"
-                    required
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (error) setError(null);
+                    }}
                     placeholder="+420 777 000 000"
                     className="mt-1 w-full rounded-xl border-0 bg-[hsl(210_40%_98%/0.6)] px-3.5 py-2.5 text-base sm:text-sm text-[hsl(222_47%_11%)] ring-1 ring-[hsl(214_32%_91%)] focus:bg-white focus:ring-2 focus:ring-[hsl(142_71%_45%)] outline-none"
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="kontakt-email" className="block text-xs font-semibold text-[hsl(222_47%_11%)]">
+                    E-mail
+                  </label>
+                  <input
+                    id="kontakt-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    placeholder="jan.novak@email.cz"
+                    className="mt-1 w-full rounded-xl border-0 bg-[hsl(210_40%_98%/0.6)] px-3.5 py-2.5 text-base sm:text-sm text-[hsl(222_47%_11%)] ring-1 ring-[hsl(214_32%_91%)] focus:bg-white focus:ring-2 focus:ring-[hsl(142_71%_45%)] outline-none"
+                  />
+                  <p className="mt-1 text-[11px] text-[hsl(215_16%_55%)]">
+                    Stačí vyplnit telefon nebo e-mail (ideálně obojí).
+                  </p>
                 </div>
 
                 <div>

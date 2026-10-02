@@ -209,17 +209,33 @@ export async function POST(request: NextRequest) {
     const shopId = String(body?.shop_id || body?.shopId || '').trim();
     const shopSlugOrDomain = String(body?.shop || body?.domain || body?.slug || '').trim().toLowerCase();
 
-    if (type === 'dimension' && (!size || !contact)) {
-      return NextResponse.json(
-        { success: false, error: 'Vyplňte rozměr a kontakt.' },
-        { status: 400 }
-      );
+    if (type === 'dimension') {
+      if (!size || (!phone && !email && !contact)) {
+        return NextResponse.json(
+          { success: false, error: 'Vyplňte rozměr a alespoň telefon nebo e-mail.' },
+          { status: 400 }
+        );
+      }
+      if (email && !isValidEmail(email)) {
+        return NextResponse.json(
+          { success: false, error: 'Zadejte platný e-mail.' },
+          { status: 400 }
+        );
+      }
     }
-    if (type === 'contact' && (!name || !phone)) {
-      return NextResponse.json(
-        { success: false, error: 'Vyplňte jméno a telefon.' },
-        { status: 400 }
-      );
+    if (type === 'contact') {
+      if (!name || (!phone && !email && !contact)) {
+        return NextResponse.json(
+          { success: false, error: 'Vyplňte jméno a alespoň telefon nebo e-mail.' },
+          { status: 400 }
+        );
+      }
+      if (email && !isValidEmail(email)) {
+        return NextResponse.json(
+          { success: false, error: 'Zadejte platný e-mail.' },
+          { status: 400 }
+        );
+      }
     }
     if (type === 'reservation') {
       if (!phone || !email || !address) {

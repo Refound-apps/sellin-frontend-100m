@@ -6,7 +6,8 @@ import { useShop } from './ShopContext';
 
 export default function ShopInquiry() {
   const [sizeInput, setSizeInput] = useState('');
-  const [contactInput, setContactInput] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +15,14 @@ export default function ShopInquiry() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sizeInput || !contactInput || submitting) return;
+    const phoneValue = phoneInput.trim();
+    const emailValue = emailInput.trim();
+    if (!sizeInput.trim() || (!phoneValue && !emailValue) || submitting) {
+      if (!phoneValue && !emailValue) {
+        setError('Vyplňte alespoň telefon nebo e-mail.');
+      }
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -24,7 +32,8 @@ export default function ShopInquiry() {
       shop_id: shop.id,
       shop: shop.custom_domain || shop.slug || undefined,
       size: sizeInput.trim(),
-      contact: contactInput.trim(),
+      phone: phoneValue || undefined,
+      email: emailValue || undefined,
     });
 
     setSubmitting(false);
@@ -102,18 +111,44 @@ export default function ShopInquiry() {
                   </div>
 
                   <div>
-                    <label htmlFor="contact-input" className="block text-xs font-semibold text-[hsl(222_47%_11%)]">
-                      Váš telefon nebo e-mail
+                    <label htmlFor="dimension-phone" className="block text-xs font-semibold text-[hsl(222_47%_11%)]">
+                      Telefon
                     </label>
                     <input
-                      id="contact-input"
-                      type="text"
-                      required
-                      value={contactInput}
-                      onChange={(e) => setContactInput(e.target.value)}
-                      placeholder="+420 ... nebo email@seznam.cz"
+                      id="dimension-phone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={phoneInput}
+                      onChange={(e) => {
+                        setPhoneInput(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      placeholder="+420 777 000 000"
                       className="mt-1 w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-base sm:text-sm text-[hsl(222_47%_11%)] shadow-2xs outline-none ring-1 ring-[hsl(214_32%_88%)] placeholder:text-[hsl(215_16%_60%)] focus:ring-2 focus:ring-[hsl(142_71%_45%)]"
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="dimension-email" className="block text-xs font-semibold text-[hsl(222_47%_11%)]">
+                      E-mail
+                    </label>
+                    <input
+                      id="dimension-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={emailInput}
+                      onChange={(e) => {
+                        setEmailInput(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      placeholder="jan.novak@email.cz"
+                      className="mt-1 w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-base sm:text-sm text-[hsl(222_47%_11%)] shadow-2xs outline-none ring-1 ring-[hsl(214_32%_88%)] placeholder:text-[hsl(215_16%_60%)] focus:ring-2 focus:ring-[hsl(142_71%_45%)]"
+                    />
+                    <p className="mt-1 text-[11px] text-[hsl(215_16%_55%)]">
+                      Stačí vyplnit telefon nebo e-mail (ideálně obojí).
+                    </p>
                   </div>
 
                   {error && (
