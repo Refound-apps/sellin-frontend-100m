@@ -52,7 +52,9 @@ function buildText(params: {
   shopDomain?: string | null;
   name?: string | null;
   contact?: string | null;
+  email?: string | null;
   phone?: string | null;
+  address?: string | null;
   message?: string | null;
   size?: string | null;
   offerTitle?: string | null;
@@ -92,6 +94,8 @@ function buildText(params: {
   lines.push('');
   if (params.name) lines.push(`Jméno: ${params.name}`);
   if (params.phone) lines.push(`Telefon: ${params.phone}`);
+  if (params.email) lines.push(`E-mail: ${params.email}`);
+  if (params.address) lines.push(`Adresa: ${params.address}`);
   if (params.contact) lines.push(`Kontakt: ${params.contact}`);
   if (params.message) {
     lines.push('');
@@ -112,7 +116,9 @@ function buildHtml(params: {
   shopDomain?: string | null;
   name?: string | null;
   contact?: string | null;
+  email?: string | null;
   phone?: string | null;
+  address?: string | null;
   message?: string | null;
   size?: string | null;
   offerTitle?: string | null;
@@ -144,6 +150,8 @@ function buildHtml(params: {
 
   if (params.name) rows.push(['Jméno', params.name]);
   if (params.phone) rows.push(['Telefon', params.phone]);
+  if (params.email) rows.push(['E-mail', params.email]);
+  if (params.address) rows.push(['Adresa', params.address]);
   if (params.contact) rows.push(['Kontakt', params.contact]);
   if (params.message) rows.push(['Zpráva', params.message]);
 
@@ -189,7 +197,9 @@ export async function POST(request: NextRequest) {
 
     const name = String(body?.name || '').trim().slice(0, 120);
     const contact = String(body?.contact || '').trim().slice(0, 200);
+    const email = String(body?.email || '').trim().slice(0, 200).toLowerCase();
     const phone = String(body?.phone || '').trim().slice(0, 40);
+    const address = String(body?.address || '').trim().slice(0, 300);
     const message = String(body?.message || body?.note || '').trim().slice(0, 2000);
     const size = String(body?.size || body?.dimension || '').trim().slice(0, 300);
     const offerTitle = String(body?.offer_title || body?.offerTitle || '').trim().slice(0, 300);
@@ -211,11 +221,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (type === 'reservation' && !phone) {
-      return NextResponse.json(
-        { success: false, error: 'Vyplňte telefonní číslo.' },
-        { status: 400 }
-      );
+    if (type === 'reservation') {
+      if (!phone || !email || !address) {
+        return NextResponse.json(
+          { success: false, error: 'Vyplňte e-mail, telefon a adresu.' },
+          { status: 400 }
+        );
+      }
+      if (!isValidEmail(email)) {
+        return NextResponse.json(
+          { success: false, error: 'Zadejte platný e-mail.' },
+          { status: 400 }
+        );
+      }
     }
 
     const supabase = await createClient();
@@ -319,7 +337,9 @@ export async function POST(request: NextRequest) {
       shopDomain,
       name: name || null,
       contact: contact || null,
+      email: email || null,
       phone: phone || null,
+      address: address || null,
       message: message || null,
       size: size || null,
       offerTitle: offerTitle || null,
@@ -329,6 +349,7 @@ export async function POST(request: NextRequest) {
     };
 
     const customerReplyTo =
+      (email && isValidEmail(email) ? email : null) ||
       (contact && isValidEmail(contact) ? contact : null) ||
       (phone && isValidEmail(phone) ? phone : null) ||
       undefined;

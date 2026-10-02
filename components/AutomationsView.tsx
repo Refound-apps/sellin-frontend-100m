@@ -449,7 +449,8 @@ export default function AutomationsView() {
             </span>
           </div>
           <p className="mt-1.5 text-sm text-slate-500">
-            Jednoduchá správa pravidelných cron úloh, nočních obnov inzerátů (Bazoš, Sbazar) a synchronizací.
+            Plánovač běží na backendu (VPS). Tady zapínáš/vypínáš úlohy, měníš rozvrh a spouštíš je
+            ručně — změny se projeví hned, bez Vercel cronu.
           </p>
         </div>
 
@@ -514,7 +515,7 @@ export default function AutomationsView() {
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-2xs">
           <p className="text-xs font-medium text-emerald-700">Aktivní cron úlohy</p>
           <p className="mt-1 text-2xl font-bold tracking-tight text-emerald-950">{stats.active}</p>
-          <div className="mt-2 text-[11px] font-medium text-emerald-600">Běží v nastavených časech</div>
+          <div className="mt-2 text-[11px] font-medium text-emerald-600">Backend je spouští podle cronu</div>
         </div>
         <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-5 shadow-2xs">
           <p className="text-xs font-medium text-rose-700">Sbazar automatizace</p>

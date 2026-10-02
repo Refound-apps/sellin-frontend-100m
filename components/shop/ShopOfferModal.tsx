@@ -66,6 +66,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
   // Quick reservation drawer
   const [buyModalOpen, setBuyModalOpen] = useState(false);
   const [reservePhone, setReservePhone] = useState('');
+  const [reserveEmail, setReserveEmail] = useState('');
+  const [reserveAddress, setReserveAddress] = useState('');
   const [reserveName, setReserveName] = useState('');
   const [reservePickup, setReservePickup] = useState<'osobni' | 'posta'>('osobni');
   const [reserveNote, setReserveNote] = useState('');
@@ -160,7 +162,14 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
 
   const handleReserveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reservePhone.trim() || reserveSubmitting) return;
+    if (
+      !reservePhone.trim() ||
+      !reserveEmail.trim() ||
+      !reserveAddress.trim() ||
+      reserveSubmitting
+    ) {
+      return;
+    }
 
     setReserveSubmitting(true);
     setReserveError(null);
@@ -170,6 +179,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
       shop_id: shop.id,
       shop: shop.custom_domain || shop.slug || undefined,
       phone: reservePhone.trim(),
+      email: reserveEmail.trim(),
+      address: reserveAddress.trim(),
       name: reserveName.trim() || undefined,
       message: reserveNote.trim() || undefined,
       offer_id: String(offer.id),
@@ -637,8 +648,15 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                   Sada byla úspěšně rezervována!
                 </h4>
                 <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  Děkujeme. Položku pro vás držíme v dílně. Brzy vám zavoláme na číslo{' '}
-                  <strong className="text-slate-950">{reservePhone}</strong> pro domluvu termínu předání či montáže.
+                  Děkujeme. Položku pro vás držíme v dílně. Brzy se ozveme na{' '}
+                  <strong className="text-slate-950">{reservePhone}</strong>
+                  {reserveEmail ? (
+                    <>
+                      {' '}nebo e-mail{' '}
+                      <strong className="text-slate-950">{reserveEmail}</strong>
+                    </>
+                  ) : null}{' '}
+                  pro domluvu termínu předání či montáže.
                 </p>
                 <div className="mt-5 sm:mt-6 flex flex-col gap-2">
                   <a
@@ -653,6 +671,8 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                       setBuyModalOpen(false);
                       setOrderSent(false);
                       setReservePhone('');
+                      setReserveEmail('');
+                      setReserveAddress('');
                     }}
                     className="rounded-xl border border-slate-300 bg-white py-3 text-xs sm:text-sm font-semibold text-slate-800 hover:bg-slate-50 active:scale-98"
                   >
@@ -677,8 +697,41 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                     placeholder="+420 777 000 000"
                     className="mt-1 w-full rounded-xl border-0 bg-slate-50 px-3.5 py-2.5 text-base sm:text-sm text-slate-950 ring-1 ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="reserve-email" className="block text-xs font-bold text-slate-800">
+                    E-mail <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="reserve-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    required
+                    value={reserveEmail}
+                    onChange={(e) => setReserveEmail(e.target.value)}
+                    placeholder="jan.novak@email.cz"
+                    className="mt-1 w-full rounded-xl border-0 bg-slate-50 px-3.5 py-2.5 text-base sm:text-sm text-slate-950 ring-1 ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="reserve-address" className="block text-xs font-bold text-slate-800">
+                    Adresa <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="reserve-address"
+                    type="text"
+                    autoComplete="street-address"
+                    required
+                    value={reserveAddress}
+                    onChange={(e) => setReserveAddress(e.target.value)}
+                    placeholder="Ulice, číslo, město, PSČ"
+                    className="mt-1 w-full rounded-xl border-0 bg-slate-50 px-3.5 py-2.5 text-base sm:text-sm text-slate-950 ring-1 ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Na toto číslo vám zavoláme s potvrzením rezervace a domluvou předání.
+                    Pro osobní odběr i zaslání – ověříme dostupnost a domluvíme předání.
                   </p>
                 </div>
 
@@ -759,7 +812,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                     rows={2}
                     value={reserveNote}
                     onChange={(e) => setReserveNote(e.target.value)}
-                    placeholder="např. chtěl bych i přezout na počkání, nebo upřesnění adresy..."
+                    placeholder="např. chtěl bych i přezout na počkání…"
                     className="mt-1 w-full rounded-xl border-0 bg-slate-50 px-3.5 py-2 text-xs sm:text-sm text-slate-950 ring-1 ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>

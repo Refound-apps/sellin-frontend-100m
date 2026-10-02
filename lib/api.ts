@@ -308,7 +308,9 @@ export type ShopInquiryPayload = {
   shop?: string;
   name?: string;
   contact?: string;
+  email?: string;
   phone?: string;
+  address?: string;
   message?: string;
   size?: string;
   offer_id?: string;
