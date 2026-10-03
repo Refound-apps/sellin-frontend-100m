@@ -294,7 +294,7 @@ export default function Navigation() {
           {/* Logo & Hlavní navigace */}
           <div className="flex items-center gap-6 lg:gap-8">
             <Link
-              href="/"
+              href={role === 'admin' ? '/admin/offers' : '/'}
               className="flex items-center gap-2.5 shrink-0 group"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white shadow-xs group-hover:scale-105 transition-transform">

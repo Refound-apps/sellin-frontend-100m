@@ -1,12 +1,68 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 interface ProdejomatLandingProps {
   user?: { email?: string; id?: string } | null;
+  role?: 'admin' | 'seller';
 }
 
-export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
-  const ctaHref = user ? '/' : '/login';
-  const ctaText = user ? 'Přejít do mého skladu' : 'Vstoupit do aplikace';
+export default function ProdejomatLanding({
+  user: initialUser,
+  role: initialRole = 'seller',
+}: ProdejomatLandingProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const [activeUser, setActiveUser] = useState(initialUser || null);
+  const [activeRole, setActiveRole] = useState<'admin' | 'seller'>(initialRole);
+
+  useEffect(() => {
+    const isExplicitLanding =
+      pathname === '/landing' ||
+      searchParams?.get('landing') === '1' ||
+      searchParams?.get('landing') === 'true' ||
+      searchParams?.get('preview') === 'landing';
+
+    const supabase = createClient();
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        setActiveUser({ email: data.user.email, id: data.user.id });
+
+        supabase
+          .from('credential_pg')
+          .select('role')
+          .or(`user_id.eq.${data.user.id},email.ilike.${data.user.email}`)
+          .limit(1)
+          .maybeSingle()
+          .then(({ data: cred }) => {
+            const resolvedRole = cred?.role === 'admin' ? 'admin' : 'seller';
+            setActiveRole(resolvedRole);
+
+            // Pokud uživatel nežádá explicitně o zobrazení landing page,
+            // automaticky ho okamžitě přeneseme do jeho appky (smooth UX):
+            if (!isExplicitLanding) {
+              if (resolvedRole === 'admin') {
+                router.replace('/admin/offers');
+              } else if (pathname === '/') {
+                router.refresh();
+              } else {
+                router.replace('/');
+              }
+            }
+          });
+      }
+    });
+  }, [pathname, searchParams, router]);
+
+  const targetAppHref = activeRole === 'admin' ? '/admin/offers' : '/';
+  const ctaHref = activeUser ? targetAppHref : '/login';
+  const ctaText = activeUser ? 'Přejít do aplikace' : 'Vstoupit do aplikace';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[hsl(210_28%_97%)] text-slate-900 selection:bg-emerald-500/20 selection:text-emerald-950">
@@ -52,7 +108,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
             <span className="transition-transform duration-200 group-hover:translate-x-1 text-emerald-400">→</span>
           </Link>
 
-          {!user && (
+          {!activeUser && (
             <Link
               href="/login"
               className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200/90 bg-white/90 px-7 py-4 text-base font-semibold text-slate-800 shadow-2xs backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-slate-950 hover:border-slate-300 active:scale-[0.98] sm:w-auto"
