@@ -82,47 +82,106 @@ function CreateOfferContent() {
   });
 
   const [templateToast, setTemplateToast] = useState<string | null>(null);
+  const [templateBusy, setTemplateBusy] = useState(false);
 
-  const handleSaveTemplate = () => {
+  const showTemplateToast = (msg: string) => {
+    setTemplateToast(msg);
+    setTimeout(() => setTemplateToast(null), 3500);
+  };
+
+  const buildTemplatePayload = () => ({
+    title: formData.title,
+    description: formData.description,
+    price: formData.price,
+    price_agreement: formData.price_agreement,
+    location: formData.location.trim(),
+    zipcode: formData.zipcode.trim(),
+    bb_email: formData.bb_email,
+    marketplace: formData.marketplace,
+    autorenew_freq: formData.autorenew_freq,
+    categoryId: formData.categoryId,
+  });
+
+  const applyTemplatePayload = (t: Record<string, any>) => {
+    setFormData((prev) => ({
+      ...prev,
+      title: typeof t.title === 'string' ? t.title : prev.title,
+      description: typeof t.description === 'string' ? t.description : prev.description,
+      price: t.price != null ? String(t.price) : prev.price,
+      price_agreement: typeof t.price_agreement === 'boolean' ? t.price_agreement : prev.price_agreement,
+      location: typeof t.location === 'string' ? t.location : prev.location,
+      zipcode: t.zipcode != null ? String(t.zipcode) : prev.zipcode,
+      bb_email: typeof t.bb_email === 'string' && t.bb_email.trim() ? t.bb_email : prev.bb_email,
+      marketplace:
+        Array.isArray(t.marketplace) && t.marketplace.length > 0 ? t.marketplace.map(String) : prev.marketplace,
+      autorenew_freq: typeof t.autorenew_freq === 'string' ? t.autorenew_freq : prev.autorenew_freq,
+      categoryId:
+        t.categoryId != null && !Number.isNaN(Number(t.categoryId))
+          ? Number(t.categoryId)
+          : prev.categoryId,
+    }));
+  };
+
+  const handleSaveTemplate = async () => {
+    if (templateBusy) return;
+    setTemplateBusy(true);
     try {
-      const templateData = {
-        location: formData.location.trim(),
-        zipcode: formData.zipcode.trim(),
-        autorenew_freq: formData.autorenew_freq,
-        marketplace: formData.marketplace,
-        categoryId: formData.categoryId,
-        price_agreement: formData.price_agreement,
-      };
-      localStorage.setItem('sellin_offer_template', JSON.stringify(templateData));
-      setTemplateToast('Výchozí šablona byla uložena.');
-      setTimeout(() => setTemplateToast(null), 3500);
-    } catch (e) {
+      const payload = buildTemplatePayload();
+      // Lokální záloha (offline / rychlý fallback)
+      try {
+        localStorage.setItem('sellin_offer_template', JSON.stringify(payload));
+      } catch {}
+
+      const res = await fetch('/api/offer-templates', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || `Uložení selhalo (${res.status})`);
+      }
+      showTemplateToast('Šablona uložena (texty, cena, kategorie, portály…).');
+    } catch (e: any) {
       console.error('Failed to save template:', e);
+      showTemplateToast(e?.message || 'Šablonu se nepodařilo uložit.');
+    } finally {
+      setTemplateBusy(false);
     }
   };
 
-  const handleApplyTemplate = () => {
+  const handleApplyTemplate = async () => {
+    if (templateBusy) return;
+    setTemplateBusy(true);
     try {
-      const stored = localStorage.getItem('sellin_offer_template');
-      if (stored) {
-        const t = JSON.parse(stored);
-        setFormData((prev) => ({
-          ...prev,
-          location: t.location ?? prev.location,
-          zipcode: t.zipcode ?? prev.zipcode,
-          autorenew_freq: t.autorenew_freq ?? prev.autorenew_freq,
-          marketplace: Array.isArray(t.marketplace) && t.marketplace.length > 0 ? t.marketplace : prev.marketplace,
-          categoryId: t.categoryId ?? prev.categoryId,
-          price_agreement: t.price_agreement ?? prev.price_agreement,
-        }));
-        setTemplateToast('Údaje ze šablony byly načteny.');
-        setTimeout(() => setTemplateToast(null), 3500);
-      } else {
-        setTemplateToast('Zatím nemáte uloženou šablonu. Nastavte hodnoty a klikněte na Uložit šablonu.');
-        setTimeout(() => setTemplateToast(null), 3500);
+      let payload: Record<string, any> | null = null;
+
+      const res = await fetch('/api/offer-templates');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success && data?.template?.payload) {
+        payload = data.template.payload;
       }
-    } catch (e) {
+
+      // Fallback na localStorage (starší šablony)
+      if (!payload) {
+        try {
+          const stored = localStorage.getItem('sellin_offer_template');
+          if (stored) payload = JSON.parse(stored);
+        } catch {}
+      }
+
+      if (!payload) {
+        showTemplateToast('Zatím nemáte uloženou šablonu. Vyplňte formulář a klikněte Uložit šablonu.');
+        return;
+      }
+
+      applyTemplatePayload(payload);
+      showTemplateToast('Šablona načtena do formuláře.');
+    } catch (e: any) {
       console.error('Failed to apply template:', e);
+      showTemplateToast(e?.message || 'Šablonu se nepodařilo načíst.');
+    } finally {
+      setTemplateBusy(false);
     }
   };
 
@@ -1300,23 +1359,25 @@ function CreateOfferContent() {
                   <span>📋</span> Šablona inzerátu
                 </h2>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Uložte si výchozí adresu, PSČ, portály a auto-obnovu pro rychlé vytvoření.
+                  Uloží texty, cenu, kategorii, portály a nastavení (bez fotek) do vašeho účtu.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={handleApplyTemplate}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:text-slate-950 px-3 py-2 text-xs font-bold text-slate-700 active:scale-95 transition-all text-center"
+                  disabled={templateBusy}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:text-slate-950 px-3 py-2 text-xs font-bold text-slate-700 active:scale-95 transition-all text-center disabled:opacity-50"
                 >
-                  Použít šablonu
+                  {templateBusy ? 'Načítám…' : 'Použít šablonu'}
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveTemplate}
-                  className="w-full rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 active:scale-95 transition-all text-center"
+                  disabled={templateBusy}
+                  className="w-full rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 active:scale-95 transition-all text-center disabled:opacity-50"
                 >
-                  Uložit šablonu
+                  {templateBusy ? 'Ukládám…' : 'Uložit šablonu'}
                 </button>
               </div>
             </div>

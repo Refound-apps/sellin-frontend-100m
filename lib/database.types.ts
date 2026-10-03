@@ -363,6 +363,33 @@ export type Database = {
         }
         Relationships: []
       }
+      offer_templates: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          payload: Record<string, unknown>
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name?: string
+          payload?: Record<string, unknown>
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          payload?: Record<string, unknown>
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shops: {
         Row: {
           id: string
