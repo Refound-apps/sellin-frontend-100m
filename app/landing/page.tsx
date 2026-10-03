@@ -23,7 +23,6 @@ export default async function LandingPage() {
   const host = await getRequestHost();
 
   let user: { email?: string; id?: string } | null = null;
-  let role: 'admin' | 'seller' = 'seller';
 
   try {
     const supabase = await createClient();
@@ -33,17 +32,6 @@ export default async function LandingPage() {
 
     if (authUser) {
       user = { email: authUser.email, id: authUser.id };
-
-      const { data: credential } = await supabase
-        .from('credential_pg')
-        .select('role')
-        .or(`user_id.eq.${authUser.id},email.ilike.${authUser.email}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (credential?.role === 'admin') {
-        role = 'admin';
-      }
     }
   } catch {
     // fallback
@@ -52,7 +40,7 @@ export default async function LandingPage() {
   return (
     <>
       <ProdejomatSchema host={host} />
-      <ProdejomatLanding user={user} role={role} />
+      <ProdejomatLanding user={user} />
     </>
   );
 }

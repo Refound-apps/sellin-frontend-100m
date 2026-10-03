@@ -1,5 +1,4 @@
 import { Suspense } from 'react';
-import { redirect } from 'next/navigation';
 import OffersList from '@/components/OffersList';
 import ProdejomatLanding from '@/components/prodejomat/ProdejomatLanding';
 import ProdejomatSchema from '@/components/prodejomat/ProdejomatSchema';
@@ -22,9 +21,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     resolvedParams?.landing === 'true' ||
     resolvedParams?.preview === 'landing';
 
-  // Server-side zjištění přihlášeného uživatele a jeho role
   let user: { email?: string; id?: string } | null = null;
-  let role: 'admin' | 'seller' = 'seller';
 
   try {
     const supabase = await createClient();
@@ -34,28 +31,12 @@ export default async function Home({ searchParams }: HomePageProps) {
 
     if (authUser) {
       user = { email: authUser.email, id: authUser.id };
-
-      const { data: credential } = await supabase
-        .from('credential_pg')
-        .select('role')
-        .or(`user_id.eq.${authUser.id},email.ilike.${authUser.email}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (credential?.role === 'admin') {
-        role = 'admin';
-      }
     }
   } catch (err) {
     console.error('Home: error retrieving session', err);
   }
 
-  // Administrátor jde automaticky rovnou do admin přehledu inzerátů
-  if (user && role === 'admin' && !forceLanding) {
-    redirect('/admin/offers');
-  }
-
-  // Pokud uživatel není přihlášen nebo je explicitně vyžádán landing:
+  // Landing jen pro nepřihlášené (nebo explicitní náhled). Přihlášený admin i prodejce jde do appky.
   if (!user || forceLanding) {
     return (
       <>
@@ -65,7 +46,6 @@ export default async function Home({ searchParams }: HomePageProps) {
     );
   }
 
-  // Přihlášený prodejce -> jde rovnou do své appky (centrální správa nabídek / sklad)
   return (
     <>
       {!isTenant && <ProdejomatSchema host={host} />}

@@ -56,6 +56,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Pokud je přihlášen a jde na /login -> přesměrovat podle role
+  // (admin defaultně do admin appky; přepínač Prodejce na / musí zůstat dostupný)
   if (user && pathname === '/login') {
     const { data: credential } = await supabase
       .from('credential_pg')
@@ -68,28 +69,6 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = role === 'admin' ? '/admin/offers' : '/';
     return NextResponse.redirect(url);
-  }
-
-  // Pokud je přihlášen administrátor a jde na '/', rovnou do admin appky (pokud nežádá explicitně landing)
-  const isExplicitLanding =
-    pathname === '/landing' ||
-    request.nextUrl.searchParams.has('landing') ||
-    request.nextUrl.searchParams.get('preview') === 'landing';
-
-  if (user && pathname === '/' && !isExplicitLanding) {
-    const { data: credential } = await supabase
-      .from('credential_pg')
-      .select('role')
-      .or(`user_id.eq.${user.id},email.ilike.${user.email}`)
-      .limit(1)
-      .maybeSingle();
-
-    const role = credential?.role ?? 'seller';
-    if (role === 'admin') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/admin/offers';
-      return NextResponse.redirect(url);
-    }
   }
 
   // 2. Kontrola admin tras (/admin/users, /admin/transactions a legacy přesměrování)

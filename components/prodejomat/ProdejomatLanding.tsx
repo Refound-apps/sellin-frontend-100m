@@ -7,19 +7,14 @@ import { createClient } from '@/lib/supabase/client';
 
 interface ProdejomatLandingProps {
   user?: { email?: string; id?: string } | null;
-  role?: 'admin' | 'seller';
 }
 
-export default function ProdejomatLanding({
-  user: initialUser,
-  role: initialRole = 'seller',
-}: ProdejomatLandingProps) {
+export default function ProdejomatLanding({ user: initialUser }: ProdejomatLandingProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
   const [activeUser, setActiveUser] = useState(initialUser || null);
-  const [activeRole, setActiveRole] = useState<'admin' | 'seller'>(initialRole);
 
   useEffect(() => {
     const isExplicitLanding =
@@ -31,37 +26,22 @@ export default function ProdejomatLanding({
     const supabase = createClient();
 
     supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setActiveUser({ email: data.user.email, id: data.user.id });
+      if (!data?.user) return;
 
-        supabase
-          .from('credential_pg')
-          .select('role')
-          .or(`user_id.eq.${data.user.id},email.ilike.${data.user.email}`)
-          .limit(1)
-          .maybeSingle()
-          .then(({ data: cred }) => {
-            const resolvedRole = cred?.role === 'admin' ? 'admin' : 'seller';
-            setActiveRole(resolvedRole);
+      setActiveUser({ email: data.user.email, id: data.user.id });
 
-            // Pokud uživatel nežádá explicitně o zobrazení landing page,
-            // automaticky ho okamžitě přeneseme do jeho appky (smooth UX):
-            if (!isExplicitLanding) {
-              if (resolvedRole === 'admin') {
-                router.replace('/admin/offers');
-              } else if (pathname === '/') {
-                router.refresh();
-              } else {
-                router.replace('/');
-              }
-            }
-          });
+      // Session aktivní a landing není vyžádaný → do appky (/). Admin i prodejce.
+      if (!isExplicitLanding) {
+        if (pathname === '/') {
+          router.refresh();
+        } else {
+          router.replace('/');
+        }
       }
     });
   }, [pathname, searchParams, router]);
 
-  const targetAppHref = activeRole === 'admin' ? '/admin/offers' : '/';
-  const ctaHref = activeUser ? targetAppHref : '/login';
+  const ctaHref = activeUser ? '/' : '/login';
   const ctaText = activeUser ? 'Přejít do aplikace' : 'Vstoupit do aplikace';
 
   return (
