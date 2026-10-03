@@ -17,6 +17,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Prodejomat.cz - Automat na inzerci a prodej",
   description: "Centrální sklad a automatická inzerce nabídek na Bazoš, Sbazar i vlastní e-shopy pro prodejce",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-icon", type: "image/png" }],
+  },
 };
 
 const MAIN_DOMAINS = new Set([
