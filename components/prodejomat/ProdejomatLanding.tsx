@@ -254,8 +254,8 @@ export default function ProdejomatLanding({
                   <div className="flex items-center gap-2">
                     <span className="text-sm">🛍️</span>
                     <div>
-                      <div className="font-semibold text-white text-[11px]">Vlastní E-shop</div>
-                      <div className="text-[10px] text-emerald-400">alubazarplzen.cz</div>
+                      <div className="font-semibold text-white text-[11px]">Vlastní e-shop</div>
+                      <div className="text-[10px] text-emerald-400">můj-eshop.cz</div>
                     </div>
                   </div>
                   <span className="text-[10px] text-slate-500">Online</span>
