@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/lib/database.types';
@@ -6,6 +7,18 @@ import type { Database } from '@/lib/database.types';
 export const dynamic = 'force-dynamic';
 
 type ReservationInsert = Database['public']['Tables']['shop_reservations']['Insert'];
+
+/** Prefer service role for public storefront writes (bypasses RLS RETURNING issues). */
+function createReservationWriter() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (url && serviceKey) {
+    return createServiceClient<Database>(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return null;
+}
 
 /** Always CC this address while testing shop inquiry delivery. */
 const TEST_INQUIRY_EMAIL = 'duc4n@seznam.cz';
@@ -384,7 +397,9 @@ export async function POST(request: NextRequest) {
       const normalizedPickup =
         pickup === 'posta' || pickup === 'osobni' ? pickup : null;
 
+      reservationId = crypto.randomUUID();
       const reservationRow: ReservationInsert = {
+        id: reservationId,
         shop_id: shop.id,
         offer_id: offerId || null,
         offer_title: offerTitle || null,
@@ -398,20 +413,20 @@ export async function POST(request: NextRequest) {
         status: 'new',
       };
 
-      const { data: savedReservation, error: reservationError } = await supabase
+      // Avoid .select() after insert — anon/authenticated cannot read rows (owner-only SELECT RLS).
+      const writer = createReservationWriter() || supabase;
+      const { error: reservationError } = await writer
         .from('shop_reservations')
-        .insert(reservationRow)
-        .select('id')
-        .single();
+        .insert(reservationRow);
 
       if (reservationError) {
         console.error('Shop reservation save failed:', reservationError);
+        reservationId = null;
         return NextResponse.json(
           { success: false, error: 'Rezervaci se nepodařilo uložit. Zkuste to znovu.' },
           { status: 500 }
         );
       }
-      reservationId = savedReservation?.id || null;
     }
 
     const resend = new Resend(apiKey);
