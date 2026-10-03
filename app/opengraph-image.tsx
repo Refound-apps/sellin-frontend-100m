@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { PRODEJOMAT_NAME, PRODEJOMAT_TAGLINE } from '@/lib/prodejomat/seo';
 
-export const runtime = 'edge';
 export const alt = `${PRODEJOMAT_NAME} – ${PRODEJOMAT_TAGLINE}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
