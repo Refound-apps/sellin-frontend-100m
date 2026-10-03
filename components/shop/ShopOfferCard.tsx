@@ -2,15 +2,19 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { ShopOffer } from '@/lib/types';
+import { getProductPath } from '@/lib/shop/seo';
 import { formatCzk, getOfferPricingInfo, getOfferSpecsList, isAluDiskyOffer, isSteelWheelOffer, isWheelOffer } from './offerMeta';
 
 interface ShopOfferCardProps {
   offer: ShopOffer;
   onClick?: () => void;
+  href?: string;
 }
 
-export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
+export default function ShopOfferCard({ offer, onClick, href }: ShopOfferCardProps) {
+  const productHref = href || getProductPath(offer.id);
   const [imgError, setImgError] = useState(false);
   const isAlu = isAluDiskyOffer(offer);
   const isWheel = isWheelOffer(offer);
@@ -88,8 +92,8 @@ export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
       data-ai-in-stock="true"
       className="flex flex-col h-full"
     >
-      <button
-        type="button"
+      <Link
+        href={productHref}
         onClick={onClick}
         className="group flex h-full flex-col rounded-3xl bg-white p-3 sm:p-4 text-left border border-slate-200/90 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_16px_36px_-6px_rgba(15,23,42,0.13),0_2px_8px_rgba(15,23,42,0.06)] hover:border-slate-300 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
       >
@@ -191,7 +195,7 @@ export default function ShopOfferCard({ offer, onClick }: ShopOfferCardProps) {
             </span>
           </div>
         </div>
-      </button>
+      </Link>
     </article>
   );
 }

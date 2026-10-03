@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { ShopConfigData, ShopConfigSummary, User } from '@/lib/types';
 import { getUserShop, saveUserShop } from '@/lib/api';
+import ShopSeoFeedsPanel from '@/components/shop/ShopSeoFeedsPanel';
 
 interface SellerAccountOption {
   email: string;
@@ -772,6 +773,18 @@ export default function AdminShopsManager() {
               />
             </div>
           </div>
+        </section>
+
+        {/* SEO & product feeds */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
+          <ShopSeoFeedsPanel
+            shopName={shopName || 'E-shop'}
+            slug={slug || 'shop'}
+            customDomain={customDomain || null}
+            tagline={tagline || null}
+            addressCity={addressCity || null}
+            compact
+          />
         </section>
 
         {/* Linked accounts selection */}

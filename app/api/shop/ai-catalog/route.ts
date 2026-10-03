@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
         shipping_available: true,
         shipping_price: pricing.shippingPrice,
         preview_image: offer.preview_image || null,
-        web_url: `${origin}/shop?offer=${offer.id}`,
+        web_url: `${origin}/produkt/${offer.id}`,
         direct_call: `tel:${phoneHref}`,
         created_at: offer.created_at,
       };

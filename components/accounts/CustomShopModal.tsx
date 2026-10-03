@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { ShopConfigData, User } from '@/lib/types';
 import { getUserShop, saveUserShop } from '@/lib/api';
+import ShopSeoFeedsPanel from '@/components/shop/ShopSeoFeedsPanel';
 
 interface CustomShopModalProps {
   onClose: () => void;
@@ -429,7 +430,16 @@ export default function CustomShopModal({
               </div>
             </div>
 
-            {/* Section 4: Napojené skladové účty (Linked Accounts) */}
+            {/* Section 4: SEO & feedy */}
+            <ShopSeoFeedsPanel
+              shopName={shopName || 'E-shop'}
+              slug={slug || 'shop'}
+              customDomain={customDomain || null}
+              tagline={tagline || null}
+              addressCity={addressCity || null}
+            />
+
+            {/* Section 5: Napojené skladové účty (Linked Accounts) */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>

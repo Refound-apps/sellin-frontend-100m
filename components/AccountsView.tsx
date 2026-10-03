@@ -94,17 +94,17 @@ const ALL_CHANNELS: ChannelItem[] = [
     tags: ['Admin API', 'REST / GraphQL', 'Import produktů'],
   },
 
-  // 6. GOOGLE NÁKUPY - PŘIPRAVUJEME (ZAŠEDLÉ)
+  // 6. GOOGLE NÁKUPY - XML FEED DOSTUPNÝ VE VLASTNÍM E-SHOPU
   {
     id: 'google-shopping',
     name: 'Google Nákupy',
     category: 'comparators',
     categoryLabel: 'Srovnávač & Ads',
-    isReady: false,
-    statusLabel: 'Připravujeme',
-    tagline: 'Výkonnostní kampaně ve vyhledávání (PMax)',
-    shortDesc: 'Zobrazení produktů ve vyhledávači se štítkem used/refurbished. Cílený nákupní záměr přímo do vašeho e-shopu.',
-    tags: ['Google Merchant', 'PMax kampaně', 'Ve vývoji'],
+    isReady: true,
+    statusLabel: 'XML feed připraven',
+    tagline: 'Merchant feed z vlastního e-shopu',
+    shortDesc: 'Produktový XML feed je dostupný v konfiguraci Vlastního E-shopu (Google Merchant). Napojení do Merchant Center provedete ručně vložením feed URL.',
+    tags: ['Google Merchant', 'XML feed', 'Vlastní E-shop'],
   },
 
   // 7. FACEBOOK MARKETPLACE - PŘIPRAVUJEME (ZAŠEDLÉ)
@@ -185,30 +185,30 @@ const ALL_CHANNELS: ChannelItem[] = [
     tags: ['CZ, SK & DE', 'Katalog Kaufland', 'Ve vývoji'],
   },
 
-  // 13. ZBOŽÍ.CZ - PŘIPRAVUJEME (ZAŠEDLÉ)
+  // 13. ZBOŽÍ.CZ - XML FEED DOSTUPNÝ VE VLASTNÍM E-SHOPU
   {
     id: 'zbozi',
     name: 'Zboží.cz',
     category: 'comparators',
     categoryLabel: 'Srovnávač cen',
-    isReady: false,
-    statusLabel: 'Připravujeme',
-    tagline: 'PPC z vyhledávání Seznamu',
-    shortDesc: 'Akvizice zákazníků ze srovnávače Seznam.cz s přímou podporou sekce bazarového a rozbaleného zboží.',
-    tags: ['Seznam Nákupy', 'Bazarová sekce', 'Ve vývoji'],
+    isReady: true,
+    statusLabel: 'XML feed připraven',
+    tagline: 'Zboží.cz feed z vlastního e-shopu',
+    shortDesc: 'XML feed pro Zboží.cz je dostupný v konfiguraci Vlastního E-shopu. URL zkopírujete a vložíte v administraci Seznam Zboží.',
+    tags: ['Seznam Nákupy', 'XML feed', 'Vlastní E-shop'],
   },
 
-  // 14. HEUREKA.CZ / SK - PŘIPRAVUJEME (ZAŠEDLÉ)
+  // 14. HEUREKA.CZ / SK - XML FEED DOSTUPNÝ VE VLASTNÍM E-SHOPU
   {
     id: 'heureka',
     name: 'Heureka.cz / SK',
     category: 'comparators',
     categoryLabel: 'Srovnávač cen',
-    isReady: false,
-    statusLabel: 'Připravujeme',
-    tagline: 'Produktový a dostupnostní srovnávač',
-    shortDesc: 'Generování produktového XML a depo feedu. Efektivní pro standardizované skladové položky a autodíly.',
-    tags: ['Produktový feed', 'Dostupnostní depo', 'Ve vývoji'],
+    isReady: true,
+    statusLabel: 'XML feed připraven',
+    tagline: 'Heureka feed z vlastního e-shopu',
+    shortDesc: 'Produktový XML feed pro Heureku je dostupný v konfiguraci Vlastního E-shopu. Automatická synchronizace portálu zatím neběží — feed napojíte ručně.',
+    tags: ['Produktový feed', 'XML feed', 'Vlastní E-shop'],
   },
 ];
 
@@ -348,7 +348,24 @@ export default function AccountsView() {
   }, [activeCategory, search]);
 
   const openChannel = (channel: ChannelItem) => {
-    if (loading && (channel.id === 'bazos' || channel.id === 'sbazar' || channel.id === 'sellin-shop')) {
+    if (
+      loading &&
+      (channel.id === 'bazos' ||
+        channel.id === 'sbazar' ||
+        channel.id === 'sellin-shop' ||
+        channel.id === 'google-shopping' ||
+        channel.id === 'zbozi' ||
+        channel.id === 'heureka')
+    ) {
+      return;
+    }
+    // Feed channels open the e-shop config where XML URLs live
+    if (
+      channel.id === 'google-shopping' ||
+      channel.id === 'zbozi' ||
+      channel.id === 'heureka'
+    ) {
+      setSelectedChannel(ALL_CHANNELS.find((c) => c.id === 'sellin-shop') || channel);
       return;
     }
     setSelectedChannel(channel);
@@ -466,6 +483,13 @@ export default function AccountsView() {
             dynamicBadgeStyle = 'bg-emerald-50 text-emerald-900 border-emerald-200 font-bold';
           } else if (channel.id === 'shoptet' || channel.id === 'shopify') {
             dynamicBadge = 'API Import připraven';
+            dynamicBadgeStyle = 'bg-sky-50 text-sky-900 border-sky-200 font-bold';
+          } else if (
+            channel.id === 'google-shopping' ||
+            channel.id === 'zbozi' ||
+            channel.id === 'heureka'
+          ) {
+            dynamicBadge = 'XML feed připraven';
             dynamicBadgeStyle = 'bg-sky-50 text-sky-900 border-sky-200 font-bold';
           } else {
             dynamicBadge = 'Připravujeme';

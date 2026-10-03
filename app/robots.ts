@@ -1,12 +1,24 @@
 import type { MetadataRoute } from 'next';
+import { getShopBaseUrl } from '@/lib/shop/seo';
+import { resolveShopFromRequest } from '@/lib/shop/server';
 
-export default function robots(): MetadataRoute.Robots {
+export const dynamic = 'force-dynamic';
+
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  let baseUrl = 'https://alubazarplzen.cz';
+  try {
+    const shop = await resolveShopFromRequest();
+    baseUrl = getShopBaseUrl(shop);
+  } catch {
+    // keep fallback
+  }
+
   return {
     rules: [
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/admin/', '/api/admin/', '/accounts', '/create'],
+        disallow: ['/admin/', '/api/admin/', '/accounts', '/create', '/login'],
       },
       {
         userAgent: [
@@ -18,10 +30,20 @@ export default function robots(): MetadataRoute.Robots {
           'CCBot',
           'ChatGPT-User',
         ],
-        allow: ['/', '/shop', '/shop/*', '/api/shop/ai-catalog', '/llms.txt', '/.well-known/llms.txt'],
+        allow: [
+          '/',
+          '/shop',
+          '/shop/*',
+          '/produkt/*',
+          '/api/shop/ai-catalog',
+          '/api/shop/feeds/',
+          '/llms.txt',
+          '/.well-known/llms.txt',
+        ],
         disallow: ['/admin/', '/api/admin/'],
       },
     ],
-    sitemap: 'https://alubazarplzen.cz/sitemap.xml',
+    sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl.replace(/^https?:\/\//, ''),
   };
 }

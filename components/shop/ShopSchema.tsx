@@ -96,7 +96,7 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
         '@type': 'ListItem',
         position: 2,
         name: 'Katalog pneu a disků',
-        item: `${domain}/shop#nabidka`,
+        item: `${domain}/#nabidka`,
       },
     ],
   };
@@ -123,7 +123,8 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
               position: index + 1,
               item: {
                 '@type': 'Product',
-                '@id': `${domain}/shop?offer=${offer.id}`,
+                '@id': `${domain}/produkt/${offer.id}`,
+                url: `${domain}/produkt/${offer.id}`,
                 name: offer.title,
                 description: offer.description || offer.title,
                 image: offer.preview_image ? [offer.preview_image] : undefined,

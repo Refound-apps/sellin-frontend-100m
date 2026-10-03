@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ShopOffer } from '@/lib/types';
-import { getOfferById, getShopOffers, SHOP_SBAZAR_EMAIL, ShopOfferFilters } from '@/lib/api';
+import { getShopOffers, SHOP_SBAZAR_EMAIL, ShopOfferFilters } from '@/lib/api';
+import { getProductPath } from '@/lib/shop/seo';
 import { useShop } from './ShopContext';
 import ShopOfferCard from './ShopOfferCard';
-import ShopOfferModal from './ShopOfferModal';
 import ShopHeader from './ShopHeader';
 import ShopFooter from './ShopFooter';
 import ShopHero from './ShopHero';
@@ -26,13 +26,13 @@ export default function ShopCatalog() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [selectedOffer, setSelectedOffer] = useState<ShopOffer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState<ShopOfferFilters>({});
   const [mobileFiltersExpanded, setMobileFiltersExpanded] = useState(false);
   const limit = 24;
 
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   // Extract filter-related URL parameters
@@ -92,72 +92,14 @@ export default function ShopCatalog() {
     }
   }, [filterUrlKey, urlSort, urlType, urlSeason, urlRim, urlBrand, urlPcd, urlSearch]);
 
-  // Deep-linking: open offer modal when ?offer=ID or ?id=ID is in URL
+  // Legacy deep-link ?offer=ID / ?id=ID → canonical product page
   const offerParamRaw = searchParams.get('offer') || searchParams.get('id');
-  const selectedOfferRef = useRef<ShopOffer | null>(null);
-  selectedOfferRef.current = selectedOffer;
-
   useEffect(() => {
-    if (!offerParamRaw) {
-      // If user clicked browser back button, close modal cleanly
-      if (selectedOfferRef.current) {
-        setSelectedOffer(null);
-      }
-      return;
-    }
+    if (!offerParamRaw) return;
     const targetId = parseInt(offerParamRaw, 10);
-    if (!targetId || isNaN(targetId)) return;
-
-    if (selectedOfferRef.current && selectedOfferRef.current.id === targetId) return;
-
-    // Check if offer is already in loaded offers
-    const existing = offers.find((o) => o.id === targetId);
-    if (existing) {
-      setSelectedOffer(existing);
-      return;
-    }
-
-    // Otherwise fetch by ID directly
-    getOfferById(targetId)
-      .then((loaded) => {
-        if (loaded) {
-          setSelectedOffer(loaded as ShopOffer);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load offer from URL param:', err);
-      });
-  }, [offerParamRaw, offers]);
-
-  const handleOpenModal = useCallback((offer: ShopOffer) => {
-    setSelectedOffer(offer);
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.set('offer', String(offer.id));
-      window.history.pushState(
-        null,
-        '',
-        url.pathname + `?${url.searchParams.toString()}` + url.hash
-      );
-    }
-  }, []);
-
-  const handleCloseModal = useCallback(() => {
-    setSelectedOffer(null);
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('offer') || url.searchParams.has('id')) {
-        url.searchParams.delete('offer');
-        url.searchParams.delete('id');
-        const remainingQuery = url.searchParams.toString();
-        window.history.replaceState(
-          null,
-          '',
-          url.pathname + (remainingQuery ? `?${remainingQuery}` : '') + url.hash
-        );
-      }
-    }
-  }, []);
+    if (!targetId || Number.isNaN(targetId)) return;
+    router.replace(getProductPath(targetId));
+  }, [offerParamRaw, router]);
 
   const initialHashHandledRef = useRef(false);
 
@@ -820,11 +762,7 @@ export default function ShopCatalog() {
                 }`}
               >
                 {offers.map((offer) => (
-                  <ShopOfferCard
-                    key={offer.id}
-                    offer={offer}
-                    onClick={() => handleOpenModal(offer)}
-                  />
+                  <ShopOfferCard key={offer.id} offer={offer} />
                 ))}
               </div>
 
@@ -878,11 +816,6 @@ export default function ShopCatalog() {
 
       {/* Shared Shop Footer */}
       <ShopFooter />
-
-      {/* Detail Modal */}
-      {selectedOffer && (
-        <ShopOfferModal offer={selectedOffer} onClose={handleCloseModal} />
-      )}
 
       {/* Persistent Mobile Bottom Action Bar (Thumb-friendly 1-tap call, inquiry, map) */}
       <MobileShopBar totalOffers={totalOffers} />

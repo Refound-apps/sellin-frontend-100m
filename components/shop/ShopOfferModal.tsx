@@ -140,7 +140,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
 
   const handleCopyLink = async () => {
     if (typeof window !== 'undefined') {
-      const url = `${window.location.origin}/shop?offer=${offer.id}`;
+      const url = `${window.location.origin}/shop/produkt/${offer.id}`;
       if (navigator.share) {
         try {
           await navigator.share({
@@ -211,7 +211,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    '@id': `${domain}/shop?offer=${offer.id}`,
+    '@id': `${domain}/produkt/${offer.id}`,
     name: offer.title,
     description: offer.description || offer.title,
     image: images.length > 0 ? images : [offer.preview_image],
