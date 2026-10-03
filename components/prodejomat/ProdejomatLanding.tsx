@@ -1,48 +1,12 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 
 interface ProdejomatLandingProps {
   user?: { email?: string; id?: string } | null;
 }
 
-export default function ProdejomatLanding({ user: initialUser }: ProdejomatLandingProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-
-  const [activeUser, setActiveUser] = useState(initialUser || null);
-
-  useEffect(() => {
-    const isExplicitLanding =
-      pathname === '/landing' ||
-      searchParams?.get('landing') === '1' ||
-      searchParams?.get('landing') === 'true' ||
-      searchParams?.get('preview') === 'landing';
-
-    const supabase = createClient();
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data?.user) return;
-
-      setActiveUser({ email: data.user.email, id: data.user.id });
-
-      // Session aktivní a landing není vyžádaný → do appky (/). Admin i prodejce.
-      if (!isExplicitLanding) {
-        if (pathname === '/') {
-          router.refresh();
-        } else {
-          router.replace('/');
-        }
-      }
-    });
-  }, [pathname, searchParams, router]);
-
-  const ctaHref = activeUser ? '/' : '/login';
-  const ctaText = activeUser ? 'Přejít do aplikace' : 'Vstoupit do aplikace';
+export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
+  const ctaHref = user ? '/' : '/login';
+  const ctaText = user ? 'Přejít do aplikace' : 'Vstoupit do aplikace';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[hsl(210_28%_97%)] text-slate-900 selection:bg-emerald-500/20 selection:text-emerald-950">
@@ -88,7 +52,7 @@ export default function ProdejomatLanding({ user: initialUser }: ProdejomatLandi
             <span className="transition-transform duration-200 group-hover:translate-x-1 text-emerald-400">→</span>
           </Link>
 
-          {!activeUser && (
+          {!user && (
             <Link
               href="/login"
               className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200/90 bg-white/90 px-7 py-4 text-base font-semibold text-slate-800 shadow-2xs backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-slate-950 hover:border-slate-300 active:scale-[0.98] sm:w-auto"

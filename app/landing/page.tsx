@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import ProdejomatLanding from '@/components/prodejomat/ProdejomatLanding';
 import ProdejomatSchema from '@/components/prodejomat/ProdejomatSchema';
 import { getRequestHost } from '@/lib/prodejomat/host';
@@ -19,8 +20,14 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default async function LandingPage() {
+interface LandingPageProps {
+  searchParams?: Promise<{ preview?: string }>;
+}
+
+export default async function LandingPage({ searchParams }: LandingPageProps) {
   const host = await getRequestHost();
+  const resolvedParams = searchParams ? await searchParams : {};
+  const allowPreview = resolvedParams?.preview === '1' || resolvedParams?.preview === 'true';
 
   let user: { email?: string; id?: string } | null = null;
 
@@ -35,6 +42,11 @@ export default async function LandingPage() {
     }
   } catch {
     // fallback
+  }
+
+  // Přihlášený uživatel patří do appky — landing jen s ?preview=1
+  if (user && !allowPreview) {
+    redirect('/');
   }
 
   return (
