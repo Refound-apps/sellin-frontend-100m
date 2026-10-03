@@ -1,12 +1,48 @@
 import { Suspense } from 'react';
 import OffersList from '@/components/OffersList';
+import ProdejomatLanding from '@/components/prodejomat/ProdejomatLanding';
 import ProdejomatSchema from '@/components/prodejomat/ProdejomatSchema';
 import { getRequestHost, getRequestIsTenant } from '@/lib/prodejomat/host';
+import { createClient } from '@/lib/supabase/server';
 
-export default async function Home() {
+interface HomePageProps {
+  searchParams?: Promise<{ landing?: string; preview?: string }>;
+}
+
+export default async function Home({ searchParams }: HomePageProps) {
   const isTenant = await getRequestIsTenant();
   const host = await getRequestHost();
+  const resolvedParams = searchParams ? await searchParams : {};
+  const forceLanding =
+    resolvedParams?.landing === '1' ||
+    resolvedParams?.landing === 'true' ||
+    resolvedParams?.preview === 'landing';
 
+  // Server-side zjištění přihlášeného uživatele
+  let user: { email?: string; id?: string } | null = null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (authUser) {
+      user = { email: authUser.email, id: authUser.id };
+    }
+  } catch (err) {
+    console.error('Home: error retrieving session', err);
+  }
+
+  // Pokud uživatel není přihlášen nebo je explicitně vyžádán landing:
+  if (!user || forceLanding) {
+    return (
+      <>
+        {!isTenant && <ProdejomatSchema host={host} />}
+        <ProdejomatLanding user={user} />
+      </>
+    );
+  }
+
+  // Přihlášený prodejce -> centrální správa nabídek / sklad
   return (
     <>
       {!isTenant && <ProdejomatSchema host={host} />}

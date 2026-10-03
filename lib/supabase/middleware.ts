@@ -36,6 +36,8 @@ export async function updateSession(request: NextRequest) {
 
   // 1. Veřejné trasy - nevyžadují přihlášení
   const isPublicRoute =
+    pathname === '/' ||
+    pathname === '/landing' ||
     pathname.startsWith('/shop') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/login') ||

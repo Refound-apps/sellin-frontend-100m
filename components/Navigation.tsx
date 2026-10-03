@@ -308,28 +308,45 @@ export default function Navigation() {
               </div>
             </Link>
 
-            {/* Desktopové položky menu se shodným minimalistickým designem */}
-            <div className="hidden items-center gap-1 md:flex">
-              {currentNavItems.map((item) => {
-                const isActive = item.exact
-                  ? pathname === item.href
-                  : pathname === item.href || pathname.startsWith(item.href + '/');
+            {/* Desktopové položky menu */}
+            {user ? (
+              <div className="hidden items-center gap-1 md:flex">
+                {currentNavItems.map((item) => {
+                  const isActive = item.exact
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(item.href + '/');
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-[hsl(222_47%_11%)] text-white'
-                        : 'text-[hsl(222_20%_38%)] hover:bg-[hsl(210_30%_94%)] hover:text-[hsl(222_47%_11%)]'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-[hsl(222_47%_11%)] text-white'
+                          : 'text-[hsl(222_20%_38%)] hover:bg-[hsl(210_30%_94%)] hover:text-[hsl(222_47%_11%)]'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="hidden items-center gap-1 md:flex">
+                <Link
+                  href="/#funkce"
+                  className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors"
+                >
+                  Funkce
+                </Link>
+                <Link
+                  href="/#jak-to-funguje"
+                  className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors"
+                >
+                  Jak to funguje
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Pravá část lišty: Subtilní Admin přepínač + Uživatel */}
@@ -389,46 +406,57 @@ export default function Navigation() {
                 </button>
               </div>
             ) : !loading ? (
-              <Link
-                href="/login"
-                className="rounded-full bg-[hsl(222_47%_11%)] px-4 py-1.5 text-xs font-medium text-white transition hover:bg-[hsl(222_47%_18%)]"
-              >
-                Přihlásit
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="hidden rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-950 transition-colors sm:inline-flex"
+                >
+                  Přihlásit se
+                </Link>
+                <Link
+                  href="/login"
+                  className="group inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-slate-900 active:scale-95"
+                >
+                  <span>Vstoupit do aplikace</span>
+                  <span className="text-emerald-400 transition-transform group-hover:translate-x-0.5">→</span>
+                </Link>
+              </div>
             ) : null}
           </div>
         </div>
 
         {/* Mobilní menu */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-3 pt-1 md:hidden">
-          {role === 'admin' && (
-            <Link
-              href="/admin/offers"
-              className="shrink-0 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-900 shadow-2xs mr-1"
-            >
-              ↔ Přepnout na Admin
-            </Link>
-          )}
-          {currentNavItems.map((item) => {
-            const isActive = item.exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(item.href + '/');
-
-            return (
+        {user && (
+          <div className="flex items-center gap-1 overflow-x-auto pb-3 pt-1 md:hidden">
+            {role === 'admin' && (
               <Link
-                key={item.href}
-                href={item.href}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-[hsl(222_47%_11%)] text-white'
-                    : 'bg-[hsl(210_30%_94%)] text-[hsl(222_20%_38%)]'
-                }`}
+                href="/admin/offers"
+                className="shrink-0 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-900 shadow-2xs mr-1"
               >
-                {item.label}
+                ↔ Přepnout na Admin
               </Link>
-            );
-          })}
-        </div>
+            )}
+            {currentNavItems.map((item) => {
+              const isActive = item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(item.href + '/');
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-[hsl(222_47%_11%)] text-white'
+                      : 'bg-[hsl(210_30%_94%)] text-[hsl(222_20%_38%)]'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </nav>
   );
