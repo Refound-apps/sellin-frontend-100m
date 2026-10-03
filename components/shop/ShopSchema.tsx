@@ -2,6 +2,7 @@
 
 import { useShop } from './ShopContext';
 import { ShopOffer } from '@/lib/types';
+import { getShopBaseUrl, getShopHomeMetadata } from '@/lib/shop/seo';
 import { getOfferPricingInfo, getOfferSpecsList } from './offerMeta';
 
 interface ShopSchemaProps {
@@ -16,15 +17,11 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
     email,
     addressLine,
     addressCity,
-    region,
-    hours,
     shop,
-    shippingPrice,
   } = useShop();
 
-  const domain = shop.custom_domain
-    ? `https://${shop.custom_domain}`
-    : `https://${shop.slug || 'shop'}.prodejomat.cz`;
+  const domain = getShopBaseUrl(shop);
+  const homeMeta = getShopHomeMetadata(shop);
 
   // 1. LocalBusiness / AutoPartsStore Schema
   const storeSchema = {
@@ -32,20 +29,27 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
     '@type': 'AutoPartsStore',
     '@id': `${domain}/#store`,
     name: shopName || 'Pneu & ALU Bazar',
+    alternateName: ['Pneu Plzeň', 'ALU disky Plzeň', 'Pneuservis Plzeň'],
     description:
+      homeMeta.description ||
       tagline ||
       'Specializovaný prodej prověřených pneumatik, ALU disků a kompletních sad kol se zárukou a možností přezutí.',
-    url: domain,
+    url: `${domain}/`,
     telephone: phone || undefined,
     email: email || undefined,
+    image: shop.logo_url || undefined,
     priceRange: '$$',
     currenciesAccepted: 'CZK',
     paymentAccepted: 'Hotově, Převodem, Dobírka',
+    areaServed: {
+      '@type': 'AdministrativeArea',
+      name: addressCity || 'Plzeň',
+    },
     address: {
       '@type': 'PostalAddress',
       streetAddress: addressLine || 'Úslavská 32',
       addressLocality: addressCity || 'Plzeň',
-      addressRegion: region || 'Plzeňský kraj',
+      addressRegion: addressCity ? undefined : 'Plzeňský kraj',
       addressCountry: 'CZ',
     },
     openingHoursSpecification: [
@@ -81,7 +85,26 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
     ],
   };
 
-  // 2. BreadcrumbList Schema
+  // 2. WebSite + SearchAction (helps Google sitelinks search box)
+  const websiteSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': `${domain}/#website`,
+    name: shopName,
+    url: `${domain}/`,
+    inLanguage: 'cs-CZ',
+    publisher: { '@id': `${domain}/#store` },
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${domain}/?search={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
+  // 3. BreadcrumbList Schema
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -90,7 +113,7 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
         '@type': 'ListItem',
         position: 1,
         name: 'Domů',
-        item: domain,
+        item: `${domain}/`,
       },
       {
         '@type': 'ListItem',
@@ -128,7 +151,7 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
                 name: offer.title,
                 description: offer.description || offer.title,
                 image: offer.preview_image ? [offer.preview_image] : undefined,
-                sku: `TIRE-${offer.id}`,
+                sku: `SHOP-${offer.id}`,
                 category: 'Automotive > Tires & Wheels',
                 brand: brandSpec
                   ? {
@@ -182,6 +205,10 @@ export default function ShopSchema({ offers = [] }: ShopSchemaProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(storeSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
       <script
         type="application/ld+json"

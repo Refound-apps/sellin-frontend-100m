@@ -39,6 +39,7 @@ export default function ShopSeoFeedsPanel({
         address_line: null,
         phone: null,
         email: null,
+        logo_url: null,
       }),
     [shopName, slug, customDomain, tagline, addressCity]
   );
@@ -91,7 +92,7 @@ export default function ShopSeoFeedsPanel({
         <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
           Veřejná adresa e-shopu a XML feedy pro Google, Seznam Zboží a Heureku. Po nasazení
           domény vložte URL do příslušné konzole. Položky odkazují na{' '}
-          <span className="font-mono text-slate-700">/produkt/{'{id}'}</span>.
+          <span className="font-mono text-slate-700">/produkt/&#123;id&#125;</span>.
         </p>
       </div>
 

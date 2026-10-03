@@ -5,7 +5,7 @@ import { resolveShopFromRequest } from '@/lib/shop/server';
 export const dynamic = 'force-dynamic';
 
 export default async function robots(): Promise<MetadataRoute.Robots> {
-  let baseUrl = 'https://alubazarplzen.cz';
+  let baseUrl = 'https://www.alubazarplzen.cz';
   try {
     const shop = await resolveShopFromRequest();
     baseUrl = getShopBaseUrl(shop);

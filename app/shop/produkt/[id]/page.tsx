@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ShopProductDetail from '@/components/shop/ShopProductDetail';
 import {
+  buildShopPageMetadata,
   getOfferSeoDescription,
+  getOfferSeoTitle,
   getProductUrl,
   getShopBaseUrl,
-  getShopHomeMetadata,
 } from '@/lib/shop/seo';
 import {
   fetchShopOfferById,
@@ -35,37 +36,33 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!offer) {
     return {
       title: `Produkt nenalezen | ${shop.shop_name}`,
+      robots: { index: false, follow: false },
     };
   }
 
-  const homeMeta = getShopHomeMetadata(shop);
+  const title = getOfferSeoTitle(offer, shop);
   const description = getOfferSeoDescription(offer);
-  const url = getProductUrl(shop, offer.id);
   const images = offer.preview_image ? [offer.preview_image] : [];
+  const brand = getOfferSpecsList(offer).find((s) => s.label === 'Značka')?.value;
+
+  const meta = buildShopPageMetadata(shop, {
+    title,
+    description,
+    path: `/produkt/${offer.id}`,
+    images,
+  });
 
   return {
-    title: `${offer.title} | ${shop.shop_name}`,
-    description,
-    alternates: { canonical: url },
-    openGraph: {
-      title: `${offer.title} | ${shop.shop_name}`,
-      description,
-      url,
-      siteName: shop.shop_name,
-      locale: 'cs_CZ',
-      type: 'website',
-      images: images.map((src) => ({ url: src })),
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: offer.title,
-      description,
-      images,
-    },
+    ...meta,
+    // Absolute title — do not append "| Shop" twice via layout template
+    title: { absolute: title },
     other: {
+      ...(meta.other || {}),
       'og:price:amount': String(offer.price),
       'og:price:currency': 'CZK',
-      'product:brand': homeMeta.title,
+      'product:brand': brand || shop.shop_name || '',
+      'product:availability': 'in stock',
+      'product:condition': 'used',
     },
   };
 }

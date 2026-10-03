@@ -6,6 +6,7 @@ import { ShopOffer } from '@/lib/types';
 import { getShopOfferImages, submitShopInquiry } from '@/lib/api';
 import { formatCzk, getOfferPricingInfo, getOfferSpecsList, getOfferTags } from './offerMeta';
 import { useShop } from './ShopContext';
+import { getProductUrl } from '@/lib/shop/seo';
 
 interface ShopOfferModalProps {
   offer: ShopOffer;
@@ -203,15 +204,11 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
   const tags = getOfferTags(offer);
   const pricing = getOfferPricingInfo(offer);
 
-  const domain = shop.custom_domain
-    ? `https://${shop.custom_domain}`
-    : `https://${shop.slug || 'shop'}.prodejomat.cz`;
-
   // Schema.org Product JSON-LD for AI crawlers / agents looking at this modal
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    '@id': `${domain}/produkt/${offer.id}`,
+    '@id': getProductUrl(shop, offer.id),
     name: offer.title,
     description: offer.description || offer.title,
     image: images.length > 0 ? images : [offer.preview_image],

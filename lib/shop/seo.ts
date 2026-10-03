@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import {
   getOfferPricingInfo,
   getOfferSpecsList,
@@ -7,8 +8,24 @@ import type { ShopConfigData, ShopOffer } from '@/lib/types';
 
 export type ShopSeoSource = Pick<
   ShopConfigData,
-  'shop_name' | 'tagline' | 'slug' | 'custom_domain' | 'address_city' | 'address_line' | 'phone' | 'email'
+  | 'shop_name'
+  | 'tagline'
+  | 'slug'
+  | 'custom_domain'
+  | 'address_city'
+  | 'address_line'
+  | 'phone'
+  | 'email'
+  | 'logo_url'
 >;
+
+export type ShopStaticPageKey =
+  | 'home'
+  | 'kontakt'
+  | 'jak-nakoupit'
+  | 'doprava-a-platba'
+  | 'reklamace'
+  | 'obchodni-podminky';
 
 export type FeedProduct = {
   id: number;
@@ -35,9 +52,13 @@ export type FeedProduct = {
   pricingUnit: 'per_piece' | 'per_set';
 };
 
+/**
+ * Canonical public origin for the shop.
+ * Custom domains use www. (matches typical Vercel apex→www redirect).
+ */
 export function getShopBaseUrl(shop: ShopSeoSource): string {
   const domain = (shop.custom_domain || '').trim().toLowerCase().replace(/^www\./, '');
-  if (domain) return `https://${domain}`;
+  if (domain) return `https://www.${domain}`;
   const slug = (shop.slug || 'shop').trim().toLowerCase() || 'shop';
   return `https://${slug}.prodejomat.cz`;
 }
@@ -56,7 +77,7 @@ export function getShopPublicUrls(shop: ShopSeoSource) {
   const baseUrl = getShopBaseUrl(shop);
   return {
     baseUrl,
-    homeUrl: baseUrl,
+    homeUrl: `${baseUrl}/`,
     catalogUrl: `${baseUrl}/`,
     sitemapUrl: `${baseUrl}/sitemap.xml`,
     robotsUrl: `${baseUrl}/robots.txt`,
@@ -67,25 +88,166 @@ export function getShopPublicUrls(shop: ShopSeoSource) {
   };
 }
 
+function shopCity(shop: ShopSeoSource) {
+  return (shop.address_city || 'Plzeň').trim() || 'Plzeň';
+}
+
+function shopName(shop: ShopSeoSource) {
+  return (shop.shop_name || 'E-shop').trim() || 'E-shop';
+}
+
 export function getShopHomeMetadata(shop: ShopSeoSource) {
-  const city = shop.address_city || 'Plzeň';
-  const name = shop.shop_name || 'E-shop';
-  const tagline = shop.tagline || 'Prověřené pneumatiky a disky';
+  const city = shopCity(shop);
+  const name = shopName(shop);
+  const tagline = shop.tagline || 'Prověřené pneumatiky a ALU disky';
   return {
-    title: `${name} | ${tagline}`,
-    description: `${tagline}. Prodej pneu a ALU disků – ${city}. Osobní odběr, přezutí a zaslání po ČR.`,
+    title: `Pneu a ALU disky ${city} | ${name}`,
+    description: `${tagline}. Zimní i letní pneu, ALU disky a sady kol skladem v ${city}. Osobní odběr, přezutí na počkání a zaslání po celé ČR. Prověřené kusy se zárukou.`,
   };
+}
+
+export function getShopStaticPageSeo(
+  shop: ShopSeoSource,
+  page: ShopStaticPageKey
+): { title: string; description: string; path: string } {
+  const city = shopCity(shop);
+  const name = shopName(shop);
+  const home = getShopHomeMetadata(shop);
+
+  const pages: Record<ShopStaticPageKey, { title: string; description: string; path: string }> = {
+    home: {
+      title: home.title,
+      description: home.description,
+      path: '/',
+    },
+    kontakt: {
+      title: `Kontakt a provozovna ${city} | ${name}`,
+      description: `Kontaktujte ${name} – provozovna ${shop.address_line || 'Úslavská 32'}, ${city}. Telefon ${shop.phone || ''}. Osobní odběr pneu a disků, pneuservis a zaslání po ČR.`.replace(
+        /\s+/g,
+        ' '
+      ).trim(),
+      path: '/kontakt',
+    },
+    'jak-nakoupit': {
+      title: `Jak vybrat a koupit pneu | ${name}`,
+      description: `Jak vybrat správný rozměr pneumatik a ALU disků, jak rezervovat sadu online a vyzvednout v ${city}. Jednoduchý návod od ${name}.`,
+      path: '/jak-nakoupit',
+    },
+    'doprava-a-platba': {
+      title: `Doprava a platba | ${name}`,
+      description: `Osobní odběr v ${city} zdarma, zaslání Českou poštou po ČR, platba hotově, převodem nebo dobírkou. Podmínky dopravy u ${name}.`,
+      path: '/doprava-a-platba',
+    },
+    reklamace: {
+      title: `Reklamace a záruka | ${name}`,
+      description: `Garance a reklamace pneumatik a disků u ${name}. Jak uplatnit reklamaci, lhůty a podmínky vrácení zboží.`,
+      path: '/reklamace',
+    },
+    'obchodni-podminky': {
+      title: `Obchodní podmínky | ${name}`,
+      description: `Obchodní podmínky e-shopu ${name} – prodej pneumatik a ALU disků, rezervace, doprava a ochrana spotřebitele.`,
+      path: '/obchodni-podminky',
+    },
+  };
+
+  return pages[page];
+}
+
+export function getOfferSeoTitle(offer: ShopOffer, shop: ShopSeoSource): string {
+  const name = shopName(shop);
+  const city = shopCity(shop);
+  const raw = (offer.title || 'Nabídka').replace(/\s+/g, ' ').trim();
+  // Keep title readable for SERP (~60–70 chars ideal)
+  const suffix = ` | ${name} ${city}`;
+  const maxMain = Math.max(28, 70 - suffix.length);
+  const main = raw.length > maxMain ? `${raw.slice(0, maxMain - 1).trim()}…` : raw;
+  return `${main}${suffix}`;
 }
 
 export function getOfferSeoDescription(offer: ShopOffer, max = 160): string {
   const specs = getOfferSpecsList(offer);
   const bits = specs
     .filter((s) => ['Rozměr', 'Sezóna', 'Značka', 'Vzorek', 'Rozteč', 'Typ'].includes(s.label))
-    .map((s) => `${s.label}: ${s.value}`);
+    .map((s) => s.value);
+  const price =
+    typeof offer.price === 'number' && offer.price > 0
+      ? `${new Intl.NumberFormat('cs-CZ').format(offer.price)} Kč`
+      : '';
   const fromDesc = (offer.description || '').replace(/\s+/g, ' ').trim();
-  const base = bits.length > 0 ? `${offer.title}. ${bits.join(' · ')}` : offer.title;
-  const text = fromDesc ? `${base}. ${fromDesc}` : base;
+  const parts = [
+    offer.title,
+    bits.length ? bits.join(', ') : null,
+    price ? `Cena ${price}` : null,
+    'Skladem, osobní odběr nebo zásilka po ČR',
+    fromDesc || null,
+  ].filter(Boolean);
+  const text = parts.join('. ').replace(/\s+/g, ' ').trim();
   return text.length > max ? `${text.slice(0, max - 1).trim()}…` : text;
+}
+
+export function buildShopPageMetadata(
+  shop: ShopSeoSource,
+  opts: {
+    title: string;
+    description: string;
+    path?: string;
+    images?: string[];
+    noIndex?: boolean;
+  }
+): Metadata {
+  const baseUrl = getShopBaseUrl(shop);
+  const path = opts.path || '/';
+  const canonical = path === '/' ? `${baseUrl}/` : `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  const images =
+    opts.images && opts.images.length > 0
+      ? opts.images
+      : shop.logo_url
+        ? [shop.logo_url]
+        : undefined;
+
+  return {
+    metadataBase: new URL(baseUrl),
+    title: opts.title,
+    description: opts.description,
+    applicationName: shopName(shop),
+    authors: [{ name: shopName(shop) }],
+    creator: shopName(shop),
+    publisher: shopName(shop),
+    category: 'Auto-moto',
+    alternates: { canonical },
+    robots: opts.noIndex
+      ? { index: false, follow: false }
+      : {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            'max-image-preview': 'large',
+            'max-snippet': -1,
+            'max-video-preview': -1,
+          },
+        },
+    openGraph: {
+      title: opts.title,
+      description: opts.description,
+      url: canonical,
+      siteName: shopName(shop),
+      locale: 'cs_CZ',
+      type: 'website',
+      images: images?.map((url) => ({ url })),
+    },
+    twitter: {
+      card: images ? 'summary_large_image' : 'summary',
+      title: opts.title,
+      description: opts.description,
+      images,
+    },
+    other: {
+      'geo.region': 'CZ',
+      'geo.placename': shopCity(shop),
+    },
+  };
 }
 
 function parseShippingCzk(raw: string): number {
