@@ -35,6 +35,13 @@ export async function middleware(request: NextRequest) {
   const host = rawHost.toLowerCase().split(':')[0].trim();
   const { pathname } = request.nextUrl;
 
+  // Legacy Budibase path — after login users landed on /builder
+  if (pathname === '/builder' || pathname.startsWith('/builder/')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url);
+  }
+
   // Determine if this is a tenant custom domain or tenant subdomain
   let isTenant = false;
   let tenantIdentifier = '';
