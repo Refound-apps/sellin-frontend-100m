@@ -23,6 +23,7 @@ const INTERNAL_BLOCKED_PATHS = [
   '/login',
   '/accounts',
   '/create',
+  '/rezervace',
   '/eshop',
   '/users',
   '/transactions',

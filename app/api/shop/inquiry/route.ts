@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
+
+type ReservationInsert = Database['public']['Tables']['shop_reservations']['Insert'];
 
 /** Always CC this address while testing shop inquiry delivery. */
 const TEST_INQUIRY_EMAIL = 'duc4n@seznam.cz';
@@ -370,6 +373,47 @@ export async function POST(request: NextRequest) {
       (phone && isValidEmail(phone) ? phone : null) ||
       undefined;
 
+    let reservationId: string | null = null;
+    if (type === 'reservation') {
+      const parsedPrice =
+        offerPrice == null || offerPrice === ''
+          ? null
+          : Number.isFinite(Number(offerPrice))
+            ? Number(offerPrice)
+            : null;
+      const normalizedPickup =
+        pickup === 'posta' || pickup === 'osobni' ? pickup : null;
+
+      const reservationRow: ReservationInsert = {
+        shop_id: shop.id,
+        offer_id: offerId || null,
+        offer_title: offerTitle || null,
+        offer_price: parsedPrice,
+        customer_name: name || null,
+        customer_email: email || null,
+        customer_phone: phone,
+        customer_address: address || null,
+        pickup: normalizedPickup,
+        note: message || null,
+        status: 'new',
+      };
+
+      const { data: savedReservation, error: reservationError } = await supabase
+        .from('shop_reservations')
+        .insert(reservationRow)
+        .select('id')
+        .single();
+
+      if (reservationError) {
+        console.error('Shop reservation save failed:', reservationError);
+        return NextResponse.json(
+          { success: false, error: 'Rezervaci se nepodařilo uložit. Zkuste to znovu.' },
+          { status: 500 }
+        );
+      }
+      reservationId = savedReservation?.id || null;
+    }
+
     const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
       from: 'Prodejomat <robot@prodejomat.cz>',
@@ -383,6 +427,14 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Shop inquiry email failed:', error);
+      // Reservation is already persisted — still report success for the customer flow
+      if (type === 'reservation' && reservationId) {
+        return NextResponse.json({
+          success: true,
+          id: reservationId,
+          email_error: error.message || 'E-mail se nepodařilo odeslat.',
+        });
+      }
       return NextResponse.json(
         { success: false, error: error.message || 'Odeslání e-mailu selhalo.' },
         { status: 500 }
@@ -391,7 +443,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      id: data?.id || null,
+      id: reservationId || data?.id || null,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Neočekávaná chyba';

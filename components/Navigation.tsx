@@ -141,6 +141,7 @@ export default function Navigation() {
   const sellerNavItems = [
     { href: '/', label: 'Moje nabídka', exact: true },
     { href: '/create', label: 'Vytvořit inzerát', exact: false },
+    { href: '/rezervace', label: 'Rezervace', exact: false },
     { href: '/accounts', label: 'Napojení účtů', exact: false },
   ];
 

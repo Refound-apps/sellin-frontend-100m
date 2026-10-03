@@ -486,6 +486,65 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_reservations: {
+        Row: {
+          id: string
+          shop_id: string
+          offer_id: string | null
+          offer_title: string | null
+          offer_price: number | null
+          customer_name: string | null
+          customer_email: string | null
+          customer_phone: string
+          customer_address: string | null
+          pickup: string | null
+          note: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          offer_id?: string | null
+          offer_title?: string | null
+          offer_price?: number | null
+          customer_name?: string | null
+          customer_email?: string | null
+          customer_phone: string
+          customer_address?: string | null
+          pickup?: string | null
+          note?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          offer_id?: string | null
+          offer_title?: string | null
+          offer_price?: number | null
+          customer_name?: string | null
+          customer_email?: string | null
+          customer_phone?: string
+          customer_address?: string | null
+          pickup?: string | null
+          note?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'shop_reservations_shop_id_fkey'
+            columns: ['shop_id']
+            isOneToOne: false
+            referencedRelation: 'shops'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       cron_jobs: {
         Row: {
           id: string

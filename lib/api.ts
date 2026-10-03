@@ -337,6 +337,73 @@ export async function submitShopInquiry(payload: ShopInquiryPayload): Promise<{ 
   }
 }
 
+export type ShopReservationStatus = 'new' | 'contacted' | 'completed' | 'cancelled';
+
+export type ShopReservation = {
+  id: string;
+  shop_id: string;
+  offer_id: string | null;
+  offer_title: string | null;
+  offer_price: number | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  customer_phone: string;
+  customer_address: string | null;
+  pickup: string | null;
+  note: string | null;
+  status: ShopReservationStatus | string;
+  created_at: string;
+  updated_at: string;
+  shops?: {
+    id: string;
+    shop_name: string;
+    slug: string;
+    custom_domain: string | null;
+  } | null;
+};
+
+export async function getShopReservations(params?: {
+  status?: string;
+  shop_id?: string;
+}): Promise<{ success: boolean; data?: ShopReservation[]; error?: string }> {
+  try {
+    const search = new URLSearchParams();
+    if (params?.status) search.set('status', params.status);
+    if (params?.shop_id) search.set('shop_id', params.shop_id);
+    const query = search.toString() ? `?${search.toString()}` : '';
+    const response = await fetch(`/api/reservations${query}`, { cache: 'no-store' });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.success) {
+      return { success: false, error: json.error || 'Načtení rezervací selhalo.' };
+    }
+    return { success: true, data: (json.data || []) as ShopReservation[] };
+  } catch (error) {
+    console.error('Error fetching shop reservations:', error);
+    return { success: false, error: 'Nepodařilo se načíst rezervace.' };
+  }
+}
+
+export async function updateShopReservationStatus(
+  id: string,
+  status: ShopReservationStatus
+): Promise<{ success: boolean; data?: ShopReservation; error?: string }> {
+  try {
+    const response = await fetch(`/api/reservations/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.success) {
+      return { success: false, error: json.error || 'Aktualizace rezervace selhala.' };
+    }
+    return { success: true, data: json.data as ShopReservation };
+  } catch (error) {
+    console.error('Error updating shop reservation:', error);
+    return { success: false, error: 'Nepodařilo se aktualizovat rezervaci.' };
+  }
+}
+
 export async function resolveShopConfig(domainOrSlug?: string, forceRefresh: boolean = false): Promise<ShopConfigData | null> {
   const cacheKey = (domainOrSlug || '__default__').toLowerCase().trim();
   if (!forceRefresh && typeof window !== 'undefined') {

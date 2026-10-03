@@ -620,7 +620,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
             <div className="flex items-start justify-between border-b border-slate-200 pb-3.5">
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                  Nezávazná rezervace
+                  Rezervace
                 </span>
                 <h3 className="mt-0.5 text-base sm:text-lg font-bold text-slate-950">
                   Rezervovat sadu
@@ -829,10 +829,10 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
                     disabled={reserveSubmitting}
                     className="w-full rounded-xl bg-[hsl(142_71%_45%)] py-3 text-sm font-bold text-white shadow-xs hover:bg-[hsl(142_71%_35%)] active:scale-98 transition-all disabled:opacity-60"
                   >
-                    {reserveSubmitting ? 'Odesílám…' : 'Odeslat nezávaznou rezervaci'}
+                    {reserveSubmitting ? 'Odesílám…' : 'Odeslat rezervaci'}
                   </button>
                   <p className="mt-1.5 text-center text-[10px] text-slate-500">
-                    Rezervace je nezávazná. Platba probíhá až při předání či dobírce.
+                    Platba probíhá až při předání či dobírce.
                   </p>
                 </div>
               </form>
