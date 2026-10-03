@@ -88,8 +88,15 @@ export async function middleware(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-shop-domain', tenantIdentifier);
 
-    // 3. API & static paths pass through directly
-    if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.includes('.')) {
+    // 3. API, SEO metadata & static paths pass through directly
+    // (sitemap.xml / robots.txt must NOT be rewritten under /shop)
+    if (
+      pathname.startsWith('/api') ||
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/sitemap') ||
+      pathname === '/robots.txt' ||
+      pathname.includes('.')
+    ) {
       return NextResponse.next({
         request: {
           headers: requestHeaders,
