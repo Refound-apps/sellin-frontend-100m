@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import ReservationsView from '@/components/ReservationsView';
+import { buildProdejomatMetadata } from '@/lib/prodejomat/seo';
 
-export const metadata: Metadata = {
-  title: 'Rezervace | Prodejomat.cz',
+export const metadata: Metadata = buildProdejomatMetadata({
+  path: '/rezervace',
+  title: 'Rezervace',
   description: 'Seznam rezervací produktů z e-shopu — dohledání a odbavení.',
-};
+  noIndex: true,
+});
 
 export default function RezervacePage() {
   return (

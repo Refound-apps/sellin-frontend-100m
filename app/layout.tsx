@@ -1,8 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import { getRequestHost, isTenantHost } from "@/lib/prodejomat/host";
+import { buildProdejomatMetadata, prodejomatViewport } from "@/lib/prodejomat/seo";
 import { buildShopPageMetadata, getShopHomeMetadata } from "@/lib/shop/seo";
 import { resolveShopFromRequest } from "@/lib/shop/server";
 
@@ -16,61 +18,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const MAIN_DOMAINS = new Set([
-  'sellin.cz',
-  'www.sellin.cz',
-  'app.sellin.cz',
-  'bazar.sellin.cz',
-  'stage.sellin.cz',
-  'dev.sellin.cz',
-  'prodejomat.cz',
-  'www.prodejomat.cz',
-  'app.prodejomat.cz',
-  'bazar.prodejomat.cz',
-  'stage.prodejomat.cz',
-  'dev.prodejomat.cz',
-  'localhost',
-  '127.0.0.1',
-]);
-
-const DEFAULT_METADATA: Metadata = {
-  title: {
-    default: "Prodejomat.cz - Automat na inzerci a prodej",
-    template: "%s | Prodejomat.cz",
-  },
-  description: "Centrální sklad a automatická inzerce nabídek na Bazoš, Sbazar i vlastní e-shopy pro prodejce",
-  icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/icon.svg", type: "image/svg+xml" },
-    ],
-    apple: [{ url: "/apple-icon", type: "image/png" }],
-  },
-};
-
-function isTenantHost(host: string, shopDomainHeader: string | null): boolean {
-  if (shopDomainHeader) return true;
-  if (!host) return false;
-  if (host.includes('.localhost')) return true;
-  if (host.endsWith('.sellin.cz')) {
-    const subdomain = host.replace('.sellin.cz', '');
-    return !['app', 'www', 'stage', 'dev', 'bazar'].includes(subdomain);
-  }
-  if (host.endsWith('.prodejomat.cz')) {
-    const subdomain = host.replace('.prodejomat.cz', '');
-    return !['app', 'www', 'stage', 'dev', 'bazar'].includes(subdomain);
-  }
-  return !MAIN_DOMAINS.has(host) && !host.endsWith('.vercel.app');
-}
+export const viewport: Viewport = prodejomatViewport;
 
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
   const shopDomainHeader = headersList.get('x-shop-domain');
-  const rawHost = headersList.get('x-forwarded-host') || headersList.get('host') || '';
-  const host = rawHost.toLowerCase().split(':')[0].trim();
+  const host = await getRequestHost();
 
   if (!isTenantHost(host, shopDomainHeader)) {
-    return DEFAULT_METADATA;
+    return buildProdejomatMetadata({ host });
   }
 
   try {
@@ -86,10 +42,9 @@ export async function generateMetadata(): Promise<Metadata> {
         default: home.title,
         template: `%s | ${shop.shop_name || 'E-shop'}`,
       },
-      icons: DEFAULT_METADATA.icons,
     };
   } catch {
-    return DEFAULT_METADATA;
+    return buildProdejomatMetadata({ host });
   }
 }
 
@@ -100,8 +55,7 @@ export default async function RootLayout({
 }>) {
   const headersList = await headers();
   const shopDomainHeader = headersList.get('x-shop-domain');
-  const rawHost = headersList.get('x-forwarded-host') || headersList.get('host') || '';
-  const host = rawHost.toLowerCase().split(':')[0].trim();
+  const host = await getRequestHost();
   const isTenant = isTenantHost(host, shopDomainHeader);
 
   return (

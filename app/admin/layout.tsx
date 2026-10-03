@@ -1,11 +1,17 @@
 import type { Metadata } from 'next';
+import { buildProdejomatMetadata } from '@/lib/prodejomat/seo';
 
 export const metadata: Metadata = {
+  ...buildProdejomatMetadata({
+    path: '/admin',
+    title: 'Administrace',
+    description: 'Centrální administrátorské rozhraní systému Prodejomat.cz',
+    noIndex: true,
+  }),
   title: {
     template: '%s | Administrace Prodejomat.cz',
     default: 'Administrace | Prodejomat.cz',
   },
-  description: 'Centrální administrátorské rozhraní systému Prodejomat.cz',
 };
 
 export default function AdminLayout({
