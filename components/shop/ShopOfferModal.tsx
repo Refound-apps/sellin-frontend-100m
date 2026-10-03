@@ -263,7 +263,10 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600" />
             </span>
             <span className="text-xs font-bold text-slate-800 truncate">
-              Skladem · Osobní odběr {addressLine || 'na provozovně'}
+              Skladem · Osobní odběr{' '}
+              {addressLine
+                ? `${addressLine}, ${addressCity || 'Plzeň'}`
+                : 'na provozovně'}
             </span>
           </div>
 

@@ -16,7 +16,7 @@ export default function ShopHero({
   activeSeason,
   activeType,
 }: ShopHeroProps) {
-  const { phone, phoneHref, addressLine, region } = useShop();
+  const { phone, phoneHref, addressLine, addressCity, region } = useShop();
   const quickRims = ['15', '16', '17', '18', '19'];
 
   return (
@@ -177,7 +177,12 @@ export default function ShopHero({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[hsl(142_71%_45%)] opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(142_71%_45%)]" />
           </span>
-          <span className="truncate">Osobní odběr {addressLine || 'na provozovně'}</span>
+          <span className="truncate">
+            Osobní odběr{' '}
+            {addressLine
+              ? `${addressLine}, ${addressCity || 'Plzeň'}`
+              : 'na provozovně'}
+          </span>
           <span className="text-[hsl(214_32%_75%)]">·</span>
           <span className="hidden xs:inline font-medium text-[hsl(215_16%_47%)]">Aktuální nabídka na skladě</span>
           <span className="xs:hidden font-medium text-[hsl(215_16%_47%)]">Skladem</span>

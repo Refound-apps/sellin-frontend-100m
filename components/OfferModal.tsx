@@ -433,7 +433,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
             )}
 
             <a
-              href={`/shop?offer=${offer.id}`}
+              href={`/shop/produkt/${offer.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition-colors"
@@ -861,7 +861,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                     Prodejní kanály ({1 + details.length})
                   </span>
                   <a
-                    href={`/shop?offer=${offer.id}`}
+                    href={`/shop/produkt/${offer.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
@@ -881,7 +881,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                       </span>
                     </div>
                     <a
-                      href={`/shop?offer=${offer.id}`}
+                      href={`/shop/produkt/${offer.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-semibold text-slate-600 hover:text-slate-950 transition-colors"
