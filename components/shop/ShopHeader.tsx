@@ -10,7 +10,7 @@ import { scrollToShopSection } from './shopScroll';
 export default function ShopHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  const { shopName, phone, phoneHref, addressLine } = useShop();
+  const { shopName, phone, phoneHref, addressLine, addressCity } = useShop();
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (href.startsWith('/shop#') && pathname === '/shop') {
@@ -35,7 +35,10 @@ export default function ShopHeader() {
           <div className="flex items-center gap-2 truncate text-[hsl(215_16%_47%)]">
             <span className="inline-block h-2 w-2 rounded-full bg-[hsl(142_71%_45%)] shrink-0" />
             <span className="font-medium text-[hsl(222_47%_11%)] truncate">
-              Osobní odběr {addressLine ? `· ${addressLine}` : 'na provozovně'}
+              Osobní odběr{' '}
+              {addressLine
+                ? `· ${addressLine}, ${addressCity || 'Plzeň'}`
+                : 'na provozovně'}
             </span>
           </div>
           <div className="flex items-center gap-1.5 font-medium text-[hsl(215_16%_47%)] shrink-0">
