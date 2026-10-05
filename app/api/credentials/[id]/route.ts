@@ -31,6 +31,9 @@ const ALLOWED_FIELDS: CredentialUpdateKey[] = [
   'proxy_ip_sbazar',
   'facebook_email',
   'facebook_password',
+  'facebook_cuser',
+  'facebook_xs',
+  'tier',
 ];
 
 export async function PUT(

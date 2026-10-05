@@ -514,6 +514,44 @@ export async function getShopOfferImages(id: number): Promise<string[]> {
   }
 }
 
+function mapCredentialRow(row: Record<string, unknown>): User {
+  return {
+    id: Number(row.id),
+    email: String(row.email ?? ''),
+    telephone1: (row.telephone1 as string | null) ?? null,
+    telephone2: (row.telephone2 as string | null) ?? null,
+    bazos_email: (row.bazos_email as string | null) ?? null,
+    bazos_password: (row.bazos_password as string | null) ?? null,
+    sbazar_email: (row.sbazar_email as string | null) ?? null,
+    sbazar_password: (row.sbazar_password as string | null) ?? null,
+    sbazar_cookie_ds: (row.sbazar_cookie_ds as string | null) ?? null,
+    facebook_email: (row.facebook_email as string | null) ?? null,
+    facebook_password: (row.facebook_password as string | null) ?? null,
+    facebook_cuser: (row.facebook_cuser as string | null) ?? null,
+    facebook_xs: (row.facebook_xs as string | null) ?? null,
+    bazos_name: (row.bazos_name as string | null) ?? null,
+    location: (row.location as string | null) ?? null,
+    zipcode: (row.zipcode as number | string | null) ?? null,
+    zipcode_sk: (row.zipcode_sk as string | null) ?? null,
+    status_cz: (row.status_cz as string | null) ?? null,
+    status_sk: (row.status_sk as string | null) ?? null,
+    sbazar_profile: (row.sbazar_profile as string | null) ?? null,
+    tier: (row.tier as string | null) ?? null,
+    bazos_rewrite: (row.bazos_rewrite as boolean | null) ?? null,
+    bazos_top_max: (row.bazos_top_max as number | null) ?? null,
+    bazos_bkod: (row.bazos_bkod as string | null) ?? null,
+    bazos_sk_bkod: (row.bazos_sk_bkod as string | null) ?? null,
+    proxy_ip: (row.proxy_ip as string | null) ?? null,
+    proxy_ip_sbazar: (row.proxy_ip_sbazar as string | null) ?? null,
+    role: (row.role as string | null) ?? null,
+    user_id: (row.user_id as string | null) ?? null,
+    created_at: (row.created_at as string | null) ?? null,
+    last_sign_in_at: (row.last_sign_in_at as string | null) ?? null,
+    error_count: Number(row.error_count || 0),
+    cookies: (row.cookies as User['cookies']) || undefined,
+  };
+}
+
 export async function getUsers(): Promise<User[]> {
   try {
     const response = await apiFetch('/api/credentials');
@@ -523,39 +561,24 @@ export async function getUsers(): Promise<User[]> {
     }
 
     const data: ApiResponse<Record<string, unknown>[]> = await response.json();
-    return (data.data || []).map((row) => ({
-      id: Number(row.id),
-      email: String(row.email ?? ''),
-      telephone1: (row.telephone1 as string | null) ?? null,
-      telephone2: (row.telephone2 as string | null) ?? null,
-      bazos_email: (row.bazos_email as string | null) ?? null,
-      bazos_password: (row.bazos_password as string | null) ?? null,
-      sbazar_email: (row.sbazar_email as string | null) ?? null,
-      sbazar_password: (row.sbazar_password as string | null) ?? null,
-      sbazar_cookie_ds: (row.sbazar_cookie_ds as string | null) ?? null,
-      facebook_email: (row.facebook_email as string | null) ?? null,
-      bazos_name: (row.bazos_name as string | null) ?? null,
-      location: (row.location as string | null) ?? null,
-      zipcode: (row.zipcode as number | string | null) ?? null,
-      zipcode_sk: (row.zipcode_sk as string | null) ?? null,
-      status_cz: (row.status_cz as string | null) ?? null,
-      status_sk: (row.status_sk as string | null) ?? null,
-      sbazar_profile: (row.sbazar_profile as string | null) ?? null,
-      tier: (row.tier as string | null) ?? null,
-      bazos_rewrite: (row.bazos_rewrite as boolean | null) ?? null,
-      bazos_top_max: (row.bazos_top_max as number | null) ?? null,
-      bazos_bkod: (row.bazos_bkod as string | null) ?? null,
-      bazos_sk_bkod: (row.bazos_sk_bkod as string | null) ?? null,
-      proxy_ip: (row.proxy_ip as string | null) ?? null,
-      proxy_ip_sbazar: (row.proxy_ip_sbazar as string | null) ?? null,
-      role: (row.role as string | null) ?? null,
-      user_id: (row.user_id as string | null) ?? null,
-      created_at: (row.created_at as string | null) ?? null,
-    }));
+    return (data.data || []).map(mapCredentialRow);
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;
   }
+}
+
+export async function getAdminUsers(): Promise<User[]> {
+  const response = await fetch('/api/admin/users', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se načíst admin uživatele');
+  }
+  return ((data.data || []) as Record<string, unknown>[]).map(mapCredentialRow);
 }
 
 export async function updateCredential(

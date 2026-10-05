@@ -82,6 +82,15 @@ export interface TransactionsApiResponse {
   };
 }
 
+export interface UserCookieFlags {
+  has_bazos_bkod: boolean;
+  has_bazos_sk_bkod: boolean;
+  has_sbazar_cookie: boolean;
+  has_facebook_cookies: boolean;
+  has_proxy: boolean;
+  has_proxy_sbazar: boolean;
+}
+
 export interface User {
   id: number;
   email: string;
@@ -90,6 +99,9 @@ export interface User {
   bazos_email: string | null;
   sbazar_email: string | null;
   facebook_email: string | null;
+  facebook_password?: string | null;
+  facebook_cuser?: string | null;
+  facebook_xs?: string | null;
   bazos_name: string | null;
   location: string | null;
   zipcode: number | string | null;
@@ -110,6 +122,10 @@ export interface User {
   role?: string | null;
   user_id?: string | null;
   created_at?: string | null;
+  /** Admin users page enrichment */
+  last_sign_in_at?: string | null;
+  error_count?: number;
+  cookies?: UserCookieFlags;
 }
 
 export interface ApiResponse<T> {
