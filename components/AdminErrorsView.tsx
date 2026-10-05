@@ -2,7 +2,8 @@
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getAdminErrors, patchScraperJob } from '@/lib/api';
+import { getAdminErrors, getAdminErrorScreenshots, patchScraperJob } from '@/lib/api';
+import type { ErrorScreenshot } from '@/lib/api';
 import type { CronJobLog, ScraperJob } from '@/lib/types';
 import { formatDateTime } from './TransactionsView';
 
@@ -40,6 +41,8 @@ type ErrorsPayload = {
   missingCookies: MissingCookieRow[];
 };
 
+type TabKey = 'failed' | 'retrying' | 'stuck' | 'cron' | 'cookies' | 'screenshots';
+
 const TYPE_LABEL: Record<string, string> = {
   renew_bazos: 'Renew Bazoš.cz',
   renew_bazos_sk: 'Renew Bazoš.sk',
@@ -55,6 +58,19 @@ const TYPE_LABEL: Record<string, string> = {
   recreate_facebook: 'Recreate Facebook',
   archive_offer: 'Archive offer',
 };
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function platformFromName(name: string): string {
+  if (/bazos/i.test(name)) return 'Bazoš';
+  if (/sbazar/i.test(name)) return 'Sbazar';
+  if (/(^|[-_])fb|facebook|fbicko/i.test(name)) return 'Facebook';
+  return 'Jiné';
+}
 
 function jobTarget(job: ScraperJob): string {
   const p = job.payload || {};
@@ -125,7 +141,7 @@ function JobsTable({
                     {job.attempts}/{job.max_attempts}
                   </td>
                   <td className="px-4 py-3 text-slate-500">
-                    {formatDateTime(job.finished_at || job.started_at || job.created_at)}
+                    {formatDateTime(job.finished_at || job.started_at || job.created_at).short}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     {(job.status === 'failed' || job.status === 'cancelled') && (
@@ -161,12 +177,183 @@ function JobsTable({
   );
 }
 
+function ScreenshotsGallery({
+  items,
+  total,
+  loading,
+  platform,
+  query,
+  onPlatform,
+  onQuery,
+  onRefresh,
+}: {
+  items: ErrorScreenshot[];
+  total: number;
+  loading: boolean;
+  platform: string;
+  query: string;
+  onPlatform: (p: string) => void;
+  onQuery: (q: string) => void;
+  onRefresh: () => void;
+}) {
+  const [preview, setPreview] = useState<ErrorScreenshot | null>(null);
+
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreview(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [preview]);
+
+  return (
+    <div>
+      <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          {(
+            [
+              ['', 'Vše'],
+              ['bazos', 'Bazoš'],
+              ['sbazar', 'Sbazar'],
+              ['facebook', 'Facebook'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value || 'all'}
+              type="button"
+              onClick={() => onPlatform(value)}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                platform === value
+                  ? 'bg-slate-900 text-white'
+                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="text-[11px] text-slate-400">
+            {loading ? 'Načítám…' : `${items.length} / ${total}`}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => onQuery(e.target.value)}
+            placeholder="Filtrovat název…"
+            className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-slate-400 sm:w-52"
+          />
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Obnovit
+          </button>
+        </div>
+      </div>
+
+      {loading && items.length === 0 ? (
+        <div className="py-12 text-center text-sm text-slate-400">Načítám screenshoty z VPS…</div>
+      ) : items.length === 0 ? (
+        <div className="py-8 text-center text-sm text-slate-400">Žádné error screenshoty.</div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((shot) => (
+            <button
+              key={`${shot.name}-${shot.mtime}`}
+              type="button"
+              onClick={() => setPreview(shot)}
+              className="group overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left transition hover:border-slate-400 hover:shadow-sm"
+            >
+              <div className="relative aspect-[16/10] overflow-hidden bg-slate-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={shot.url}
+                  alt={shot.name}
+                  loading="lazy"
+                  className="h-full w-full object-cover object-top transition group-hover:scale-[1.02]"
+                />
+              </div>
+              <div className="space-y-1 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded-full bg-slate-900/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                    {platformFromName(shot.name)}
+                  </span>
+                  <span className="text-[10px] text-slate-400">{formatBytes(shot.size)}</span>
+                </div>
+                <p className="truncate text-[11px] font-semibold text-slate-800" title={shot.name}>
+                  {shot.name}
+                </p>
+                <p className="text-[10px] text-slate-400">{formatDateTime(shot.mtime).short}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {preview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+          onClick={() => setPreview(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-slate-900">{preview.name}</p>
+                <p className="text-xs text-slate-500">
+                  {platformFromName(preview.name)} · {formatDateTime(preview.mtime).short} ·{' '}
+                  {formatBytes(preview.size)}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <a
+                  href={preview.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Otevřít
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreview(null)}
+                  className="rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-white"
+                >
+                  Zavřít
+                </button>
+              </div>
+            </div>
+            <div className="overflow-auto bg-slate-100 p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={preview.url} alt={preview.name} className="mx-auto max-w-full" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminErrorsView() {
   const [data, setData] = useState<ErrorsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'failed' | 'retrying' | 'stuck' | 'cron' | 'cookies'>('failed');
+  const [tab, setTab] = useState<TabKey>('failed');
+
+  const [shots, setShots] = useState<ErrorScreenshot[]>([]);
+  const [shotsTotal, setShotsTotal] = useState(0);
+  const [shotsLoading, setShotsLoading] = useState(false);
+  const [shotsPlatform, setShotsPlatform] = useState('');
+  const [shotsQuery, setShotsQuery] = useState('');
+  const [shotsError, setShotsError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -180,11 +367,42 @@ export default function AdminErrorsView() {
     }
   }, []);
 
+  const loadShots = useCallback(async () => {
+    try {
+      setShotsError(null);
+      setShotsLoading(true);
+      const res = await getAdminErrorScreenshots({
+        limit: 120,
+        platform: shotsPlatform || undefined,
+        q: shotsQuery.trim() || undefined,
+      });
+      setShots(res.data);
+      setShotsTotal(res.total);
+    } catch (err: any) {
+      setShotsError(err?.message || 'Načtení screenshotů selhalo');
+    } finally {
+      setShotsLoading(false);
+    }
+  }, [shotsPlatform, shotsQuery]);
+
   useEffect(() => {
     void load();
     const t = setInterval(() => void load(), 15_000);
     return () => clearInterval(t);
   }, [load]);
+
+  // Přednačti počet screenshotů pro summary kartu
+  useEffect(() => {
+    void getAdminErrorScreenshots({ limit: 1 })
+      .then((res) => setShotsTotal(res.total))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (tab !== 'screenshots') return;
+    const handle = window.setTimeout(() => void loadShots(), shotsQuery ? 250 : 0);
+    return () => window.clearTimeout(handle);
+  }, [tab, loadShots, shotsQuery]);
 
   const onRetry = async (id: number) => {
     setBusyId(id);
@@ -206,8 +424,8 @@ export default function AdminErrorsView() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950">Scraping errors</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Chyby workerů, nedokončené úlohy, cron selhání a chybějící cookies.
-            {s ? ` Okno: ${s.windowDays} dní.` : ''}
+            Chyby workerů, nedokončené úlohy, cron selhání, cookies a VPS error screenshoty.
+            {s ? ` Okno jobů: ${s.windowDays} dní.` : ''}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -217,11 +435,20 @@ export default function AdminErrorsView() {
           >
             Fronta jobů
           </Link>
+          <a
+            href="https://error.sellin.cz"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            error.sellin.cz
+          </a>
           <button
             type="button"
             onClick={() => {
               setLoading(true);
               void load();
+              if (tab === 'screenshots') void loadShots();
             }}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
           >
@@ -230,13 +457,13 @@ export default function AdminErrorsView() {
         </div>
       </div>
 
-      {error && (
+      {(error || shotsError) && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          {error}
+          {error || shotsError}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         {(
           [
             ['failed', 'Failed joby', s?.failedJobs ?? '—', 'failed'],
@@ -244,6 +471,7 @@ export default function AdminErrorsView() {
             ['stuck', 'Stuck running', s?.stuckRunning ?? '—', 'stuck'],
             ['cron', 'Cron errors', s?.cronErrors ?? '—', 'cron'],
             ['cookies', 'Chybějící cookies', s?.missingCookies ?? '—', 'cookies'],
+            ['screenshots', 'Error screenshots', shotsTotal || '—', 'screenshots'],
           ] as const
         ).map(([key, label, value, tabKey]) => (
           <button
@@ -259,12 +487,20 @@ export default function AdminErrorsView() {
             <p className={`text-xs font-medium ${tab === tabKey ? 'text-slate-300' : 'text-slate-500'}`}>
               {label}
             </p>
-            <p className="mt-1 text-xl font-bold tracking-tight">{loading && !data ? '…' : value}</p>
+            <p className="mt-1 text-xl font-bold tracking-tight">
+              {tabKey === 'screenshots'
+                ? shotsLoading && !shotsTotal
+                  ? '…'
+                  : value
+                : loading && !data
+                  ? '…'
+                  : value}
+            </p>
           </button>
         ))}
       </div>
 
-      {data && data.errorGroups.length > 0 && (
+      {data && data.errorGroups.length > 0 && tab !== 'screenshots' && (
         <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
           <div className="border-b border-slate-100 px-4 py-3">
             <h2 className="text-sm font-bold text-slate-900">Nejčastější chyby</h2>
@@ -291,17 +527,30 @@ export default function AdminErrorsView() {
       )}
 
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
-        <div className="border-b border-slate-100 px-4 py-3">
-          <h2 className="text-sm font-bold text-slate-900">
-            {tab === 'failed' && 'Failed scraper joby'}
-            {tab === 'retrying' && 'Pending/running s last_error (retry loop)'}
-            {tab === 'stuck' && 'Stuck running (>30 min)'}
-            {tab === 'cron' && 'Cron job errors'}
-            {tab === 'cookies' && 'Účty s chybějícími cookies / Not working'}
-          </h2>
-        </div>
+        {tab !== 'screenshots' && (
+          <div className="border-b border-slate-100 px-4 py-3">
+            <h2 className="text-sm font-bold text-slate-900">
+              {tab === 'failed' && 'Failed scraper joby'}
+              {tab === 'retrying' && 'Pending/running s last_error (retry loop)'}
+              {tab === 'stuck' && 'Stuck running (>30 min)'}
+              {tab === 'cron' && 'Cron job errors'}
+              {tab === 'cookies' && 'Účty s chybějícími cookies / Not working'}
+            </h2>
+          </div>
+        )}
 
-        {loading && !data ? (
+        {tab === 'screenshots' ? (
+          <ScreenshotsGallery
+            items={shots}
+            total={shotsTotal}
+            loading={shotsLoading}
+            platform={shotsPlatform}
+            query={shotsQuery}
+            onPlatform={setShotsPlatform}
+            onQuery={setShotsQuery}
+            onRefresh={() => void loadShots()}
+          />
+        ) : loading && !data ? (
           <div className="py-12 text-center text-sm text-slate-400">Načítám…</div>
         ) : tab === 'cron' ? (
           !data?.cronErrors.length ? (
@@ -326,7 +575,7 @@ export default function AdminErrorsView() {
                         {log.message || '—'}
                       </td>
                       <td className="px-4 py-3 text-slate-500">
-                        {formatDateTime(log.finished_at || log.started_at)}
+                        {formatDateTime(log.finished_at || log.started_at).short}
                       </td>
                     </tr>
                   ))}

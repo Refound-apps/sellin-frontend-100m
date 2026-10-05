@@ -927,4 +927,37 @@ export async function getAdminErrors(params?: { limit?: number }): Promise<{
   return data.data;
 }
 
+export type ErrorScreenshot = {
+  name: string;
+  url: string;
+  mtime: string;
+  size: number;
+};
+
+export async function getAdminErrorScreenshots(params?: {
+  limit?: number;
+  offset?: number;
+  platform?: string;
+  q?: string;
+}): Promise<{ data: ErrorScreenshot[]; total: number; baseUrl: string }> {
+  const qs = new URLSearchParams();
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.offset) qs.set('offset', String(params.offset));
+  if (params?.platform) qs.set('platform', params.platform);
+  if (params?.q) qs.set('q', params.q);
+  const response = await fetch(`/api/admin/error-screenshots?${qs.toString()}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se načíst error screenshoty');
+  }
+  return {
+    data: data.data || [],
+    total: data.total ?? 0,
+    baseUrl: data.baseUrl || 'https://error.sellin.cz',
+  };
+}
 

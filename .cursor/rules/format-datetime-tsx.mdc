@@ -1,0 +1,36 @@
+---
+description: Prevent Vercel TS2322 – formatDateTime returns object, not ReactNode
+globs: components/**/*.tsx,app/**/*.tsx
+alwaysApply: false
+---
+
+# formatDateTime – vždy property, nikdy celý objekt
+
+`formatDateTime()` z `TransactionsView` vrací `{ formatted, relative, short }`, **ne** string.
+Vercel `next build` / `tsc` failne s **TS2322**: object is not assignable to `ReactNode`.
+
+## Never do this
+
+```tsx
+{formatDateTime(job.created_at)}
+{formatDateTime(log.started_at)}
+```
+
+## Always do this
+
+```tsx
+{formatDateTime(job.created_at).short}
+{formatDateTime(log.started_at).formatted}
+{formatDateTime(job.run_after).relative}
+```
+
+| Property   | Use |
+|-----------|-----|
+| `.short`  | tabulky, kompaktní UI |
+| `.formatted` | detail / plný čas |
+| `.relative` | „před 5 min“ |
+
+## Checklist před pushem admin/UI změn
+
+1. Grep: žádné `{formatDateTime(...)}` bez `.short` / `.formatted` / `.relative`
+2. Prefer `npx tsc --noEmit` (nebo `npm run build`) lokálně — Vercel padá na stejném checku
