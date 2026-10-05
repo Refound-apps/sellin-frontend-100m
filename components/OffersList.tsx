@@ -761,6 +761,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
       {selectedOffer && (
         <OfferModal
           offer={selectedOffer}
+          isAdmin={mode === 'admin' || isAdminUser}
           onClose={() => setSelectedOffer(null)}
           onOfferUpdated={(updated) => {
             if (isOfferHiddenFromListings(updated.state)) {

@@ -1307,6 +1307,7 @@ export default function TransactionsView() {
       {selectedOffer && (
         <OfferModal
           offer={selectedOffer}
+          isAdmin
           onClose={() => setSelectedOffer(null)}
           onOfferUpdated={(updated) => {
             setSelectedOffer({ ...updated });

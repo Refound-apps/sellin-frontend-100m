@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Offer, OfferDetail } from '@/lib/types';
-import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, deleteOfferById } from '@/lib/api';
+import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, deleteOfferById, restoreOfferById } from '@/lib/api';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
 import {
   formatOfferDate,
@@ -11,13 +11,18 @@ import {
   formatPhoneNumber,
   formatPhoneHref,
   getOfferStatusInfo,
+  isOfferDeletedState,
+  isOfferHiddenFromListings,
   AUTORENEW_OPTIONS,
 } from './offerStatus';
+import { createClient } from '@/lib/supabase/client';
 
 interface OfferModalProps {
   offer: Offer;
   onClose: () => void;
   onOfferUpdated?: (updatedOffer: Offer) => void;
+  /** When true, always show both restore + delete admin actions */
+  isAdmin?: boolean;
 }
 
 function getPortalInfo(rawId: string | null | undefined) {
@@ -65,10 +70,11 @@ function renderTextWithPhoneLinks(text: string) {
   return parts.length > 0 ? parts : text;
 }
 
-export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModalProps) {
+export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: isAdminProp }: OfferModalProps) {
   const [details, setDetails] = useState<OfferDetail[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(Boolean(isAdminProp));
   const [editedOffer, setEditedOffer] = useState({
     title: offer.title,
     description: offer.description,
@@ -135,6 +141,27 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
       document.body.style.overflow = 'unset';
     };
   }, [offer.id, offer.bb_id, offer.autorenew_freq]);
+
+  useEffect(() => {
+    if (isAdminProp) {
+      setIsAdmin(true);
+      return;
+    }
+    let cancelled = false;
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data: creds } = await supabase
+        .from('credential_pg')
+        .select('role')
+        .eq('user_id', user.id);
+      if (!cancelled && (creds || []).some((c: { role?: string }) => c.role === 'admin')) {
+        setIsAdmin(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAdminProp]);
 
   const count = images.length;
   const current = count > 0 ? ((imageIndex % count) + count) % count : 0;
@@ -323,44 +350,61 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
     setTouchStart(null);
   };
 
-  const handleToggleArchive = async () => {
-    const isArchived =
-      offer.state === 'app_archive' ||
-      offer.state === 'app_delete' ||
-      offer.state === 'ok_deleted';
-    const nextState = isArchived ? 'app_active' : 'app_archive';
-    const confirmText = isArchived
-      ? 'Chcete tento inzerát vrátit zpět mezi aktivní?'
-      : 'Opravdu chcete tento inzerát smazat a zařadit do fronty na odstranění z inzertních serverů?';
+  const isArchivedOffer =
+    isOfferHiddenFromListings(offer.state) || isOfferDeletedState(offer.state);
 
+  const hasDeletableMarketplace = details.some((d) => {
+    const c = String(d.condition || '').toLowerCase();
+    return c && c !== 'ok_deleted' && c !== 'app_archive';
+  });
+
+  const applyOfferUpdate = (updated: Offer, message: string) => {
+    Object.assign(offer, updated);
+    setSaveSuccessMessage(message);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 5000);
+    onOfferUpdated?.(updated);
+  };
+
+  const handleDeleteOffer = async () => {
+    const confirmText = isArchivedOffer
+      ? 'Znovu zařadit smazání na portálech? (např. po chybě Sbazar/Bazoš delete)'
+      : 'Opravdu smazat inzerát a zařadit odstranění z inzertních serverů do fronty?';
     if (!window.confirm(confirmText)) return;
 
     setSaving(true);
     setSaveError(null);
     try {
-      if (nextState === 'app_archive') {
-        const result = await deleteOfferById(offer.id);
-        const updated = {
-          ...offer,
-          ...(result?.offer || {}),
-          state: 'app_delete' as const,
-        };
-        Object.assign(offer, updated);
-        setSaveSuccessMessage(result?.message || 'Inzerát byl zařazen do fronty pro smazání na portálech.');
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 5000);
-        onOfferUpdated?.(updated);
-      } else {
-        await updateOfferById(offer.id, { state: nextState });
-        offer.state = nextState;
-        setSaveSuccessMessage('Inzerát byl úspěšně aktivován.');
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 5000);
-        onOfferUpdated?.(offer);
-      }
-    } catch (err: any) {
+      const result = await deleteOfferById(offer.id);
+      applyOfferUpdate(
+        { ...offer, ...(result?.offer || {}), state: 'app_delete' },
+        result?.message || 'Inzerát byl zařazen do fronty pro smazání na portálech.'
+      );
+    } catch (err: unknown) {
       console.error(err);
-      setSaveError(err?.message || 'Chyba při ukládání');
+      setSaveError(err instanceof Error ? err.message : 'Chyba při mazání');
+      setTimeout(() => setSaveError(null), 5000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRestoreOffer = async () => {
+    if (!window.confirm('Obnovit inzerát a znovu ho zveřejnit na portálech (fronta create)?')) {
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const result = await restoreOfferById(offer.id);
+      applyOfferUpdate(
+        { ...offer, ...(result?.offer || {}), state: result?.offer?.state || 'app_create' },
+        result?.message || 'Inzerát byl zařazen do fronty pro znovu zveřejnění na portálech.'
+      );
+    } catch (err: unknown) {
+      console.error(err);
+      setSaveError(err instanceof Error ? err.message : 'Chyba při obnovení');
       setTimeout(() => setSaveError(null), 5000);
     } finally {
       setSaving(false);
@@ -469,22 +513,38 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                   <span>Upravit inzerát</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleToggleArchive}
-                  disabled={saving}
-                  className={`hidden sm:inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all active:scale-95 ${
-                    offer.state === 'app_archive' || offer.state === 'app_delete' || offer.state === 'ok_deleted'
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
-                  }`}
-                >
-                  <span>
-                    {offer.state === 'app_archive' || offer.state === 'app_delete' || offer.state === 'ok_deleted'
-                      ? 'Obnovit z archivu'
-                      : 'Smazat inzerát'}
-                  </span>
-                </button>
+                {isArchivedOffer ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleRestoreOffer}
+                      disabled={saving}
+                      className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      Obnovit na portálech
+                    </button>
+                    {(isAdmin || hasDeletableMarketplace) && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteOffer}
+                        disabled={saving}
+                        className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 transition-all active:scale-95 disabled:opacity-50"
+                        title="Znovu zařadit smazání (např. po error_delete)"
+                      >
+                        Znovu smazat
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleDeleteOffer}
+                    disabled={saving}
+                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    Smazat inzerát
+                  </button>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
@@ -1264,14 +1324,37 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                 </>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={handleToggleArchive}
-                    disabled={saving}
-                    className="rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 active:scale-95 shadow-2xs"
-                  >
-                    {offer.state === 'app_archive' || offer.state === 'app_delete' || offer.state === 'ok_deleted' ? 'Aktivovat' : 'Smazat'}
-                  </button>
+                  {isArchivedOffer ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleRestoreOffer}
+                        disabled={saving}
+                        className="rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 active:scale-95 shadow-2xs disabled:opacity-50"
+                      >
+                        Obnovit
+                      </button>
+                      {(isAdmin || hasDeletableMarketplace) && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteOffer}
+                          disabled={saving}
+                          className="rounded-xl border border-rose-300 bg-white px-2.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 active:scale-95 shadow-2xs disabled:opacity-50"
+                        >
+                          Smazat
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleDeleteOffer}
+                      disabled={saving}
+                      className="rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 active:scale-95 shadow-2xs disabled:opacity-50"
+                    >
+                      Smazat
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
