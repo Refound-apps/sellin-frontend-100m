@@ -884,4 +884,47 @@ export async function cancelAllPendingScraperJobs(): Promise<number> {
   return Number(data.cancelled || 0);
 }
 
+export async function getAdminErrors(params?: { limit?: number }): Promise<{
+  summary: {
+    failedJobs: number;
+    retryingWithError: number;
+    stuckRunning: number;
+    cronErrors: number;
+    missingCookies: number;
+    windowDays: number;
+  };
+  errorGroups: Array<{
+    signature: string;
+    sample: string;
+    count: number;
+    account_keys: string[];
+  }>;
+  failedJobs: ScraperJob[];
+  retryingJobs: ScraperJob[];
+  stuckJobs: ScraperJob[];
+  cronErrors: CronJobLog[];
+  missingCookies: Array<{
+    id: number;
+    email: string;
+    bazos_email: string | null;
+    sbazar_email: string | null;
+    status_cz: string | null;
+    status_sk: string | null;
+    issues: string[];
+  }>;
+}> {
+  const qs = new URLSearchParams();
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const response = await fetch(`/api/admin/errors?${qs.toString()}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se načíst scraping errors');
+  }
+  return data.data;
+}
+
 

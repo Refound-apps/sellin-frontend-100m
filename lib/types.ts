@@ -254,6 +254,7 @@ export interface ScraperJob {
   locked_at: string | null;
   locked_by: string | null;
   dedupe_key: string | null;
+  account_key?: string | null;
   last_error: string | null;
   result: Record<string, any> | null;
   created_at: string;
