@@ -30,7 +30,10 @@ async function checkAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   return { isAdmin: true, error: null };
 }
 
-// GET /api/admin/error-screenshots/file?name=bazos-create-1-….png
+/**
+ * Stream screenshot from VPS disk via backend.
+ * Uses the same /error-screenshots path as listing (?file=) — nginx-safe.
+ */
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -44,47 +47,56 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Neplatný název souboru' }, { status: 400 });
     }
 
-    const backendUrl = `${getScraperActionUrl('/error-screenshots/file')}?name=${encodeURIComponent(name)}`;
-    const backendRes = await fetch(backendUrl, {
-      method: 'GET',
-      cache: 'no-store',
-    });
+    // Primary: same endpoint as listing (already proven reachable in prod)
+    const primaryUrl = `${getScraperActionUrl('/error-screenshots')}?file=${encodeURIComponent(name)}`;
+    let backendRes = await fetch(primaryUrl, { method: 'GET', cache: 'no-store' });
+
+    // Fallback for older backend deploys
+    if (!backendRes.ok && backendRes.status === 404) {
+      const fallbackUrl = `${getScraperActionUrl('/error-screenshots/file')}?name=${encodeURIComponent(name)}`;
+      backendRes = await fetch(fallbackUrl, { method: 'GET', cache: 'no-store' });
+    }
 
     if (!backendRes.ok) {
       const payload = await backendRes.json().catch(() => ({}));
       return NextResponse.json(
         {
           success: false,
-          error: payload?.error || `Backend vrátil ${backendRes.status}`,
+          error: payload?.error || `Backend vrátil ${backendRes.status} pro ${name}`,
         },
         { status: backendRes.status >= 400 ? backendRes.status : 500 }
       );
     }
 
     const contentType = backendRes.headers.get('content-type') || 'image/png';
-    const body = backendRes.body;
-    if (!body) {
-      const buf = await backendRes.arrayBuffer();
-      return new NextResponse(buf, {
-        status: 200,
-        headers: {
-          'Content-Type': contentType,
-          'Cache-Control': 'private, max-age=300',
+    // Old backend without ?file= returns JSON 200 — don't feed that to <img>
+    if (contentType.includes('application/json') || contentType.includes('text/')) {
+      const payload = await backendRes.json().catch(() => ({}));
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            payload?.error ||
+            'Backend nevrátil obrázek z disku. Restartuj scraper na VPS s novým /error-screenshots?file=…',
         },
-      });
+        { status: 502 }
+      );
     }
 
-    return new NextResponse(body, {
+    const buf = await backendRes.arrayBuffer();
+
+    return new NextResponse(buf, {
       status: 200,
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': contentType.startsWith('image/') ? contentType : 'image/png',
         'Cache-Control': 'private, max-age=300',
+        'Content-Length': String(buf.byteLength),
       },
     });
   } catch (err: any) {
     console.error('GET /api/admin/error-screenshots/file error:', err);
     return NextResponse.json(
-      { success: false, error: err?.message || 'Načtení obrázku selhalo' },
+      { success: false, error: err?.message || 'Načtení obrázku z disku selhalo' },
       { status: 500 }
     );
   }
