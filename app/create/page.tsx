@@ -6,11 +6,16 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatPhoneNumber } from '@/components/offerStatus';
 import { apiFetch, getUsers, uploadImagesToR2 } from '@/lib/api';
+import { filesToCompressedBase64 } from '@/lib/compressImage';
 import { DEFAULT_OFFER_CATEGORIES, OfferCategoryItem, fetchOfferCategories } from '@/lib/categories';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@/lib/types';
 import SellerAccountSwitcher from '@/components/SellerAccountSwitcher';
 import { resolvePairedUserAccounts } from '@/lib/sellerAccounts';
+
+const BAZOS_TITLE_MAX = 59;
+const LAST_BB_EMAIL_KEY = 'sellin_last_bb_email';
+const OFFER_TEMPLATE_KEY = 'sellin_offer_template';
 
 interface MarketplaceOption {
   id: string;
@@ -89,8 +94,39 @@ function CreateOfferContent() {
     setTimeout(() => setTemplateToast(null), 3500);
   };
 
+  const rememberBbEmail = (email: string) => {
+    if (!email?.trim()) return;
+    try {
+      localStorage.setItem(LAST_BB_EMAIL_KEY, email.trim());
+    } catch {}
+  };
+
+  const readLastBbEmail = (): string | null => {
+    try {
+      return localStorage.getItem(LAST_BB_EMAIL_KEY);
+    } catch {
+      return null;
+    }
+  };
+
+  const fetchTemplatePayload = async (): Promise<Record<string, any> | null> => {
+    try {
+      const res = await fetch('/api/offer-templates');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.success && data?.template?.payload) {
+        return data.template.payload;
+      }
+    } catch {}
+
+    try {
+      const stored = localStorage.getItem(OFFER_TEMPLATE_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return null;
+  };
+
   const buildTemplatePayload = () => ({
-    title: formData.title,
+    title: formData.title.slice(0, BAZOS_TITLE_MAX),
     description: formData.description,
     price: formData.price,
     price_agreement: formData.price_agreement,
@@ -102,24 +138,64 @@ function CreateOfferContent() {
     categoryId: formData.categoryId,
   });
 
-  const applyTemplatePayload = (t: Record<string, any>) => {
-    setFormData((prev) => ({
-      ...prev,
-      title: typeof t.title === 'string' ? t.title : prev.title,
-      description: typeof t.description === 'string' ? t.description : prev.description,
-      price: t.price != null ? String(t.price) : prev.price,
-      price_agreement: typeof t.price_agreement === 'boolean' ? t.price_agreement : prev.price_agreement,
-      location: typeof t.location === 'string' ? t.location : prev.location,
-      zipcode: t.zipcode != null ? String(t.zipcode) : prev.zipcode,
-      bb_email: typeof t.bb_email === 'string' && t.bb_email.trim() ? t.bb_email : prev.bb_email,
-      marketplace:
-        Array.isArray(t.marketplace) && t.marketplace.length > 0 ? t.marketplace.map(String) : prev.marketplace,
-      autorenew_freq: typeof t.autorenew_freq === 'string' ? t.autorenew_freq : prev.autorenew_freq,
-      categoryId:
-        t.categoryId != null && !Number.isNaN(Number(t.categoryId))
-          ? Number(t.categoryId)
-          : prev.categoryId,
-    }));
+  const applyTemplatePayload = (t: Record<string, any>, paired?: User[]) => {
+    setFormData((prev) => {
+      const nextTitle =
+        typeof t.title === 'string' ? t.title.slice(0, BAZOS_TITLE_MAX) : prev.title;
+
+      let nextBbEmail =
+        typeof t.bb_email === 'string' && t.bb_email.trim() ? t.bb_email.trim() : prev.bb_email;
+
+      // Prefer last used Bazoš account when it belongs to current paired set
+      const lastEmail = readLastBbEmail();
+      if (lastEmail && paired?.length) {
+        const match = paired.find(
+          (p) => p.email.toLowerCase().trim() === lastEmail.toLowerCase().trim()
+        );
+        if (match) nextBbEmail = match.email;
+      } else if (nextBbEmail && paired?.length) {
+        const inPaired = paired.some(
+          (p) => p.email.toLowerCase().trim() === nextBbEmail.toLowerCase().trim()
+        );
+        if (!inPaired) nextBbEmail = prev.bb_email;
+      }
+
+      const matchedAccount = paired?.find(
+        (p) => p.email.toLowerCase().trim() === nextBbEmail.toLowerCase().trim()
+      );
+
+      return {
+        ...prev,
+        title: nextTitle,
+        description: typeof t.description === 'string' ? t.description : prev.description,
+        price: t.price != null ? String(t.price) : prev.price,
+        price_agreement:
+          typeof t.price_agreement === 'boolean' ? t.price_agreement : prev.price_agreement,
+        location:
+          matchedAccount?.location ||
+          (typeof t.location === 'string' ? t.location : prev.location),
+        zipcode: matchedAccount?.zipcode
+          ? String(matchedAccount.zipcode)
+          : t.zipcode != null
+            ? String(t.zipcode)
+            : prev.zipcode,
+        bb_email: nextBbEmail,
+        marketplace:
+          Array.isArray(t.marketplace) && t.marketplace.length > 0
+            ? t.marketplace.map(String)
+            : prev.marketplace,
+        autorenew_freq: typeof t.autorenew_freq === 'string' ? t.autorenew_freq : prev.autorenew_freq,
+        categoryId:
+          t.categoryId != null && !Number.isNaN(Number(t.categoryId))
+            ? Number(t.categoryId)
+            : prev.categoryId,
+      };
+    });
+
+    if (typeof t.bb_email === 'string' && t.bb_email.trim()) {
+      // Keep last-used preference if already set; otherwise remember template account
+      if (!readLastBbEmail()) rememberBbEmail(t.bb_email);
+    }
   };
 
   const handleSaveTemplate = async () => {
@@ -127,10 +203,10 @@ function CreateOfferContent() {
     setTemplateBusy(true);
     try {
       const payload = buildTemplatePayload();
-      // Lokální záloha (offline / rychlý fallback)
       try {
-        localStorage.setItem('sellin_offer_template', JSON.stringify(payload));
+        localStorage.setItem(OFFER_TEMPLATE_KEY, JSON.stringify(payload));
       } catch {}
+      rememberBbEmail(formData.bb_email);
 
       const res = await fetch('/api/offer-templates', {
         method: 'PUT',
@@ -141,7 +217,7 @@ function CreateOfferContent() {
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || `Uložení selhalo (${res.status})`);
       }
-      showTemplateToast('Šablona uložena (texty, cena, kategorie, portály…).');
+      showTemplateToast('Šablona uložena — při dalším inzerátu se předvyplní automaticky.');
     } catch (e: any) {
       console.error('Failed to save template:', e);
       showTemplateToast(e?.message || 'Šablonu se nepodařilo uložit.');
@@ -154,28 +230,13 @@ function CreateOfferContent() {
     if (templateBusy) return;
     setTemplateBusy(true);
     try {
-      let payload: Record<string, any> | null = null;
-
-      const res = await fetch('/api/offer-templates');
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.success && data?.template?.payload) {
-        payload = data.template.payload;
-      }
-
-      // Fallback na localStorage (starší šablony)
-      if (!payload) {
-        try {
-          const stored = localStorage.getItem('sellin_offer_template');
-          if (stored) payload = JSON.parse(stored);
-        } catch {}
-      }
-
+      const payload = await fetchTemplatePayload();
       if (!payload) {
         showTemplateToast('Zatím nemáte uloženou šablonu. Vyplňte formulář a klikněte Uložit šablonu.');
         return;
       }
 
-      applyTemplatePayload(payload);
+      applyTemplatePayload(payload, pairedAccounts);
       showTemplateToast('Šablona načtena do formuláře.');
     } catch (e: any) {
       console.error('Failed to apply template:', e);
@@ -299,37 +360,64 @@ function CreateOfferContent() {
       const paired = resolvePairedUserAccounts(targetQuery, allUsers);
       setPairedAccounts(paired);
 
-      // 7. Initialize formData.bb_email, location & zipcode to target account
-      let savedDefaults: any = null;
-      try {
-        const stored = typeof window !== 'undefined' ? localStorage.getItem('sellin_offer_template') : null;
-        if (stored) savedDefaults = JSON.parse(stored);
-      } catch {}
+      // 7. Initialize form with saved template + last used Bazoš account
+      const templatePayload = await fetchTemplatePayload();
+      const lastBbEmail = readLastBbEmail();
 
       const sellerLocation = targetSeller?.location || 'Praha';
       const sellerZipcode = targetSeller?.zipcode ? String(targetSeller.zipcode) : '11000';
 
+      const pickInitialEmail = (pairedList: User[], fallback: string) => {
+        if (lastBbEmail) {
+          const lastMatch = pairedList.find(
+            (p) => p.email.toLowerCase().trim() === lastBbEmail.toLowerCase().trim()
+          );
+          if (lastMatch) return lastMatch.email;
+        }
+        if (templatePayload?.bb_email) {
+          const tplMatch = pairedList.find(
+            (p) =>
+              p.email.toLowerCase().trim() ===
+              String(templatePayload.bb_email).toLowerCase().trim()
+          );
+          if (tplMatch) return tplMatch.email;
+        }
+        return fallback;
+      };
+
       if (paired.length > 0) {
-        const initialEmail =
+        const fallbackEmail =
           paired.find((p) => p.email.toLowerCase() === targetSeller?.email?.toLowerCase())?.email ||
           paired[0].email;
+        const initialEmail = pickInitialEmail(paired, fallbackEmail);
+        const matchedAccount =
+          paired.find((p) => p.email.toLowerCase() === initialEmail.toLowerCase()) || paired[0];
+
         setFormData((prev) => ({
           ...prev,
           bb_email: initialEmail,
-          location: prev.location || savedDefaults?.location || sellerLocation,
-          zipcode: prev.zipcode || savedDefaults?.zipcode || sellerZipcode,
-          autorenew_freq: savedDefaults?.autorenew_freq || prev.autorenew_freq,
-          marketplace: Array.isArray(savedDefaults?.marketplace) && savedDefaults.marketplace.length > 0 ? savedDefaults.marketplace : prev.marketplace,
+          location: matchedAccount.location || sellerLocation,
+          zipcode: matchedAccount.zipcode ? String(matchedAccount.zipcode) : sellerZipcode,
+          autorenew_freq: prev.autorenew_freq,
+          marketplace: prev.marketplace,
         }));
+
+        if (templatePayload) {
+          applyTemplatePayload(templatePayload, paired);
+          showTemplateToast('Šablona předvyplněna.');
+        }
       } else if (targetSeller) {
         setFormData((prev) => ({
           ...prev,
           bb_email: targetSeller.email,
-          location: prev.location || savedDefaults?.location || sellerLocation,
-          zipcode: prev.zipcode || savedDefaults?.zipcode || sellerZipcode,
-          autorenew_freq: savedDefaults?.autorenew_freq || prev.autorenew_freq,
-          marketplace: Array.isArray(savedDefaults?.marketplace) && savedDefaults.marketplace.length > 0 ? savedDefaults.marketplace : prev.marketplace,
+          location: targetSeller.location || sellerLocation,
+          zipcode: targetSeller.zipcode ? String(targetSeller.zipcode) : sellerZipcode,
         }));
+
+        if (templatePayload) {
+          applyTemplatePayload(templatePayload, []);
+          showTemplateToast('Šablona předvyplněna.');
+        }
       }
     } catch (err) {
       console.error('Failed to load user and accounts for create offer:', err);
@@ -345,22 +433,33 @@ function CreateOfferContent() {
       setSelectedCustomEmail(null);
       const paired = resolvePairedUserAccounts(user, availableUsers);
       setPairedAccounts(paired);
+      const lastEmail = readLastBbEmail();
       const defaultEmail =
+        (lastEmail &&
+          paired.find((p) => p.email.toLowerCase() === lastEmail.toLowerCase().trim())?.email) ||
         paired.find((p) => p.email.toLowerCase() === user.email.toLowerCase())?.email ||
         paired[0]?.email ||
         user.email;
+      const matched =
+        paired.find((p) => p.email.toLowerCase() === defaultEmail.toLowerCase()) || user;
       setFormData((prev) => ({
         ...prev,
         bb_email: defaultEmail,
-        location: user.location || prev.location || 'Praha',
-        zipcode: user.zipcode ? String(user.zipcode) : (prev.zipcode || '11000'),
+        location: matched.location || prev.location || 'Praha',
+        zipcode: matched.zipcode ? String(matched.zipcode) : prev.zipcode || '11000',
       }));
     } else if (customEmail) {
       setSelectedSeller(null);
       setSelectedCustomEmail(customEmail);
       const paired = resolvePairedUserAccounts(customEmail, availableUsers);
       setPairedAccounts(paired);
-      setFormData((prev) => ({ ...prev, bb_email: paired[0]?.email || customEmail }));
+      const lastEmail = readLastBbEmail();
+      const email =
+        (lastEmail &&
+          paired.find((p) => p.email.toLowerCase() === lastEmail.toLowerCase().trim())?.email) ||
+        paired[0]?.email ||
+        customEmail;
+      setFormData((prev) => ({ ...prev, bb_email: email }));
     } else {
       // Reset back to logged in user / admin
       setSelectedSeller(null);
@@ -374,11 +473,22 @@ function CreateOfferContent() {
         : availableUsers.slice(0, 1);
       setPairedAccounts(paired);
       if (paired.length > 0) {
+        const lastEmail = readLastBbEmail();
+        const email =
+          (lastEmail &&
+            paired.find((p) => p.email.toLowerCase() === lastEmail.toLowerCase().trim())
+              ?.email) ||
+          paired[0].email;
+        const matched = paired.find((p) => p.email.toLowerCase() === email.toLowerCase());
         setFormData((prev) => ({
           ...prev,
-          bb_email: paired[0].email,
-          location: meUser?.location || prev.location || 'Praha',
-          zipcode: meUser?.zipcode ? String(meUser.zipcode) : (prev.zipcode || '11000'),
+          bb_email: email,
+          location: matched?.location || meUser?.location || prev.location || 'Praha',
+          zipcode: matched?.zipcode
+            ? String(matched.zipcode)
+            : meUser?.zipcode
+              ? String(meUser.zipcode)
+              : prev.zipcode || '11000',
         }));
       }
     }
@@ -387,6 +497,7 @@ function CreateOfferContent() {
   // Direct selection of one of the paired accounts
   const handleSelectPairedAccount = (accountEmail: string) => {
     const matched = pairedAccounts.find((p) => p.email.toLowerCase() === accountEmail.toLowerCase());
+    rememberBbEmail(accountEmail);
     setFormData((prev) => ({
       ...prev,
       bb_email: accountEmail,
@@ -419,16 +530,7 @@ function CreateOfferContent() {
     setError(null);
 
     try {
-      const readPromises = selectedFiles.map((file) => {
-        return new Promise<{ data: string; filename: string }>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve({ data: reader.result as string, filename: file.name });
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      });
-
-      const base64Files = await Promise.all(readPromises);
+      const base64Files = await filesToCompressedBase64(selectedFiles);
       const uploadedUrls = await uploadImagesToR2(base64Files);
 
       setImageList((prev) => [...prev, ...uploadedUrls].slice(0, 9));
@@ -530,6 +632,12 @@ function CreateOfferContent() {
       return;
     }
 
+    if (formData.title.trim().length > BAZOS_TITLE_MAX) {
+      setError(`Název inzerátu může mít maximálně ${BAZOS_TITLE_MAX} znaků (limit Bazoše).`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     if (
       formData.marketplace.includes('Sbazar') &&
       formData.description.trim().length < 15
@@ -596,6 +704,8 @@ function CreateOfferContent() {
       if (!response.ok) {
         throw new Error('Nepodařilo se vytvořit inzerát');
       }
+
+      rememberBbEmail(formData.bb_email);
 
       // Return back to "Moje nabídka" with the active seller filter preserved
       const returnAccount = selectedSeller?.email || selectedCustomEmail;
@@ -906,21 +1016,40 @@ function CreateOfferContent() {
 
               {/* Název inzerátu */}
               <div>
-                <label
-                  htmlFor="title"
-                  className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
-                >
-                  Název inzerátu <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="title"
+                    className="block text-xs font-bold uppercase tracking-wider text-slate-700"
+                  >
+                    Název inzerátu <span className="text-rose-500">*</span>
+                  </label>
+                  <span
+                    className={`text-[11px] font-semibold tabular-nums ${
+                      formData.title.length >= BAZOS_TITLE_MAX
+                        ? 'text-rose-600'
+                        : formData.title.length >= BAZOS_TITLE_MAX - 10
+                          ? 'text-amber-600'
+                          : 'text-slate-400'
+                    }`}
+                  >
+                    {formData.title.length}/{BAZOS_TITLE_MAX}
+                  </span>
+                </div>
                 <input
                   type="text"
                   id="title"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value.slice(0, BAZOS_TITLE_MAX) })
+                  }
+                  maxLength={BAZOS_TITLE_MAX}
                   className="w-full rounded-xl border border-slate-200/90 bg-white px-3.5 py-2.5 text-sm sm:text-base font-semibold text-slate-950 transition-all focus:border-slate-950 focus:outline-none focus:ring-4 focus:ring-slate-900/5 placeholder:text-slate-400"
                   placeholder="např. Macbook Air M1, jako nový!"
                   required
                 />
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Maximálně {BAZOS_TITLE_MAX} znaků (limit nadpisu na Bazoši).
+                </p>
               </div>
 
               {/* Kategorie zboží podle Bazoše */}

@@ -766,18 +766,29 @@ export async function uploadImageToR2(fileOrBase64: string, filename?: string): 
   return data.url;
 }
 
+/** Upload one-by-one — Next.js/Vercel request body limit is ~4.5MB (base64 photos add up fast). */
+const UPLOAD_BATCH_SIZE = 1;
+
 export async function uploadImagesToR2(images: { data: string; filename?: string }[]): Promise<string[]> {
-  const response = await apiFetch('/api/upload/image', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ images }),
-  });
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Nepodařilo se nahrát obrázky');
+  if (!images.length) return [];
+
+  const allUrls: string[] = [];
+  for (let i = 0; i < images.length; i += UPLOAD_BATCH_SIZE) {
+    const batch = images.slice(i, i + UPLOAD_BATCH_SIZE);
+    const response = await apiFetch('/api/upload/image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images: batch }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Nepodařilo se nahrát obrázky');
+    }
+    const data = await response.json();
+    const urls: string[] = data.urls || (data.url ? [data.url] : []);
+    allUrls.push(...urls);
   }
-  const data = await response.json();
-  return data.urls || (data.url ? [data.url] : []);
+  return allUrls;
 }
 
 // ================= Cron Jobs & Automations API ================= //

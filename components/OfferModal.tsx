@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Offer, OfferDetail } from '@/lib/types';
 import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, deleteOfferById, restoreOfferById } from '@/lib/api';
+import { filesToCompressedBase64 } from '@/lib/compressImage';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
 import {
   formatOfferDate,
@@ -190,21 +191,18 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
       return;
     }
 
-    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+    const selectedFiles = Array.from(files)
+      .filter((f) => f.type.startsWith('image/'))
+      .slice(0, remainingSlots);
+    if (selectedFiles.length === 0) {
+      e.target.value = '';
+      return;
+    }
     setUploadingImages(true);
     setSaveError(null);
 
     try {
-      const readPromises = selectedFiles.map((file) => {
-        return new Promise<{ data: string; filename: string }>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve({ data: reader.result as string, filename: file.name });
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      });
-
-      const base64Files = await Promise.all(readPromises);
+      const base64Files = await filesToCompressedBase64(selectedFiles);
       const uploadedUrls = await uploadImagesToR2(base64Files);
 
       setEditedImages((prev) => [...prev, ...uploadedUrls].slice(0, 9));
@@ -1172,18 +1170,30 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                         <label htmlFor="edit-title" className="text-xs font-bold uppercase tracking-wider text-slate-700">
                           Název inzerátu
                         </label>
-                        <span className="text-[11px] text-slate-400">
-                          {editedOffer.title.length} znaků
+                        <span
+                          className={`text-[11px] font-semibold tabular-nums ${
+                            editedOffer.title.length >= 59
+                              ? 'text-rose-600'
+                              : editedOffer.title.length >= 49
+                                ? 'text-amber-600'
+                                : 'text-slate-400'
+                          }`}
+                        >
+                          {editedOffer.title.length}/59
                         </span>
                       </div>
                       <input
                         id="edit-title"
                         type="text"
                         value={editedOffer.title}
-                        onChange={(e) => setEditedOffer({ ...editedOffer, title: e.target.value })}
+                        onChange={(e) =>
+                          setEditedOffer({ ...editedOffer, title: e.target.value.slice(0, 59) })
+                        }
+                        maxLength={59}
                         className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm sm:text-base font-bold text-slate-950 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition-all"
                         placeholder="Název inzerátu..."
                       />
+                      <p className="mt-1 text-[11px] text-slate-400">Maximálně 59 znaků (limit Bazoše).</p>
                     </div>
 
                     {/* Cena & Autoobnova */}
