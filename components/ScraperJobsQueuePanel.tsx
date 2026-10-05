@@ -154,18 +154,6 @@ export default function ScraperJobsQueuePanel() {
     }
   };
 
-  const onRetry = async (id: number) => {
-    setBusyId(id);
-    try {
-      await patchScraperJob(id, 'retry');
-      await load();
-    } catch (err: any) {
-      setError(err?.message || 'Retry selhal');
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   const onRunNow = async (id: number) => {
     setBusyId(id);
     try {
