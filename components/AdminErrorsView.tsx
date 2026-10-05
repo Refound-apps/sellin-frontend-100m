@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getAdminErrors, getAdminErrorScreenshots, patchScraperJob } from '@/lib/api';
+import { getAdminErrors, getAdminErrorScreenshots, patchScraperJob, runNowAllRetryingScraperJobs } from '@/lib/api';
 import type { ErrorScreenshot } from '@/lib/api';
 import type { CronJobLog, ScraperJob } from '@/lib/types';
 import { formatDateTime } from './TransactionsView';
@@ -88,12 +88,14 @@ function jobTarget(job: ScraperJob): string {
 function JobsTable({
   jobs,
   busyId,
-  onRetry,
+  onRunNow,
+  onCancel,
   emptyLabel,
 }: {
   jobs: ScraperJob[];
   busyId: number | null;
-  onRetry: (id: number) => void;
+  onRunNow: (id: number) => void;
+  onCancel?: (id: number) => void;
   emptyLabel: string;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -112,13 +114,19 @@ function JobsTable({
             <th className="px-4 py-3">Stav</th>
             <th className="px-4 py-3">Účet / cíl</th>
             <th className="px-4 py-3">Pokusy</th>
-            <th className="px-4 py-3">Čas</th>
+            <th className="px-4 py-3">run_after</th>
             <th className="px-4 py-3">Akce</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {jobs.map((job) => {
             const open = expandedId === job.id;
+            const canRun =
+              job.status === 'pending' ||
+              job.status === 'running' ||
+              job.status === 'failed' ||
+              job.status === 'cancelled';
+            const canCancel = job.status === 'pending' || job.status === 'running';
             return (
               <Fragment key={job.id}>
                 <tr
@@ -140,20 +148,32 @@ function JobsTable({
                   <td className="px-4 py-3 text-slate-600">
                     {job.attempts}/{job.max_attempts}
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {formatDateTime(job.finished_at || job.started_at || job.created_at).short}
+                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                    {formatDateTime(job.run_after || job.finished_at || job.started_at || job.created_at).short}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    {(job.status === 'failed' || job.status === 'cancelled') && (
-                      <button
-                        type="button"
-                        disabled={busyId === job.id}
-                        onClick={() => onRetry(job.id)}
-                        className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                      >
-                        Retry
-                      </button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {canRun && (
+                        <button
+                          type="button"
+                          disabled={busyId === job.id}
+                          onClick={() => onRunNow(job.id)}
+                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40"
+                        >
+                          {busyId === job.id ? '…' : 'Spustit teď'}
+                        </button>
+                      )}
+                      {canCancel && onCancel && (
+                        <button
+                          type="button"
+                          disabled={busyId === job.id}
+                          onClick={() => onCancel(job.id)}
+                          className="rounded-lg border border-rose-200 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-40"
+                        >
+                          Zrušit
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
                 {open && (
@@ -404,13 +424,42 @@ export default function AdminErrorsView() {
     return () => window.clearTimeout(handle);
   }, [tab, loadShots, shotsQuery]);
 
-  const onRetry = async (id: number) => {
+  const onRunNow = async (id: number) => {
     setBusyId(id);
     try {
-      await patchScraperJob(id, 'retry');
+      await patchScraperJob(id, 'run_now');
       await load();
     } catch (err: any) {
-      setError(err?.message || 'Retry selhal');
+      setError(err?.message || 'Spuštění selhalo');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onCancel = async (id: number) => {
+    setBusyId(id);
+    try {
+      await patchScraperJob(id, 'cancel');
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Zrušení selhalo');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onRunAllRetrying = async () => {
+    const n = data?.retryingJobs?.length || data?.summary?.retryingWithError || 0;
+    if (!n) return;
+    if (!confirm(`Spustit teď všechny joby v retry loop (${n}+)? Nastaví run_after=now.`)) return;
+    setBusyId(-1);
+    try {
+      const count = await runNowAllRetryingScraperJobs();
+      setError(null);
+      await load();
+      if (count === 0) setError('Žádné joby k přesunutí (možná už běží).');
+    } catch (err: any) {
+      setError(err?.message || 'Bulk spuštění selhalo');
     } finally {
       setBusyId(null);
     }
@@ -528,7 +577,7 @@ export default function AdminErrorsView() {
 
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
         {tab !== 'screenshots' && (
-          <div className="border-b border-slate-100 px-4 py-3">
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-bold text-slate-900">
               {tab === 'failed' && 'Failed scraper joby'}
               {tab === 'retrying' && 'Pending/running s last_error (retry loop)'}
@@ -536,6 +585,16 @@ export default function AdminErrorsView() {
               {tab === 'cron' && 'Cron job errors'}
               {tab === 'cookies' && 'Účty s chybějícími cookies / Not working'}
             </h2>
+            {(tab === 'retrying' || tab === 'stuck' || tab === 'failed') && (
+              <button
+                type="button"
+                disabled={busyId === -1 || loading}
+                onClick={() => void onRunAllRetrying()}
+                className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-40"
+              >
+                {busyId === -1 ? 'Spouštím…' : 'Spustit všechny retry teď'}
+              </button>
+            )}
           </div>
         )}
 
@@ -633,7 +692,8 @@ export default function AdminErrorsView() {
                   : data?.stuckJobs || []
             }
             busyId={busyId}
-            onRetry={onRetry}
+            onRunNow={onRunNow}
+            onCancel={onCancel}
             emptyLabel="Žádné záznamy."
           />
         )}

@@ -182,6 +182,94 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true, data });
     }
 
+    /** Force job to run ASAP (pending cooldown / stuck running / failed). */
+    if (action === 'run_now') {
+      const { data: existing, error: fetchErr } = await jobsTable(supabase)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (fetchErr) {
+        return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
+      }
+      if (!existing) {
+        return NextResponse.json({ success: false, error: 'Job nenalezen' }, { status: 404 });
+      }
+      if (!['pending', 'running', 'failed', 'cancelled'].includes(String(existing.status))) {
+        return NextResponse.json(
+          { success: false, error: `Nelze spustit job ve stavu ${existing.status}` },
+          { status: 409 }
+        );
+      }
+
+      const resetAttempts = existing.status === 'failed' || existing.status === 'cancelled';
+      const { data, error: dbError } = await jobsTable(supabase)
+        .update({
+          status: 'pending',
+          run_after: new Date().toISOString(),
+          finished_at: null,
+          locked_at: null,
+          locked_by: null,
+          ...(resetAttempts ? { attempts: 0, last_error: null } : {}),
+        })
+        .eq('id', id)
+        .select('*')
+        .maybeSingle();
+
+      if (dbError) {
+        return NextResponse.json({ success: false, error: dbError.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, data });
+    }
+
+    /** Bulk: all pending/running jobs that already have last_error (retry loop). */
+    if (action === 'run_now_all_retrying') {
+      const now = new Date().toISOString();
+      const { data, error: dbError } = await jobsTable(supabase)
+        .update({
+          status: 'pending',
+          run_after: now,
+          finished_at: null,
+          locked_at: null,
+          locked_by: null,
+        })
+        .in('status', ['pending', 'running'])
+        .not('last_error', 'is', null)
+        .select('id');
+
+      if (dbError) {
+        return NextResponse.json({ success: false, error: dbError.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, count: (data || []).length });
+    }
+
+    /** Bulk: force run specific job ids. */
+    if (action === 'run_now_ids') {
+      const ids = Array.isArray(body?.ids)
+        ? body.ids.map((x: unknown) => Number(x)).filter((n: number) => Number.isFinite(n) && n > 0)
+        : [];
+      if (ids.length === 0) {
+        return NextResponse.json({ success: false, error: 'Chybí ids[]' }, { status: 400 });
+      }
+      const now = new Date().toISOString();
+      const { data, error: dbError } = await jobsTable(supabase)
+        .update({
+          status: 'pending',
+          run_after: now,
+          finished_at: null,
+          locked_at: null,
+          locked_by: null,
+        })
+        .in('id', ids)
+        .in('status', ['pending', 'running', 'failed', 'cancelled'])
+        .select('id');
+
+      if (dbError) {
+        return NextResponse.json({ success: false, error: dbError.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, count: (data || []).length });
+    }
+
     return NextResponse.json({ success: false, error: 'Neznámá akce' }, { status: 400 });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

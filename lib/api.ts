@@ -857,7 +857,7 @@ export async function getScraperJobs(params?: {
 
 export async function patchScraperJob(
   id: number,
-  action: 'cancel' | 'retry'
+  action: 'cancel' | 'retry' | 'run_now'
 ): Promise<ScraperJob> {
   const response = await fetch('/api/admin/scraper-jobs', {
     method: 'PATCH',
@@ -869,6 +869,32 @@ export async function patchScraperJob(
     throw new Error(data.error || 'Akce na jobu selhala');
   }
   return data.data;
+}
+
+export async function runNowAllRetryingScraperJobs(): Promise<number> {
+  const response = await fetch('/api/admin/scraper-jobs', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'run_now_all_retrying' }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Bulk spuštění selhalo');
+  }
+  return Number(data.count || 0);
+}
+
+export async function runNowScraperJobIds(ids: number[]): Promise<number> {
+  const response = await fetch('/api/admin/scraper-jobs', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'run_now_ids', ids }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Bulk spuštění selhalo');
+  }
+  return Number(data.count || 0);
 }
 
 export async function cancelAllPendingScraperJobs(): Promise<number> {

@@ -166,6 +166,18 @@ export default function ScraperJobsQueuePanel() {
     }
   };
 
+  const onRunNow = async (id: number) => {
+    setBusyId(id);
+    try {
+      await patchScraperJob(id, 'run_now');
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Spuštění selhalo');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const onCancelAllPending = async () => {
     if (!confirm(`Zrušit všech ${counts.pending} čekajících jobů?`)) return;
     setBusyId(-1);
@@ -343,20 +355,30 @@ export default function ScraperJobsQueuePanel() {
                               {open ? 'Skrýt' : 'Detail'}
                             </button>
                             {(job.status === 'pending' || job.status === 'running') && (
-                              <button
-                                type="button"
-                                disabled={busyId === job.id}
-                                onClick={() => onCancel(job.id)}
-                                className="rounded-lg border border-rose-200 px-2 py-1 text-[10px] font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-40"
-                              >
-                                Zrušit
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={busyId === job.id}
+                                  onClick={() => onRunNow(job.id)}
+                                  className="rounded-lg border border-emerald-200 px-2 py-1 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-40"
+                                >
+                                  Spustit teď
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={busyId === job.id}
+                                  onClick={() => onCancel(job.id)}
+                                  className="rounded-lg border border-rose-200 px-2 py-1 text-[10px] font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-40"
+                                >
+                                  Zrušit
+                                </button>
+                              </>
                             )}
                             {(job.status === 'failed' || job.status === 'cancelled') && (
                               <button
                                 type="button"
                                 disabled={busyId === job.id}
-                                onClick={() => onRetry(job.id)}
+                                onClick={() => onRunNow(job.id)}
                                 className="rounded-lg border border-emerald-200 px-2 py-1 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-40"
                               >
                                 Retry
