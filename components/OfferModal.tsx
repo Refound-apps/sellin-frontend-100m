@@ -25,6 +25,11 @@ interface OfferModalProps {
   isAdmin?: boolean;
 }
 
+function isActiveChannelCondition(condition: string | null | undefined): boolean {
+  const c = (condition || '').toLowerCase().trim();
+  return c === 'ok_created' || c === 'ok_updated' || c === 'ok_topped';
+}
+
 function getPortalInfo(rawId: string | null | undefined) {
   const lower = (rawId || '').toLowerCase();
   if (lower.includes('bazos') || lower.includes('bazoš')) {
@@ -357,6 +362,11 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     const c = String(d.condition || '').toLowerCase();
     return c && c !== 'ok_deleted' && c !== 'app_archive';
   });
+
+  /** Kanály k zobrazení: jen aktivní listingy (vytvořené / updatnuté / topované), ne smazané */
+  const activeChannelDetails = details.filter((d) =>
+    isActiveChannelCondition(d.condition)
+  );
 
   const applyOfferUpdate = (updated: Offer, message: string) => {
     Object.assign(offer, updated);
@@ -927,7 +937,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
               <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3.5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                    Prodejní kanály ({1 + details.length})
+                    Prodejní kanály ({1 + activeChannelDetails.length})
                   </span>
                   <a
                     href={`/shop/produkt/${offer.id}`}
@@ -965,7 +975,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                       <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/80 to-transparent" />
                     </div>
                   ) : (
-                    details.map((detail, idx) => {
+                    activeChannelDetails.map((detail, idx) => {
                       const portal = getPortalInfo(detail.bb_marketplace_id);
                       const isBlocked =
                         Boolean(detail.platform_blocked) ||
@@ -973,7 +983,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                         String(detail.condition || '').toLowerCase().includes('blocked');
                       return (
                         <div
-                          key={idx}
+                          key={detail.id ?? detail['auto id'] ?? idx}
                           className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs ${
                             isBlocked
                               ? 'border-orange-200/90 bg-orange-50/70'
