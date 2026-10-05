@@ -30,11 +30,7 @@ async function checkAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   return { isAdmin: true, error: null };
 }
 
-function rewriteShotUrl(name: string) {
-  return `/api/admin/error-screenshots/file?name=${encodeURIComponent(name)}`;
-}
-
-// GET /api/admin/error-screenshots — proxy na VPS listing (/var/www/sellin)
+// GET /api/admin/error-screenshots/file?name=bazos-create-1-….png
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -43,52 +39,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const qs = new URLSearchParams();
-    for (const key of ['limit', 'offset', 'platform', 'q'] as const) {
-      const v = searchParams.get(key);
-      if (v) qs.set(key, v);
+    const name = new URL(request.url).searchParams.get('name') || '';
+    if (!name || name.includes('/') || name.includes('\\') || name.includes('..')) {
+      return NextResponse.json({ success: false, error: 'Neplatný název souboru' }, { status: 400 });
     }
-    if (!qs.has('limit')) qs.set('limit', '120');
 
-    const backendUrl = `${getScraperActionUrl('/error-screenshots')}?${qs.toString()}`;
+    const backendUrl = `${getScraperActionUrl('/error-screenshots/file')}?name=${encodeURIComponent(name)}`;
     const backendRes = await fetch(backendUrl, {
       method: 'GET',
-      headers: { Accept: 'application/json' },
       cache: 'no-store',
     });
 
-    const payload = await backendRes.json().catch(() => ({}));
     if (!backendRes.ok) {
+      const payload = await backendRes.json().catch(() => ({}));
       return NextResponse.json(
         {
           success: false,
-          error:
-            payload?.error ||
-            `Backend error-screenshots vrátil ${backendRes.status} (${backendUrl})`,
+          error: payload?.error || `Backend vrátil ${backendRes.status}`,
         },
         { status: backendRes.status >= 400 ? backendRes.status : 500 }
       );
     }
 
-    // Serve images via same-origin admin proxy (error.sellin.cz is often unreachable / blocked)
-    const data = (payload?.data || []).map((item: { name: string; url?: string; mtime: string; size: number }) => ({
-      ...item,
-      url: rewriteShotUrl(item.name),
-    }));
+    const contentType = backendRes.headers.get('content-type') || 'image/png';
+    const body = backendRes.body;
+    if (!body) {
+      const buf = await backendRes.arrayBuffer();
+      return new NextResponse(buf, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'private, max-age=300',
+        },
+      });
+    }
 
-    return NextResponse.json({
-      success: true,
-      data,
-      total: payload?.total ?? 0,
-      limit: payload?.limit,
-      offset: payload?.offset,
-      baseUrl: '/api/admin/error-screenshots/file',
+    return new NextResponse(body, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'private, max-age=300',
+      },
     });
   } catch (err: any) {
-    console.error('GET /api/admin/error-screenshots error:', err);
+    console.error('GET /api/admin/error-screenshots/file error:', err);
     return NextResponse.json(
-      { success: false, error: err?.message || 'Načtení screenshotů selhalo' },
+      { success: false, error: err?.message || 'Načtení obrázku selhalo' },
       { status: 500 }
     );
   }
