@@ -232,6 +232,15 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
   }, [offer.title, offer.description, offer.price, offer.autorenew_freq, details, images]);
 
   const handleSave = useCallback(async () => {
+    const descLen = String(editedOffer.description || '').trim().length;
+    const hasSbazar = details.some((d) =>
+      String(d.bb_marketplace_id || '').toLowerCase().includes('sbazar')
+    );
+    if (hasSbazar && descLen < 15) {
+      setSaveError('Sbazar vyžaduje popis alespoň 15 znaků.');
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
     try {
@@ -275,7 +284,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
     } finally {
       setSaving(false);
     }
-  }, [editedOffer, editedImages, offer, onOfferUpdated]);
+  }, [editedOffer, editedImages, offer, onOfferUpdated, details]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -1170,6 +1179,14 @@ export default function OfferModal({ offer, onClose, onOfferUpdated }: OfferModa
                         className="w-full resize-y rounded-xl border border-slate-300 bg-white p-3.5 text-xs sm:text-sm leading-relaxed text-slate-950 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition-all"
                         placeholder="Detailní popis inzerátu (rozměry, vzorek, stav, DOT, osobní odběr)..."
                       />
+                      {String(editedOffer.description || '').trim().length < 15 &&
+                        details.some((d) =>
+                          String(d.bb_marketplace_id || '').toLowerCase().includes('sbazar')
+                        ) && (
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Sbazar: min. 15 znaků
+                          </p>
+                        )}
                     </div>
                   </div>
 

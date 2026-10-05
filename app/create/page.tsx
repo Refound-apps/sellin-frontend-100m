@@ -530,6 +530,15 @@ function CreateOfferContent() {
       return;
     }
 
+    if (
+      formData.marketplace.includes('Sbazar') &&
+      formData.description.trim().length < 15
+    ) {
+      setError('Sbazar vyžaduje popis alespoň 15 znaků.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     if (!formData.price_agreement && (!formData.price || parseFloat(formData.price) <= 0)) {
       setError('Vyplňte prosím platnou cenu zboží nebo zaškrtněte "Cena dohodou".');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -988,12 +997,17 @@ function CreateOfferContent() {
 
               {/* Popis zboží */}
               <div>
-                <label
-                  htmlFor="description"
-                  className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
-                >
-                  Obsah inzerátu <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="description"
+                    className="block text-xs font-bold uppercase tracking-wider text-slate-700"
+                  >
+                    Obsah inzerátu <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400 tabular-nums">
+                    {formData.description.trim().length} znaků
+                  </span>
+                </div>
                 <textarea
                   id="description"
                   rows={6}
@@ -1003,6 +1017,12 @@ function CreateOfferContent() {
                   placeholder="Co nejlépe popište váš předmět a snažte se o co největší unikátnost inzerátu..."
                   required
                 />
+                {formData.marketplace.includes('Sbazar') &&
+                  formData.description.trim().length < 15 && (
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Sbazar: min. 15 znaků
+                    </p>
+                  )}
               </div>
             </div>
 
