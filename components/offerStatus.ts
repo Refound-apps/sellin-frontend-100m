@@ -45,6 +45,11 @@ export function isOfferDeletedState(state: string | null | undefined): boolean {
   return state === 'app_archive' || state === 'ok_deleted';
 }
 
+/** States that must never appear in app / e-shop listings */
+export function isOfferHiddenFromListings(state: string | null | undefined): boolean {
+  return state === 'app_archive' || state === 'ok_deleted' || state === 'app_delete';
+}
+
 export function isOfferQueuedState(state: string | null | undefined): boolean {
   return (
     state === 'app_create' ||

@@ -53,6 +53,8 @@ const FALLBACK_SHOP: ShopConfigData = {
 
 const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
 
+const HIDDEN_SHOP_STATES = new Set(['app_archive', 'ok_deleted', 'app_delete']);
+
 function rowToShop(row: Record<string, unknown>): ShopConfigData {
   return {
     id: String(row.id),
@@ -166,9 +168,12 @@ export async function fetchShopOffersPage(opts: {
     return { offers: [], total: 0 };
   }
   const json = await res.json();
+  const offers = ((json.data || []) as ShopOffer[]).filter(
+    (o) => !o.state || !HIDDEN_SHOP_STATES.has(String(o.state))
+  );
   return {
-    offers: (json.data || []) as ShopOffer[],
-    total: typeof json.total === 'number' ? json.total : (json.data || []).length,
+    offers,
+    total: typeof json.total === 'number' ? json.total : offers.length,
   };
 }
 
@@ -203,6 +208,7 @@ export async function fetchShopOfferById(id: number): Promise<ShopOffer | null> 
   const json = await res.json();
   const offer = json.data as ShopOffer | undefined;
   if (!offer) return null;
+  if (offer.state && HIDDEN_SHOP_STATES.has(String(offer.state))) return null;
   return {
     ...offer,
     id: offer.id ?? (offer as unknown as { 'auto id'?: number })['auto id'] ?? id,

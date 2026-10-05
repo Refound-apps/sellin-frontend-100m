@@ -10,7 +10,7 @@ import OfferCard from './OfferCard';
 import OfferModal from './OfferModal';
 import SellerAccountSwitcher from './SellerAccountSwitcher';
 import PairedAccountSwitcher from './PairedAccountSwitcher';
-import { formatPhoneNumber } from './offerStatus';
+import { formatPhoneNumber, isOfferHiddenFromListings } from './offerStatus';
 import { resolveLinkedEmails, resolvePairedUserAccounts, getSubaccountFilterEmails } from '@/lib/sellerAccounts';
 
 interface OffersListProps {
@@ -394,13 +394,15 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           exactBbEmail
         );
 
+        const visible = data.filter((o) => !isOfferHiddenFromListings(o.state));
+
         if (targetPage === 0) {
-          setOffers(data);
+          setOffers(visible);
           setTotalOffers(typeof total === 'number' ? total : null);
         } else {
           setOffers((prev) => {
             const existingIds = new Set(prev.map((o) => o.id));
-            const fresh = data.filter((o) => !existingIds.has(o.id));
+            const fresh = visible.filter((o) => !existingIds.has(o.id));
             return [...prev, ...fresh];
           });
           if (typeof total === 'number') {
@@ -761,6 +763,12 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           offer={selectedOffer}
           onClose={() => setSelectedOffer(null)}
           onOfferUpdated={(updated) => {
+            if (isOfferHiddenFromListings(updated.state)) {
+              setOffers((prev) => prev.filter((o) => o.id !== updated.id));
+              setTotalOffers((t) => (typeof t === 'number' ? Math.max(0, t - 1) : t));
+              setSelectedOffer(null);
+              return;
+            }
             setSelectedOffer({ ...updated });
             setOffers((prev) =>
               prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))

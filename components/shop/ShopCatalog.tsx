@@ -18,6 +18,7 @@ import ShopSchema from './ShopSchema';
 import MobileShopBar from './MobileShopBar';
 import { CAR_WHEEL_BRANDS, TIRE_BRANDS, TIRE_PROFILES, TIRE_RIMS, TIRE_WIDTHS, WHEEL_PCD_OPTIONS } from './offerMeta';
 import { scrollToShopSection } from './shopScroll';
+import { isOfferHiddenFromListings } from '@/components/offerStatus';
 
 export default function ShopCatalog() {
   const [offers, setOffers] = useState<ShopOffer[]>([]);
@@ -203,13 +204,15 @@ export default function ShopCatalog() {
           freezeScrollYRef.current = window.scrollY;
         }
 
+        const visible = data.filter((o) => !isOfferHiddenFromListings(o.state));
+
         if (targetPage === 0) {
-          setOffers(data);
+          setOffers(visible);
           setTotalOffers(total);
         } else {
           setOffers((prev) => {
             const existingIds = new Set(prev.map((o) => o.id));
-            const fresh = data.filter((o) => !existingIds.has(o.id));
+            const fresh = visible.filter((o) => !existingIds.has(o.id));
             return [...prev, ...fresh];
           });
           setTotalOffers(total);
