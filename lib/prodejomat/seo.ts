@@ -115,7 +115,7 @@ export function buildProdejomatMetadata(
     icons: {
       icon: [
         { url: '/favicon.svg', type: 'image/svg+xml' },
-        { url: '/icon.svg', type: 'image/svg+xml' },
+        { url: '/icon', type: 'image/png' },
       ],
       apple: [{ url: '/apple-icon', type: 'image/png' }],
     },
@@ -164,7 +164,7 @@ export function getProdejomatSoftwareSchema(host?: string | null) {
       '@id': `${baseUrl}/#organization`,
       name: PRODEJOMAT_NAME,
       url: `${baseUrl}/`,
-      logo: `${baseUrl}/icon.svg`,
+      logo: `${baseUrl}/icon`,
       sameAs: [`${baseUrl}/`],
     },
   };
@@ -178,7 +178,7 @@ export function getProdejomatOrganizationSchema(host?: string | null) {
     '@id': `${baseUrl}/#organization`,
     name: PRODEJOMAT_NAME,
     url: `${baseUrl}/`,
-    logo: `${baseUrl}/icon.svg`,
+    logo: `${baseUrl}/icon`,
     description,
     areaServed: {
       '@type': 'Country',

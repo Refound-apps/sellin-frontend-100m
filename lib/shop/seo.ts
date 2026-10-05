@@ -243,6 +243,10 @@ export function buildShopPageMetadata(
       description: opts.description,
       images,
     },
+    icons: {
+      icon: [{ url: '/shop-favicon.svg', type: 'image/svg+xml' }],
+      apple: [{ url: '/apple-icon', type: 'image/png' }],
+    },
     other: {
       'geo.region': 'CZ',
       'geo.placename': shopCity(shop),

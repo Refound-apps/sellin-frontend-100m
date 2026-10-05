@@ -2,16 +2,10 @@ import { ImageResponse } from 'next/og';
 import { headers } from 'next/headers';
 import { getRequestHost, isTenantHost } from '@/lib/prodejomat/host';
 
-export const size = { width: 180, height: 180 };
+export const size = { width: 32, height: 32 };
 export const contentType = 'image/png';
 
-function WheelMark({ box, outer, inner, spoke, stroke }: {
-  box: number;
-  outer: number;
-  inner: number;
-  spoke: number;
-  stroke: number;
-}) {
+function WheelMark({ box, outer, inner, spoke }: { box: number; outer: number; inner: number; spoke: number }) {
   const mid = box / 2;
   return (
     <div
@@ -29,7 +23,7 @@ function WheelMark({ box, outer, inner, spoke, stroke }: {
           width: outer,
           height: outer,
           borderRadius: outer,
-          border: `${stroke}px solid #ffffff`,
+          border: '2px solid #ffffff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -41,20 +35,21 @@ function WheelMark({ box, outer, inner, spoke, stroke }: {
             width: inner,
             height: inner,
             borderRadius: inner,
-            border: `${stroke}px solid #ffffff`,
+            border: '2px solid #ffffff',
           }}
         />
       </div>
-      <div style={{ position: 'absolute', top: 4, left: mid - stroke / 2, width: stroke, height: spoke, background: '#ffffff' }} />
-      <div style={{ position: 'absolute', bottom: 4, left: mid - stroke / 2, width: stroke, height: spoke, background: '#ffffff' }} />
-      <div style={{ position: 'absolute', left: 4, top: mid - stroke / 2, width: spoke, height: stroke, background: '#ffffff' }} />
-      <div style={{ position: 'absolute', right: 4, top: mid - stroke / 2, width: spoke, height: stroke, background: '#ffffff' }} />
+      {/* Speaks — short bars at N/E/S/W */}
+      <div style={{ position: 'absolute', top: 1, left: mid - 1, width: 2, height: spoke, background: '#ffffff' }} />
+      <div style={{ position: 'absolute', bottom: 1, left: mid - 1, width: 2, height: spoke, background: '#ffffff' }} />
+      <div style={{ position: 'absolute', left: 1, top: mid - 1, width: spoke, height: 2, background: '#ffffff' }} />
+      <div style={{ position: 'absolute', right: 1, top: mid - 1, width: spoke, height: 2, background: '#ffffff' }} />
     </div>
   );
 }
 
-/** Tenant: wheel mark from storefront logo. Prodejomat: bold P. */
-export default async function AppleIcon() {
+/** Tenant shops: wheel mark from storefront logo. Prodejomat: bold P. */
+export default async function Icon() {
   const headersList = await headers();
   const shopDomainHeader = headersList.get('x-shop-domain');
   const host = await getRequestHost();
@@ -71,10 +66,10 @@ export default async function AppleIcon() {
             alignItems: 'center',
             justifyContent: 'center',
             background: '#0f172a',
-            borderRadius: 40,
+            borderRadius: 8,
           }}
         >
-          <WheelMark box={130} outer={100} inner={42} spoke={16} stroke={8} />
+          <WheelMark box={24} outer={18} inner={8} spoke={3} />
         </div>
       ),
       { ...size }
@@ -91,9 +86,9 @@ export default async function AppleIcon() {
           alignItems: 'center',
           justifyContent: 'center',
           background: '#020617',
-          borderRadius: 40,
+          borderRadius: 8,
           color: '#ffffff',
-          fontSize: 108,
+          fontSize: 20,
           fontWeight: 900,
           fontFamily: 'system-ui, -apple-system, sans-serif',
           letterSpacing: '-0.04em',

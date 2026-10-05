@@ -89,12 +89,17 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-shop-domain', tenantIdentifier);
 
     // 3. API, SEO metadata & static paths pass through directly
-    // (sitemap.xml / robots.txt must NOT be rewritten under /shop)
+    // (sitemap.xml / robots.txt / icons must NOT be rewritten under /shop)
     if (
       pathname.startsWith('/api') ||
       pathname.startsWith('/_next') ||
       pathname.startsWith('/sitemap') ||
       pathname === '/robots.txt' ||
+      pathname === '/icon' ||
+      pathname.startsWith('/icon/') ||
+      pathname === '/apple-icon' ||
+      pathname.startsWith('/apple-icon/') ||
+      pathname === '/manifest.webmanifest' ||
       pathname.includes('.')
     ) {
       return NextResponse.next({
