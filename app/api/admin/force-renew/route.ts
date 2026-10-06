@@ -10,7 +10,11 @@ const EXCLUDED_CONDITIONS = [
   'error_create',
   'error_create_blocked',
   'ok_blocked',
+  'app_archive',
+  'app_delete',
 ] as const;
+
+const ARCHIVED_OFFER_STATES = new Set(['app_archive', 'app_delete', 'ok_deleted']);
 
 type Marketplace = 'Bazoš' | 'Bazoš.sk';
 
@@ -151,7 +155,10 @@ async function loadForceRenewCandidates(
 
   const offersPromise =
     offerIds.length > 0
-      ? supabase.from('offer_pg').select('bb_id, autotop, autorenew_freq, autorenewal').in('bb_id', offerIds)
+      ? supabase
+          .from('offer_pg')
+          .select('bb_id, autotop, autorenew_freq, autorenewal, state')
+          .in('bb_id', offerIds)
       : Promise.resolve({ data: [] as any[] });
 
   // Credentials / vouchers: match by exact emails from DB rows (preferred) or input
@@ -192,24 +199,35 @@ async function loadForceRenewCandidates(
     (creds || []).map((c) => [(c.email || '').toLowerCase().trim(), c])
   );
 
-  // Flatten join fields like original Budibase SELECT * JOIN
-  const enriched = items.map((detail) => {
-    const offer = offerById.get(detail.bb_offer_id || '');
-    const cred = credByEmail.get((detail.bb_email_od || '').toLowerCase().trim());
-    return {
-      ...detail,
-      autotop: offer?.autotop ?? false,
-      autorenew_freq: offer?.autorenew_freq ?? detail.autorenew_freq,
-      bazos_top_max: cred?.bazos_top_max ?? 0,
-      email: cred?.email ?? detail.bb_email_od,
-      bazos_bkod: cred?.bazos_bkod ?? null,
-      bazos_password: cred?.bazos_password ?? null,
-      bazos_email: cred?.bazos_email ?? null,
-      proxy_ip: cred?.proxy_ip ?? null,
-      bazos_rewrite: cred?.bazos_rewrite ?? null,
-      bazos_sk_bkod: cred?.bazos_sk_bkod ?? null,
-    };
-  });
+  // Flatten join fields like original Budibase SELECT * JOIN.
+  // Skip archived/deleted offers — force renew must never revive them.
+  const enriched = items
+    .map((detail) => {
+      const offer = offerById.get(detail.bb_offer_id || '');
+      if (!offer || ARCHIVED_OFFER_STATES.has(String(offer.state || ''))) {
+        return null;
+      }
+      const link = String(detail.link || '');
+      if (link && !link.startsWith('http')) {
+        return null;
+      }
+      const cred = credByEmail.get((detail.bb_email_od || '').toLowerCase().trim());
+      return {
+        ...detail,
+        state: offer?.state ?? null,
+        autotop: offer?.autotop ?? false,
+        autorenew_freq: offer?.autorenew_freq ?? detail.autorenew_freq,
+        bazos_top_max: cred?.bazos_top_max ?? 0,
+        email: cred?.email ?? detail.bb_email_od,
+        bazos_bkod: cred?.bazos_bkod ?? null,
+        bazos_password: cred?.bazos_password ?? null,
+        bazos_email: cred?.bazos_email ?? null,
+        proxy_ip: cred?.proxy_ip ?? null,
+        bazos_rewrite: cred?.bazos_rewrite ?? null,
+        bazos_sk_bkod: cred?.bazos_sk_bkod ?? null,
+      };
+    })
+    .filter(Boolean) as any[];
 
   return {
     items: enriched,
@@ -225,6 +243,7 @@ async function countTillToday(
 ) {
   const { from, to } = renewTillTodayWindow();
 
+  // Count is approximate (detail-level); archived offer_pg rows are filtered in loadForceRenewCandidates.
   let query = supabase
     .from('offer_detail_pg')
     .select('bb_offer_id', { count: 'exact', head: true })

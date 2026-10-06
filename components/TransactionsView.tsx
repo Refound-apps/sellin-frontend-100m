@@ -642,7 +642,7 @@ export default function TransactionsView() {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Hledat podle názvu inzerátu, odkazu na Bazoš, e-mailu prodejce nebo ID..."
+              placeholder="Hledat podle názvu, URL (Bazoš/Sbazar), e-mailu prodejce nebo ID..."
               className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-10 pr-9 text-xs sm:text-sm font-medium text-slate-950 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 transition-all"
             />
             {searchInput && (

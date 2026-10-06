@@ -545,6 +545,38 @@ export type Database = {
           },
         ]
       }
+      shop_visit_daily: {
+        Row: {
+          shop_id: string
+          day: string
+          visits: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          shop_id: string
+          day: string
+          visits?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          shop_id?: string
+          day?: string
+          visits?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'shop_visit_daily_shop_id_fkey'
+            columns: ['shop_id']
+            isOneToOne: false
+            referencedRelation: 'shops'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       cron_jobs: {
         Row: {
           id: string
@@ -665,6 +697,7 @@ export type Database = {
     }
     Functions: {
       get_current_user_role: { Args: never; Returns: string }
+      increment_shop_visit: { Args: { p_shop_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

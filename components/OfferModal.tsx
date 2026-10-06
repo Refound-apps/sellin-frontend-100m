@@ -26,9 +26,26 @@ interface OfferModalProps {
   isAdmin?: boolean;
 }
 
+function isDeletedChannelCondition(condition: string | null | undefined): boolean {
+  const c = (condition || '').toLowerCase().trim();
+  return (
+    c === 'ok_deleted' ||
+    c === 'app_archive' ||
+    c === 'error_delete' ||
+    c === 'error_delete_during_renewal' ||
+    c.includes('deleted')
+  );
+}
+
 function isActiveChannelCondition(condition: string | null | undefined): boolean {
   const c = (condition || '').toLowerCase().trim();
-  return c === 'ok_created' || c === 'ok_updated' || c === 'ok_topped';
+  if (isDeletedChannelCondition(c)) return false;
+  return c === 'ok_created' || c === 'ok_updated' || c === 'ok_topped' || c === 'ok_renewed';
+}
+
+function isLiveMarketplaceLink(link: string | null | undefined): boolean {
+  const href = String(link || '');
+  return href.startsWith('http://') || href.startsWith('https://');
 }
 
 function getPortalInfo(rawId: string | null | undefined) {
@@ -358,13 +375,24 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
 
   const hasDeletableMarketplace = details.some((d) => {
     const c = String(d.condition || '').toLowerCase();
-    return c && c !== 'ok_deleted' && c !== 'app_archive';
+    return isLiveMarketplaceLink(d.link) && c && c !== 'ok_deleted' && c !== 'app_archive';
   });
 
-  /** Kanály k zobrazení: jen aktivní listingy (vytvořené / updatnuté / topované), ne smazané */
-  const activeChannelDetails = details.filter((d) =>
-    isActiveChannelCondition(d.condition)
-  );
+  /** Kanály k zobrazení: jen live listingy s HTTP odkazem, ne smazané Bazoš/Sbazar */
+  const activeChannelDetails = (() => {
+    const live = details.filter(
+      (d) => isActiveChannelCondition(d.condition) && isLiveMarketplaceLink(d.link)
+    );
+    const latestByMarket = new Map<string, (typeof live)[number]>();
+    for (const d of live) {
+      const key = String(d.bb_marketplace_id || '').toLowerCase().trim() || 'unknown';
+      const prev = latestByMarket.get(key);
+      const dId = Number(d.id ?? d['auto id'] ?? 0);
+      const pId = Number(prev?.id ?? prev?.['auto id'] ?? 0);
+      if (!prev || dId > pId) latestByMarket.set(key, d);
+    }
+    return Array.from(latestByMarket.values());
+  })();
 
   const applyOfferUpdate = (updated: Offer, message: string) => {
     Object.assign(offer, updated);
@@ -388,6 +416,10 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
         { ...offer, ...(result?.offer || {}), state: 'app_delete' },
         result?.message || 'Inzerát byl zařazen do fronty pro smazání na portálech.'
       );
+      if (offer.bb_id) {
+        const refreshed = await getOfferDetails(offer.bb_id);
+        setDetails(refreshed);
+      }
     } catch (err: unknown) {
       console.error(err);
       setSaveError(err instanceof Error ? err.message : 'Chyba při mazání');

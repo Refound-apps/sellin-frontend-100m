@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { ShopProvider } from '@/components/shop/ShopContext';
+import ShopVisitTracker from '@/components/shop/ShopVisitTracker';
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin', 'latin-ext'],
@@ -15,7 +16,10 @@ export default function ShopLayout({
   return (
     <div className={`${jakarta.variable} ${jakarta.className} shop-theme min-h-screen bg-white`}>
       <Suspense fallback={null}>
-        <ShopProvider>{children}</ShopProvider>
+        <ShopProvider>
+          <ShopVisitTracker />
+          {children}
+        </ShopProvider>
       </Suspense>
     </div>
   );

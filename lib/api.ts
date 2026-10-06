@@ -404,6 +404,38 @@ export async function updateShopReservationStatus(
   }
 }
 
+export type ShopVisitStats = {
+  day: number;
+  week: number;
+  month: number;
+};
+
+export async function getShopVisitStats(params?: {
+  shop_id?: string;
+}): Promise<{ success: boolean; data?: ShopVisitStats; error?: string }> {
+  try {
+    const search = new URLSearchParams();
+    if (params?.shop_id) search.set('shop_id', params.shop_id);
+    const query = search.toString() ? `?${search.toString()}` : '';
+    const response = await fetch(`/api/shop/visits${query}`, { cache: 'no-store' });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.success) {
+      return { success: false, error: json.error || 'Načtení návštěvnosti selhalo.' };
+    }
+    return {
+      success: true,
+      data: {
+        day: Number(json.data?.day) || 0,
+        week: Number(json.data?.week) || 0,
+        month: Number(json.data?.month) || 0,
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching shop visit stats:', error);
+    return { success: false, error: 'Nepodařilo se načíst návštěvnost.' };
+  }
+}
+
 export async function resolveShopConfig(domainOrSlug?: string, forceRefresh: boolean = false): Promise<ShopConfigData | null> {
   const cacheKey = (domainOrSlug || '__default__').toLowerCase().trim();
   if (!forceRefresh && typeof window !== 'undefined') {

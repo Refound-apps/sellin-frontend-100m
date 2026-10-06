@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getShopReservations,
+  getShopVisitStats,
   updateShopReservationStatus,
   type ShopReservation,
   type ShopReservationStatus,
+  type ShopVisitStats,
 } from '@/lib/api';
 
 type StatusFilter = 'all' | ShopReservationStatus;
@@ -63,6 +65,10 @@ function formatDate(value: string): string {
   }
 }
 
+function formatCount(value: number): string {
+  return value.toLocaleString('cs-CZ');
+}
+
 function pickupLabel(pickup: string | null | undefined): string {
   if (pickup === 'posta') return 'Zaslání poštou';
   if (pickup === 'osobni') return 'Osobní odběr';
@@ -80,16 +86,23 @@ export default function ReservationsView() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [visitStats, setVisitStats] = useState<ShopVisitStats | null>(null);
 
   const loadReservations = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await getShopReservations();
-    if (!result.success) {
-      setError(result.error || 'Načtení rezervací selhalo.');
+    const [reservationsResult, visitsResult] = await Promise.all([
+      getShopReservations(),
+      getShopVisitStats(),
+    ]);
+    if (!reservationsResult.success) {
+      setError(reservationsResult.error || 'Načtení rezervací selhalo.');
       setReservations([]);
     } else {
-      setReservations(result.data || []);
+      setReservations(reservationsResult.data || []);
+    }
+    if (visitsResult.success && visitsResult.data) {
+      setVisitStats(visitsResult.data);
     }
     setLoading(false);
   }, []);
@@ -125,6 +138,12 @@ export default function ReservationsView() {
     setUpdatingId(null);
   };
 
+  const visitItems = [
+    { label: 'Dnes', value: visitStats?.day ?? 0 },
+    { label: '7 dní', value: visitStats?.week ?? 0 },
+    { label: 'Měsíc', value: visitStats?.month ?? 0 },
+  ];
+
   return (
     <div className="pb-16">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -144,6 +163,20 @@ export default function ReservationsView() {
         >
           Obnovit
         </button>
+      </div>
+
+      <div className="mb-6 grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">
+        {visitItems.map((item) => (
+          <div key={item.label} className="bg-white px-3 py-3.5 text-center sm:px-4 sm:py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              {item.label}
+            </p>
+            <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-slate-950 sm:text-2xl">
+              {loading && visitStats == null ? '—' : formatCount(item.value)}
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-400">návštěv</p>
+          </div>
+        ))}
       </div>
 
       <div className="mb-5 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
