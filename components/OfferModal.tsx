@@ -382,15 +382,11 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
 
   const findLiveDetailForPortal = (portalKey: 'bazos' | 'bazos_sk' | 'sbazar') => {
     for (const [key, detail] of liveChannelByPortal.entries()) {
-      if (portalKey === 'bazos_sk' && key.includes('sk') && (key.includes('baz') || key.includes('bazoš'))) {
-        return detail;
-      }
-      if (portalKey === 'bazos' && (key.includes('baz') || key.includes('bazoš')) && !key.includes('sk')) {
-        return detail;
-      }
-      if (portalKey === 'sbazar' && key.includes('sbazar')) {
-        return detail;
-      }
+      // Normalize so "Bazoš" → "bazos"; check sbazar before bazos ("sbazar" contains "baz")
+      const k = key.normalize('NFD').replace(/\p{M}/gu, '');
+      if (portalKey === 'sbazar' && k.includes('sbazar')) return detail;
+      if (portalKey === 'bazos_sk' && k.includes('bazos') && k.includes('sk')) return detail;
+      if (portalKey === 'bazos' && k.includes('bazos') && !k.includes('sk')) return detail;
     }
     return null;
   };
@@ -425,8 +421,11 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
   if (
     findLiveDetailForPortal('bazos_sk') ||
     details.some((d) => {
-      const k = String(d.bb_marketplace_id || '').toLowerCase();
-      return k.includes('sk') && (k.includes('baz') || k.includes('bazoš'));
+      const k = String(d.bb_marketplace_id || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '');
+      return k.includes('bazos') && k.includes('sk');
     })
   ) {
     channelSlots.splice(1, 0, {
