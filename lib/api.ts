@@ -727,6 +727,30 @@ export async function deleteOfferById(
   }
 }
 
+/** Queue create on a single marketplace (Bazoš / Sbazar / …). */
+export async function publishOfferToMarketplace(
+  id: number,
+  marketplace: string
+): Promise<{ success: boolean; message?: string; queued?: number; offer?: any; marketplace?: string }> {
+  try {
+    const response = await apiFetch(`/api/offers/${id}/publish-marketplace`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ marketplace }),
+    });
+
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => null);
+      throw new Error(errorJson?.error || 'Nepodařilo se zařadit vystavení na portál');
+    }
+
+    return await response.json().catch(() => ({ success: true }));
+  } catch (error) {
+    console.error('Error publishing offer to marketplace:', error);
+    throw error;
+  }
+}
+
 /** Restore archived/deleted offer → queues marketplace create_offer. */
 export async function restoreOfferById(
   id: number

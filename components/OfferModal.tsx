@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Offer, OfferDetail } from '@/lib/types';
-import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, deleteOfferById, restoreOfferById } from '@/lib/api';
+import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, deleteOfferById, restoreOfferById, publishOfferToMarketplace } from '@/lib/api';
 import { filesToCompressedBase64 } from '@/lib/compressImage';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
 import {
@@ -48,21 +48,6 @@ function isLiveMarketplaceLink(link: string | null | undefined): boolean {
   return href.startsWith('http://') || href.startsWith('https://');
 }
 
-function getPortalInfo(rawId: string | null | undefined) {
-  const lower = (rawId || '').toLowerCase();
-  if (lower.includes('bazos') || lower.includes('bazoš')) {
-    if (lower.includes('sk')) return { label: 'Bazoš.sk', icon: '🏷️' };
-    return { label: 'Bazoš.cz', icon: '🏷️' };
-  }
-  if (lower.includes('sbazar')) {
-    return { label: 'Sbazar.cz', icon: '🛒' };
-  }
-  if (lower.includes('face') || lower.includes('fb')) {
-    return { label: 'Facebook Marketplace', icon: '📘' };
-  }
-  return { label: rawId || 'Inzertní portál', icon: '🌐' };
-}
-
 function renderTextWithPhoneLinks(text: string) {
   const phoneRegex = /(\+420\s*)?([1-9]\d{2}\s*\d{3}\s*\d{3})\b/g;
   const parts: (string | React.ReactNode)[] = [];
@@ -105,6 +90,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     autorenew_freq: offer.autorenew_freq || 'Neobnovovat',
   });
   const [saving, setSaving] = useState(false);
+  const [publishingMarketplace, setPublishingMarketplace] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -378,8 +364,8 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     return isLiveMarketplaceLink(d.link) && c && c !== 'ok_deleted' && c !== 'app_archive';
   });
 
-  /** Kanály k zobrazení: jen live listingy s HTTP odkazem, ne smazané Bazoš/Sbazar */
-  const activeChannelDetails = (() => {
+  /** Live channels keyed by normalized portal */
+  const liveChannelByPortal = (() => {
     const live = details.filter(
       (d) => isActiveChannelCondition(d.condition) && isLiveMarketplaceLink(d.link)
     );
@@ -391,8 +377,97 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
       const pId = Number(prev?.id ?? prev?.['auto id'] ?? 0);
       if (!prev || dId > pId) latestByMarket.set(key, d);
     }
-    return Array.from(latestByMarket.values());
+    return latestByMarket;
   })();
+
+  const findLiveDetailForPortal = (portalKey: 'bazos' | 'bazos_sk' | 'sbazar') => {
+    for (const [key, detail] of liveChannelByPortal.entries()) {
+      if (portalKey === 'bazos_sk' && key.includes('sk') && (key.includes('baz') || key.includes('bazoš'))) {
+        return detail;
+      }
+      if (portalKey === 'bazos' && (key.includes('baz') || key.includes('bazoš')) && !key.includes('sk')) {
+        return detail;
+      }
+      if (portalKey === 'sbazar' && key.includes('sbazar')) {
+        return detail;
+      }
+    }
+    return null;
+  };
+
+  // Available to every seller (not admin-only) — archive blocks publish
+  const canPublishManually = !isArchivedOffer && Boolean(offer.bb_id);
+
+  const channelSlots: Array<{
+    key: string;
+    marketplace: string;
+    label: string;
+    icon: string;
+    detail: OfferDetail | null;
+  }> = [
+    {
+      key: 'bazos',
+      marketplace: 'Bazoš',
+      label: 'Bazoš.cz',
+      icon: '🏷️',
+      detail: findLiveDetailForPortal('bazos'),
+    },
+    {
+      key: 'sbazar',
+      marketplace: 'Sbazar',
+      label: 'Sbazar.cz',
+      icon: '🛒',
+      detail: findLiveDetailForPortal('sbazar'),
+    },
+  ];
+
+  // Include Bazos.sk only when account already has SK history
+  if (
+    findLiveDetailForPortal('bazos_sk') ||
+    details.some((d) => {
+      const k = String(d.bb_marketplace_id || '').toLowerCase();
+      return k.includes('sk') && (k.includes('baz') || k.includes('bazoš'));
+    })
+  ) {
+    channelSlots.splice(1, 0, {
+      key: 'bazos_sk',
+      marketplace: 'Bazoš.sk',
+      label: 'Bazoš.sk',
+      icon: '🏷️',
+      detail: findLiveDetailForPortal('bazos_sk'),
+    });
+  }
+
+  const handlePublishMarketplace = async (marketplace: string, label: string) => {
+    if (!canPublishManually) return;
+    if (
+      !window.confirm(
+        `Vystavit inzerát na ${label}? Zařadí se do fronty pouze pro tento portál.`
+      )
+    ) {
+      return;
+    }
+
+    setPublishingMarketplace(marketplace);
+    setSaveError(null);
+    try {
+      const result = await publishOfferToMarketplace(offer.id, marketplace);
+      applyOfferUpdate(
+        { ...offer, ...(result?.offer || {}), state: 'app_create' },
+        result?.message || `Vystavení na ${label} zařazeno do fronty.`
+      );
+      if (offer.bb_id) {
+        const refreshed = await getOfferDetails(offer.bb_id);
+        setDetails(refreshed);
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      setSaveError(err instanceof Error ? err.message : 'Chyba při vystavení na portál');
+      setTimeout(() => setSaveError(null), 5000);
+    } finally {
+      setPublishingMarketplace(null);
+    }
+  };
 
   const applyOfferUpdate = (updated: Offer, message: string) => {
     Object.assign(offer, updated);
@@ -967,7 +1042,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
               <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3.5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                    Prodejní kanály ({1 + activeChannelDetails.length})
+                    Prodejní kanály ({1 + channelSlots.length})
                   </span>
                   <a
                     href={`/shop/produkt/${offer.id}`}
@@ -999,30 +1074,44 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                     </a>
                   </div>
 
-                  {/* Marketplace Channels */}
+                  {/* Marketplace Channels — live link or one-click publish */}
                   {loadingDetails ? (
                     <div className="relative overflow-hidden h-10 rounded-xl bg-slate-100 border border-slate-200/80">
                       <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/80 to-transparent" />
                     </div>
                   ) : (
-                    activeChannelDetails.map((detail, idx) => {
-                      const portal = getPortalInfo(detail.bb_marketplace_id);
+                    channelSlots.map((slot) => {
+                      const detail = slot.detail;
                       const isBlocked =
-                        Boolean(detail.platform_blocked) ||
-                        Boolean(detail.skip_renew) ||
-                        String(detail.condition || '').toLowerCase().includes('blocked');
+                        Boolean(detail?.platform_blocked) ||
+                        Boolean(detail?.skip_renew) ||
+                        String(detail?.condition || '').toLowerCase().includes('blocked');
+                      const isPublishing = publishingMarketplace === slot.marketplace;
+                      const isLive = Boolean(detail && isLiveMarketplaceLink(detail.link));
+
                       return (
                         <div
-                          key={detail.id ?? detail['auto id'] ?? idx}
-                          className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs ${
+                          key={slot.key}
+                          className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs ${
                             isBlocked
                               ? 'border-orange-200/90 bg-orange-50/70'
-                              : 'border-slate-200/80 bg-white'
+                              : isLive
+                                ? 'border-slate-200/80 bg-white'
+                                : 'border-dashed border-slate-300/90 bg-white/70'
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <span>{portal.icon}</span>
-                            <span className="font-bold text-slate-900 truncate">{portal.label}</span>
+                            <span>{slot.icon}</span>
+                            <span className="font-bold text-slate-900 truncate">{slot.label}</span>
+                            {isLive ? (
+                              <span className="shrink-0 rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                                Aktivní
+                              </span>
+                            ) : (
+                              <span className="shrink-0 rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+                                Chybí
+                              </span>
+                            )}
                             {isBlocked && (
                               <span
                                 className="shrink-0 inline-flex items-center gap-0.5 rounded-md border border-orange-300/90 bg-orange-100/90 px-1.5 py-0.5 text-[10px] font-bold text-orange-950"
@@ -1032,17 +1121,26 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                               </span>
                             )}
                           </div>
-                          {detail.link && (detail.link.startsWith('http://') || detail.link.startsWith('https://')) ? (
+                          {isLive && detail?.link ? (
                             <a
                               href={detail.link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="font-semibold text-slate-600 hover:text-slate-950 transition-colors"
+                              className="shrink-0 font-semibold text-slate-600 hover:text-slate-950 transition-colors"
                             >
                               Otevřít ↗
                             </a>
+                          ) : canPublishManually ? (
+                            <button
+                              type="button"
+                              disabled={saving || Boolean(publishingMarketplace)}
+                              onClick={() => handlePublishMarketplace(slot.marketplace, slot.label)}
+                              className="shrink-0 rounded-lg border border-slate-900 bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {isPublishing ? 'Zařazuji…' : 'Vystavit'}
+                            </button>
                           ) : (
-                            <span className="text-[11px] text-slate-400">Bez odkazu</span>
+                            <span className="shrink-0 text-[11px] text-slate-400">Nevystaveno</span>
                           )}
                         </div>
                       );
