@@ -777,6 +777,15 @@ export type Database = {
       get_current_user_role: { Args: never; Returns: string }
       increment_shop_visit: { Args: { p_shop_id: string }; Returns: undefined }
       get_crm_stats: { Args: never; Returns: Json }
+      get_crm_daily_worklist: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_bucket?: string | null
+          p_search?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

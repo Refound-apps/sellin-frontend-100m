@@ -1,8 +1,43 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, FormEvent } from 'react';
-import { CrmLead, CrmStats } from '@/lib/types';
+import { CrmLead, CrmStats, CrmWorklistBucket, CrmWorklistBuckets } from '@/lib/types';
 import { getCrmLeads, updateCrmLead, createCrmLead, GetCrmLeadsResponse } from '@/lib/api';
+
+const WORKLIST_BUCKETS: {
+  id: CrmWorklistBucket | 'all';
+  label: string;
+  hint: string;
+  dot: string;
+}[] = [
+  { id: 'all', label: 'Celý den', hint: 'prioritní fronta', dot: 'bg-slate-950' },
+  { id: 'stuck', label: '1 · Stuck', hint: 'onboarding + trial', dot: 'bg-sky-500' },
+  { id: 'warm', label: '2 · Warm', hint: 'v jednání', dot: 'bg-amber-500' },
+  { id: 'contacted', label: '3 · Osloveno', hint: 'callback', dot: 'bg-slate-500' },
+  { id: 'cold_a', label: '4 · Cold A', hint: '4 verticals', dot: 'bg-emerald-500' },
+];
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function loadDoneToday(): Set<number> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(`crm-worklist-done-${todayKey()}`);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as number[];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDoneToday(ids: Set<number>) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(`crm-worklist-done-${todayKey()}`, JSON.stringify([...ids]));
+}
 
 const STAGE_CONFIG: Record<
   string,
@@ -74,9 +109,10 @@ const CATEGORIES = [
   { id: 'Ostatní', label: 'Ostatní' },
 ];
 
-type TabId = 'pipeline' | 'firmy' | 'bazos' | 'eshop' | 'all';
+type TabId = 'worklist' | 'pipeline' | 'firmy' | 'bazos' | 'eshop' | 'all';
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: 'worklist', label: 'Dnes volat' },
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'firmy', label: 'Firmy.cz' },
   { id: 'bazos', label: 'Bazoš' },
@@ -152,7 +188,7 @@ function IconExternal({ className = 'h-3 w-3' }: { className?: string }) {
 }
 
 export default function AdminCrmView() {
-  const [activeTab, setActiveTab] = useState<TabId>('pipeline');
+  const [activeTab, setActiveTab] = useState<TabId>('worklist');
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
 
   const [search, setSearch] = useState('');
@@ -160,14 +196,18 @@ export default function AdminCrmView() {
   const [selectedStage, setSelectedStage] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedTier, setSelectedTier] = useState('all');
+  const [selectedBucket, setSelectedBucket] = useState<CrmWorklistBucket | 'all'>('all');
   const [page, setPage] = useState(1);
-  const limit = 50;
+  const limit = activeTab === 'worklist' ? 60 : 50;
 
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState<CrmLead[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [stats, setStats] = useState<CrmStats | null>(null);
+  const [worklistBuckets, setWorklistBuckets] = useState<CrmWorklistBuckets | null>(null);
+  const [doneToday, setDoneToday] = useState<Set<number>>(() => new Set());
+  const [hideDoneToday, setHideDoneToday] = useState(true);
 
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -178,6 +218,10 @@ export default function AdminCrmView() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPlaybook, setShowPlaybook] = useState(false);
   const [copiedPhoneId, setCopiedPhoneId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setDoneToday(loadDoneToday());
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -199,9 +243,10 @@ export default function AdminCrmView() {
         page,
         limit,
         tab: activeTab,
-        stage: selectedStage !== 'all' ? selectedStage : undefined,
-        category: selectedCategory !== 'all' ? selectedCategory : undefined,
-        tier: selectedTier !== 'all' ? selectedTier : undefined,
+        stage: activeTab === 'worklist' ? undefined : selectedStage !== 'all' ? selectedStage : undefined,
+        category: activeTab === 'worklist' ? undefined : selectedCategory !== 'all' ? selectedCategory : undefined,
+        tier: activeTab === 'worklist' ? undefined : selectedTier !== 'all' ? selectedTier : undefined,
+        bucket: activeTab === 'worklist' && selectedBucket !== 'all' ? selectedBucket : undefined,
         search: debouncedSearch || undefined,
         sortBy: activeTab === 'pipeline' ? 'updated_at' : 'id',
         sortOrder: 'desc',
@@ -210,28 +255,71 @@ export default function AdminCrmView() {
       setTotal(res.total || 0);
       setTotalPages(res.totalPages || 1);
       if (res.stats) setStats(res.stats);
+      if (res.worklistBuckets) setWorklistBuckets(res.worklistBuckets);
     } catch (err) {
       console.error('Failed to load leads:', err);
       showToast('Nepodařilo se načíst kontakty');
     } finally {
       setLoading(false);
     }
-  }, [activeTab, selectedStage, selectedCategory, selectedTier, debouncedSearch, page, showToast]);
+  }, [
+    activeTab,
+    selectedStage,
+    selectedCategory,
+    selectedTier,
+    selectedBucket,
+    debouncedSearch,
+    page,
+    limit,
+    showToast,
+  ]);
 
   useEffect(() => {
     fetchLeadsData();
   }, [fetchLeadsData]);
 
-  const handleStageChange = async (leadId: number, newStage: string) => {
+  const markDoneToday = useCallback((leadId: number) => {
+    setDoneToday((prev) => {
+      const next = new Set(prev);
+      next.add(leadId);
+      saveDoneToday(next);
+      return next;
+    });
+    showToast('Hotovo dnes — zmizí z fronty do zítřka');
+  }, [showToast]);
+
+  const handleStageChange = async (leadId: number, newStage: string, opts?: { markDone?: boolean }) => {
     try {
       await updateCrmLead(leadId, { stage: newStage });
       setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage: newStage } : l)));
       if (selectedLead?.id === leadId) {
         setSelectedLead((prev) => (prev ? { ...prev, stage: newStage } : null));
       }
+      if (opts?.markDone) markDoneToday(leadId);
       showToast(`Stav → ${STAGE_CONFIG[newStage]?.label || newStage}`);
     } catch {
       showToast('Stav se nepodařilo změnit');
+    }
+  };
+
+  const handleWorklistOutcome = async (leadId: number, newStage: string) => {
+    await handleStageChange(leadId, newStage, { markDone: true });
+    // Soft refresh bucket counts after outcome
+    try {
+      const res = await getCrmLeads({
+        page,
+        limit,
+        tab: 'worklist',
+        bucket: selectedBucket !== 'all' ? selectedBucket : undefined,
+        search: debouncedSearch || undefined,
+      });
+      setLeads(res.leads || []);
+      setTotal(res.total || 0);
+      setTotalPages(res.totalPages || 1);
+      if (res.worklistBuckets) setWorklistBuckets(res.worklistBuckets);
+      if (res.stats) setStats(res.stats);
+    } catch {
+      /* keep local state */
     }
   };
 
@@ -322,6 +410,13 @@ export default function AdminCrmView() {
   }, [leads]);
 
   const tabCount = (id: TabId) => {
+    if (id === 'worklist') {
+      const warmTotal =
+        (worklistBuckets?.stuck || 0) +
+        (worklistBuckets?.warm || 0) +
+        (worklistBuckets?.contacted || 0);
+      return warmTotal || worklistBuckets?.total || null;
+    }
     if (!stats) return null;
     if (id === 'pipeline') return stats.pipelineCount;
     if (id === 'firmy') return stats.sources?.['Firmy.cz'];
@@ -331,18 +426,82 @@ export default function AdminCrmView() {
   };
 
   const hasFilters =
-    selectedStage !== 'all' || selectedCategory !== 'all' || selectedTier !== 'all' || !!search;
+    selectedStage !== 'all' ||
+    selectedCategory !== 'all' ||
+    selectedTier !== 'all' ||
+    selectedBucket !== 'all' ||
+    !!search;
+
+  const visibleLeads = useMemo(() => {
+    if (activeTab !== 'worklist' || !hideDoneToday) return leads;
+    return leads.filter((l) => !doneToday.has(l.id));
+  }, [activeTab, hideDoneToday, leads, doneToday]);
+
+  const worklistGrouped = useMemo(() => {
+    if (activeTab !== 'worklist') return null;
+    const groups: Record<CrmWorklistBucket, CrmLead[]> = {
+      stuck: [],
+      warm: [],
+      contacted: [],
+      cold_a: [],
+    };
+    for (const lead of visibleLeads) {
+      const bucket = (lead as CrmLead & { worklist_bucket?: CrmWorklistBucket }).worklist_bucket;
+      if (bucket && groups[bucket]) groups[bucket].push(lead);
+      else if (lead.stage === 'onboarding' || lead.stage === 'trial') groups.stuck.push(lead);
+      else if (lead.stage === 'warm') groups.warm.push(lead);
+      else if (lead.stage === 'contacted') groups.contacted.push(lead);
+      else groups.cold_a.push(lead);
+    }
+    return groups;
+  }, [activeTab, visibleLeads]);
 
   const kpiItems = [
     {
-      key: 'total',
-      label: 'Celkem',
-      value: stats?.total,
-      hint: 'unikátních',
-      dot: 'bg-slate-400',
+      key: 'stuck',
+      label: 'Stuck',
+      value: worklistBuckets?.stuck ?? (stats?.stages?.onboarding || 0) + (stats?.stages?.trial || 0),
+      hint: 'onboard + trial',
+      dot: 'bg-sky-500',
       onClick: () => {
-        setActiveTab('all');
-        setSelectedStage('all');
+        setActiveTab('worklist');
+        setSelectedBucket('stuck');
+        setPage(1);
+      },
+    },
+    {
+      key: 'warm',
+      label: 'Warm',
+      value: worklistBuckets?.warm ?? stats?.stages?.warm,
+      hint: 'v jednání',
+      dot: 'bg-amber-500',
+      onClick: () => {
+        setActiveTab('worklist');
+        setSelectedBucket('warm');
+        setPage(1);
+      },
+    },
+    {
+      key: 'contacted',
+      label: 'Osloveno',
+      value: worklistBuckets?.contacted ?? stats?.stages?.contacted,
+      hint: 's telefonem',
+      dot: 'bg-slate-500',
+      onClick: () => {
+        setActiveTab('worklist');
+        setSelectedBucket('contacted');
+        setPage(1);
+      },
+    },
+    {
+      key: 'cold_a',
+      label: 'Cold A',
+      value: worklistBuckets?.cold_a,
+      hint: '4 verticals',
+      dot: 'bg-emerald-500',
+      onClick: () => {
+        setActiveTab('worklist');
+        setSelectedBucket('cold_a');
         setPage(1);
       },
     },
@@ -355,54 +514,20 @@ export default function AdminCrmView() {
       onClick: () => {
         setActiveTab('pipeline');
         setSelectedStage('won');
+        setSelectedBucket('all');
         setPage(1);
       },
     },
     {
-      key: 'active',
-      label: 'Onboarding',
-      value: (stats?.stages?.onboarding || 0) + (stats?.stages?.trial || 0),
-      hint: 'trial + onboard',
-      dot: 'bg-sky-500',
+      key: 'done',
+      label: 'Dnes hotovo',
+      value: doneToday.size,
+      hint: 'odškrtnuto',
+      dot: 'bg-slate-950',
       onClick: () => {
-        setActiveTab('pipeline');
-        setSelectedStage('onboarding');
-        setPage(1);
-      },
-    },
-    {
-      key: 'warm',
-      label: 'V jednání',
-      value: stats?.stages?.warm,
-      hint: 'warm',
-      dot: 'bg-amber-500',
-      onClick: () => {
-        setActiveTab('pipeline');
-        setSelectedStage('warm');
-        setPage(1);
-      },
-    },
-    {
-      key: 'contacted',
-      label: 'Osloveno',
-      value: stats?.stages?.contacted,
-      hint: 'hovory',
-      dot: 'bg-slate-500',
-      onClick: () => {
-        setActiveTab('pipeline');
-        setSelectedStage('contacted');
-        setPage(1);
-      },
-    },
-    {
-      key: 'firmy',
-      label: 'Firmy.cz',
-      value: stats?.sources?.['Firmy.cz'],
-      hint: 'B2B',
-      dot: 'bg-slate-400',
-      onClick: () => {
-        setActiveTab('firmy');
-        setSelectedStage('all');
+        setActiveTab('worklist');
+        setHideDoneToday(false);
+        setSelectedBucket('all');
         setPage(1);
       },
     },
@@ -427,12 +552,22 @@ export default function AdminCrmView() {
             </span>
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/80 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              {fmt(stats?.pipelineCount)} v pipeline
+              {fmt(
+                (worklistBuckets?.stuck || 0) +
+                  (worklistBuckets?.warm || 0) +
+                  (worklistBuckets?.contacted || 0)
+              )}{' '}
+              k volání (teplé)
             </span>
+            {doneToday.size > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                {doneToday.size} hotovo dnes
+              </span>
+            )}
           </div>
           <h1 className="mt-1.5 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">Sales CRM</h1>
           <p className="mt-0.5 max-w-2xl text-xs text-slate-500">
-            Leadové z Bazoše, Firem.cz a e-shopů — stavy oslovení, trial a uzavřené obchody.
+            Denní GTM fronta: stuck → warm → osloveno → cold A (bazary, elektronika, autodíly, pneu).
           </p>
         </div>
 
@@ -505,7 +640,9 @@ export default function AdminCrmView() {
                 onClick={() => {
                   setActiveTab(tab.id);
                   setSelectedStage('all');
+                  setSelectedBucket('all');
                   setPage(1);
+                  if (tab.id === 'worklist') setViewMode('table');
                 }}
                 className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
                   active
@@ -528,26 +665,28 @@ export default function AdminCrmView() {
           })}
         </div>
 
-        <div className="flex items-center rounded-xl border border-slate-200/90 bg-slate-50 p-1 shadow-2xs">
-          <button
-            type="button"
-            onClick={() => setViewMode('table')}
-            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-              viewMode === 'table' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Tabulka
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('kanban')}
-            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-              viewMode === 'kanban' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Pipeline
-          </button>
-        </div>
+        {activeTab !== 'worklist' && (
+          <div className="flex items-center rounded-xl border border-slate-200/90 bg-slate-50 p-1 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                viewMode === 'table' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Tabulka
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('kanban')}
+              className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                viewMode === 'kanban' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Pipeline
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -558,7 +697,11 @@ export default function AdminCrmView() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Hledat firmu, telefon, e-mail, web, poznámku…"
+            placeholder={
+              activeTab === 'worklist'
+                ? 'Hledat ve frontě — firma, telefon, poznámka…'
+                : 'Hledat firmu, telefon, e-mail, web, poznámku…'
+            }
             className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-10 pr-9 text-xs font-medium text-slate-950 outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 sm:text-sm"
           />
           {search && (
@@ -573,50 +716,99 @@ export default function AdminCrmView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5">
-          <select
-            value={selectedStage}
-            onChange={(e) => {
-              setSelectedStage(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
-          >
-            <option value="all">Všechny stavy</option>
-            {STAGE_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {STAGE_CONFIG[s].label}
-              </option>
-            ))}
-          </select>
+          {activeTab === 'worklist' ? (
+            <>
+              {WORKLIST_BUCKETS.map((b) => {
+                const count =
+                  b.id === 'all'
+                    ? worklistBuckets?.total
+                    : worklistBuckets?.[b.id as CrmWorklistBucket];
+                const active = selectedBucket === b.id;
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedBucket(b.id);
+                      setPage(1);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-all ${
+                      active
+                        ? 'border-slate-900 bg-slate-950 text-white'
+                        : 'border-slate-200/90 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                    title={b.hint}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-white' : b.dot}`} />
+                    {b.label}
+                    {count != null && (
+                      <span className={`tabular-nums ${active ? 'text-slate-300' : 'text-slate-400'}`}>
+                        {fmt(count)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setHideDoneToday((v) => !v)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+                  hideDoneToday
+                    ? 'border-slate-200/90 bg-white text-slate-600'
+                    : 'border-amber-200 bg-amber-50 text-amber-900'
+                }`}
+              >
+                {hideDoneToday ? 'Skrýt hotové' : 'Zobrazit hotové'}
+              </button>
+            </>
+          ) : (
+            <>
+              <select
+                value={selectedStage}
+                onChange={(e) => {
+                  setSelectedStage(e.target.value);
+                  setPage(1);
+                }}
+                className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
+              >
+                <option value="all">Všechny stavy</option>
+                {STAGE_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {STAGE_CONFIG[s].label}
+                  </option>
+                ))}
+              </select>
 
-          <select
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+              <select
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setPage(1);
+                }}
+                className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
 
-          <select
-            value={selectedTier}
-            onChange={(e) => {
-              setSelectedTier(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
-          >
-            <option value="all">Všechny tiery</option>
-            <option value="1">Tier 1</option>
-            <option value="2">Tier 2</option>
-            <option value="3">Tier 3</option>
-          </select>
+              <select
+                value={selectedTier}
+                onChange={(e) => {
+                  setSelectedTier(e.target.value);
+                  setPage(1);
+                }}
+                className="rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5"
+              >
+                <option value="all">Všechny tiery</option>
+                <option value="1">Tier 1</option>
+                <option value="2">Tier 2</option>
+                <option value="3">Tier 3</option>
+              </select>
+            </>
+          )}
 
           {hasFilters && (
             <button
@@ -625,6 +817,7 @@ export default function AdminCrmView() {
                 setSelectedStage('all');
                 setSelectedCategory('all');
                 setSelectedTier('all');
+                setSelectedBucket('all');
                 setSearch('');
                 setPage(1);
               }}
@@ -635,13 +828,32 @@ export default function AdminCrmView() {
           )}
 
           <span className="ml-auto text-[11px] font-medium text-slate-400">
-            {fmt(total)} výsledků
+            {fmt(total)} ve frontě
+            {activeTab === 'worklist' && hideDoneToday && doneToday.size > 0
+              ? ` · −${doneToday.size} hotovo`
+              : ''}
           </span>
         </div>
       </div>
 
-      {/* Content */}
-      {viewMode === 'kanban' ? (
+      {/* Worklist content */}
+      {activeTab === 'worklist' ? (
+        <WorklistBoard
+          loading={loading}
+          grouped={worklistGrouped}
+          selectedBucket={selectedBucket}
+          doneToday={doneToday}
+          copiedPhoneId={copiedPhoneId}
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          onPageChange={setPage}
+          onOpen={handleOpenLead}
+          onCopyPhone={handleCopyPhone}
+          onMarkDone={markDoneToday}
+          onOutcome={handleWorklistOutcome}
+        />
+      ) : viewMode === 'kanban' ? (
         <div className="-mx-1 flex gap-3 overflow-x-auto pb-2">
           {STAGE_ORDER.map((stageKey) => {
             const cfg = STAGE_CONFIG[stageKey];
@@ -1361,6 +1573,308 @@ function PlaybookModal({ onClose }: { onClose: () => void }) {
             className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800 active:scale-95"
           >
             Zavřít
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorklistBoard({
+  loading,
+  grouped,
+  selectedBucket,
+  doneToday,
+  copiedPhoneId,
+  page,
+  totalPages,
+  total,
+  onPageChange,
+  onOpen,
+  onCopyPhone,
+  onMarkDone,
+  onOutcome,
+}: {
+  loading: boolean;
+  grouped: Record<CrmWorklistBucket, CrmLead[]> | null;
+  selectedBucket: CrmWorklistBucket | 'all';
+  doneToday: Set<number>;
+  copiedPhoneId: number | null;
+  page: number;
+  totalPages: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  onOpen: (lead: CrmLead) => void;
+  onCopyPhone: (id: number, phone: string) => void;
+  onMarkDone: (id: number) => void;
+  onOutcome: (id: number, stage: string) => void;
+}) {
+  const sections = WORKLIST_BUCKETS.filter((b) => b.id !== 'all').filter(
+    (b) => selectedBucket === 'all' || selectedBucket === b.id
+  ) as { id: CrmWorklistBucket; label: string; hint: string; dot: string }[];
+
+  if (loading && !grouped) {
+    return (
+      <div className="rounded-2xl border border-slate-200/90 bg-white py-16 text-center text-sm text-slate-500 shadow-2xs">
+        <span className="inline-flex items-center gap-2">
+          <IconRefresh spin className="h-4 w-4" />
+          Sestavuji denní frontu…
+        </span>
+      </div>
+    );
+  }
+
+  const totalVisible = sections.reduce((sum, s) => sum + (grouped?.[s.id]?.length || 0), 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50 to-white p-4 shadow-2xs">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">GTM denní rytmus</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900">
+              Nejdřív stuck → warm → osloveno → teprve cold A
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Po hovoru nastav výsledek (Warm / Trial / Lost) nebo „Hotovo dnes“. CTA: 7denní trial.
+            </p>
+          </div>
+          <div className="text-xs font-medium text-slate-500">
+            Strana {page}/{totalPages || 1} · {fmt(total)} prioritních
+          </div>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="text-center text-xs text-slate-400">
+          <IconRefresh spin className="mr-1 inline h-3.5 w-3.5" />
+          Obnovuji…
+        </div>
+      )}
+
+      {!loading && totalVisible === 0 ? (
+        <div className="rounded-2xl border border-slate-200/90 bg-white py-14 text-center shadow-2xs">
+          <p className="text-sm font-bold text-slate-900">Fronta na dnes je prázdná</p>
+          <p className="mt-1 text-xs text-slate-500">Buď jsou všichni odškrtnutí, nebo zvol jiný bucket.</p>
+        </div>
+      ) : (
+        sections.map((section) => {
+          const items = grouped?.[section.id] || [];
+          if (selectedBucket === 'all' && items.length === 0) return null;
+          return (
+            <section key={section.id} className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${section.dot}`} />
+                  <h3 className="text-sm font-black tracking-tight text-slate-950">{section.label}</h3>
+                  <span className="text-[11px] font-medium text-slate-400">{section.hint}</span>
+                </div>
+                <span className="rounded-full border border-slate-200/80 bg-white px-2 py-0.5 text-[11px] font-bold tabular-nums text-slate-600">
+                  {items.length}
+                </span>
+              </div>
+
+              {items.length === 0 ? (
+                <div className="px-4 py-8 text-center text-xs text-slate-400">Žádné kontakty v tomto bucketu</div>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {items.map((lead, idx) => {
+                    const done = doneToday.has(lead.id);
+                    const cfg = STAGE_CONFIG[lead.stage] || STAGE_CONFIG.lead;
+                    return (
+                      <li
+                        key={lead.id}
+                        className={`px-4 py-3.5 transition-colors ${done ? 'bg-slate-50/80 opacity-60' : 'hover:bg-slate-50/70'}`}
+                      >
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <button
+                            type="button"
+                            onClick={() => onOpen(lead)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] font-bold tabular-nums text-slate-300">
+                                #{(page - 1) * 60 + idx + 1}
+                              </span>
+                              <span className="truncate text-sm font-bold text-slate-950">
+                                {lead.company_name || lead.name}
+                              </span>
+                              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${cfg.badge}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                                {cfg.label}
+                              </span>
+                              {lead.tier === 1 && (
+                                <span className="rounded-md border border-amber-200/80 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+                                  T1
+                                </span>
+                              )}
+                              {done && (
+                                <span className="rounded-md bg-slate-200 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">
+                                  Hotovo
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                              {[lead.contact_person, lead.category, lead.source, lead.location]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </p>
+                            {(lead.response || lead.notes) && (
+                              <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-slate-600">
+                                {lead.response && (
+                                  <span className="mr-1 font-semibold text-slate-900">{lead.response}</span>
+                                )}
+                                {lead.notes}
+                              </p>
+                            )}
+                          </button>
+
+                          <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                            {lead.phone && (
+                              <>
+                                <a
+                                  href={`tel:${lead.phone}`}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-bold text-white shadow-xs transition hover:bg-slate-800 active:scale-95"
+                                >
+                                  <IconPhone />
+                                  {lead.phone}
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => onCopyPhone(lead.id, lead.phone!)}
+                                  className="rounded-xl border border-slate-200/90 bg-white p-2 text-slate-500 transition hover:bg-slate-50"
+                                  title="Kopírovat"
+                                >
+                                  {copiedPhoneId === lead.id ? (
+                                    <span className="text-[10px] font-bold text-emerald-600">OK</span>
+                                  ) : (
+                                    <IconCopy />
+                                  )}
+                                </button>
+                              </>
+                            )}
+                            {lead.bazos_url && (
+                              <a
+                                href={lead.bazos_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 rounded-xl border border-slate-200/90 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50"
+                              >
+                                Bazoš <IconExternal />
+                              </a>
+                            )}
+
+                            {section.id === 'stuck' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => onOutcome(lead.id, 'won')}
+                                  className="rounded-xl border border-emerald-200/80 bg-emerald-50 px-2.5 py-2 text-[11px] font-bold text-emerald-800 transition hover:bg-emerald-100"
+                                >
+                                  Won
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onOutcome(lead.id, 'lost')}
+                                  className="rounded-xl border border-rose-200/80 bg-rose-50 px-2.5 py-2 text-[11px] font-bold text-rose-700 transition hover:bg-rose-100"
+                                >
+                                  Lost
+                                </button>
+                              </>
+                            )}
+                            {section.id === 'warm' && (
+                              <button
+                                type="button"
+                                onClick={() => onOutcome(lead.id, 'onboarding')}
+                                className="rounded-xl border border-sky-200/80 bg-sky-50 px-2.5 py-2 text-[11px] font-bold text-sky-800 transition hover:bg-sky-100"
+                              >
+                                Onboard
+                              </button>
+                            )}
+                            {section.id === 'contacted' && (
+                              <button
+                                type="button"
+                                onClick={() => onOutcome(lead.id, 'warm')}
+                                className="rounded-xl border border-amber-200/80 bg-amber-50 px-2.5 py-2 text-[11px] font-bold text-amber-900 transition hover:bg-amber-100"
+                              >
+                                Warm
+                              </button>
+                            )}
+                            {section.id === 'cold_a' && (
+                              <button
+                                type="button"
+                                onClick={() => onOutcome(lead.id, 'contacted')}
+                                className="rounded-xl border border-slate-200/90 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"
+                              >
+                                Osloveno
+                              </button>
+                            )}
+                            {(section.id === 'warm' || section.id === 'contacted' || section.id === 'cold_a') && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => onOutcome(lead.id, 'trial')}
+                                  className="rounded-xl border border-violet-200/80 bg-violet-50 px-2.5 py-2 text-[11px] font-bold text-violet-800 transition hover:bg-violet-100"
+                                >
+                                  Trial
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onOutcome(lead.id, 'lost')}
+                                  className="rounded-xl border border-rose-200/80 bg-rose-50 px-2.5 py-2 text-[11px] font-bold text-rose-700 transition hover:bg-rose-100"
+                                >
+                                  Lost
+                                </button>
+                              </>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => onMarkDone(lead.id)}
+                              disabled={done}
+                              className="rounded-xl border border-slate-200/90 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+                            >
+                              Hotovo dnes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onOpen(lead)}
+                              className="rounded-xl border border-slate-200/90 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Detail
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          );
+        })
+      )}
+
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-slate-500">
+          {totalVisible} zobrazeno · {fmt(total)} celkem ve frontě
+        </span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={page <= 1 || loading}
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            className="rounded-xl border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-40"
+          >
+            Předchozí
+          </button>
+          <button
+            type="button"
+            disabled={page >= totalPages || loading}
+            onClick={() => onPageChange(page + 1)}
+            className="rounded-xl border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-40"
+          >
+            Další
           </button>
         </div>
       </div>

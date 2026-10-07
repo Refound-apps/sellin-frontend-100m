@@ -322,4 +322,18 @@ export interface CrmStats {
   sources: Record<string, number>;
 }
 
+export type CrmWorklistBucket = 'stuck' | 'warm' | 'contacted' | 'cold_a';
+
+export interface CrmWorklistBuckets {
+  stuck: number;
+  warm: number;
+  contacted: number;
+  cold_a: number;
+  total: number;
+}
+
+export interface CrmWorklistLead extends CrmLead {
+  worklist_bucket?: CrmWorklistBucket;
+}
+
 

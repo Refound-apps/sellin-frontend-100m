@@ -1106,11 +1106,12 @@ export async function getAdminErrorScreenshots(params?: {
 export interface GetCrmLeadsParams {
   page?: number;
   limit?: number;
-  tab?: 'pipeline' | 'firmy' | 'bazos' | 'eshop' | 'all';
+  tab?: 'worklist' | 'pipeline' | 'firmy' | 'bazos' | 'eshop' | 'all';
   stage?: string;
   category?: string;
   source?: string;
   tier?: string | number;
+  bucket?: string;
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
@@ -1123,6 +1124,13 @@ export interface GetCrmLeadsResponse {
   limit: number;
   totalPages: number;
   stats: CrmStats | null;
+  worklistBuckets?: {
+    stuck: number;
+    warm: number;
+    contacted: number;
+    cold_a: number;
+    total: number;
+  } | null;
 }
 
 export async function getCrmLeads(params?: GetCrmLeadsParams): Promise<GetCrmLeadsResponse> {
@@ -1134,6 +1142,7 @@ export async function getCrmLeads(params?: GetCrmLeadsParams): Promise<GetCrmLea
   if (params?.category) qs.set('category', params.category);
   if (params?.source) qs.set('source', params.source);
   if (params?.tier) qs.set('tier', String(params.tier));
+  if (params?.bucket) qs.set('bucket', params.bucket);
   if (params?.search) qs.set('search', params.search);
   if (params?.sortBy) qs.set('sortBy', params.sortBy);
   if (params?.sortOrder) qs.set('sortOrder', params.sortOrder);

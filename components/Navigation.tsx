@@ -5,6 +5,18 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+/** Session cookie — bez `seller` middleware přesměruje admina z `/` na `/admin/offers`. */
+const ADMIN_VIEW_COOKIE = 'prodejomat_admin_view';
+
+function setAdminViewPreference(view: 'seller' | 'admin') {
+  if (typeof document === 'undefined') return;
+  if (view === 'seller') {
+    document.cookie = `${ADMIN_VIEW_COOKIE}=seller; path=/; SameSite=Lax`;
+  } else {
+    document.cookie = `${ADMIN_VIEW_COOKIE}=; path=/; Max-Age=0; SameSite=Lax`;
+  }
+}
+
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
@@ -78,7 +90,20 @@ export default function Navigation() {
     setMobileOpen(false);
   }, [pathname]);
 
+  // Admin už je v prodejcovské appce (např. /create) → zapamatovat volbu, ať `/` nevrací do admina
+  useEffect(() => {
+    if (role !== 'admin') return;
+    if (pathname.startsWith('/admin') || pathname.startsWith('/login') || pathname.startsWith('/shop')) {
+      return;
+    }
+    const sellerPaths = ['/', '/create', '/accounts', '/rezervace', '/eshop'];
+    if (sellerPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+      setAdminViewPreference('seller');
+    }
+  }, [role, pathname]);
+
   const handleLogout = async () => {
+    setAdminViewPreference('admin');
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
@@ -216,12 +241,14 @@ export default function Navigation() {
             >
               <Link
                 href="/"
+                onClick={() => setAdminViewPreference('seller')}
                 className="flex-1 rounded-md px-2 py-1.5 text-center font-medium text-slate-500 transition hover:text-slate-900"
               >
                 Prodejce
               </Link>
               <Link
                 href="/admin/offers"
+                onClick={() => setAdminViewPreference('admin')}
                 className="flex-1 rounded-md bg-white px-2 py-1.5 text-center font-semibold text-slate-950 shadow-2xs"
               >
                 Admin
@@ -363,6 +390,7 @@ export default function Navigation() {
                 <Link
                   href="/"
                   title="Přepnout do portálu prodejce"
+                  onClick={() => setAdminViewPreference('seller')}
                   className={`rounded-md px-2.5 py-1 font-medium transition-all ${
                     !isAdminSection
                       ? 'bg-white text-slate-950 font-semibold shadow-2xs'
@@ -374,6 +402,7 @@ export default function Navigation() {
                 <Link
                   href="/admin/offers"
                   title="Přepnout do administrace"
+                  onClick={() => setAdminViewPreference('admin')}
                   className={`rounded-md px-2.5 py-1 font-medium transition-all ${
                     isAdminSection
                       ? 'bg-white text-slate-950 font-semibold shadow-2xs'
@@ -433,6 +462,7 @@ export default function Navigation() {
             {role === 'admin' && (
               <Link
                 href="/admin/offers"
+                onClick={() => setAdminViewPreference('admin')}
                 className="shrink-0 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-900 shadow-2xs mr-1"
               >
                 ↔ Přepnout na Admin

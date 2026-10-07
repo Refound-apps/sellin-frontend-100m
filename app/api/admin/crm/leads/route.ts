@@ -11,11 +11,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(200, Math.max(10, parseInt(searchParams.get('limit') || '50', 10)));
-    const tab = searchParams.get('tab') || 'pipeline';
+    const tab = searchParams.get('tab') || 'worklist';
     const stage = searchParams.get('stage') || 'all';
     const category = searchParams.get('category') || 'all';
     const source = searchParams.get('source') || 'all';
     const tier = searchParams.get('tier') || 'all';
+    const bucket = searchParams.get('bucket') || 'all';
     const search = searchParams.get('search')?.trim() || '';
     const sortBy = searchParams.get('sortBy') || (tab === 'pipeline' ? 'stage_prio' : 'id');
     const sortOrder = searchParams.get('sortOrder') === 'desc';
@@ -24,6 +25,51 @@ export async function GET(request: Request) {
 
     // 1. Stats query (fast RPC)
     const { data: statsData } = await supabase.rpc('get_crm_stats');
+
+    // Daily GTM worklist — prioritized call queue
+    if (tab === 'worklist') {
+      const from = (page - 1) * limit;
+      const { data: worklistRaw, error: worklistError } = await supabase.rpc('get_crm_daily_worklist', {
+        p_limit: limit,
+        p_offset: from,
+        p_bucket: bucket !== 'all' ? bucket : null,
+        p_search: search || null,
+      });
+
+      if (worklistError) {
+        console.error('Error fetching CRM worklist:', worklistError);
+        return NextResponse.json({ error: worklistError.message }, { status: 500 });
+      }
+
+      const payload = (worklistRaw || {}) as {
+        leads?: unknown[];
+        total?: number;
+        buckets?: {
+          stuck?: number;
+          warm?: number;
+          contacted?: number;
+          cold_a?: number;
+          total?: number;
+        };
+      };
+      const total = payload.total ?? 0;
+
+      return NextResponse.json({
+        leads: payload.leads || [],
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+        stats: statsData || null,
+        worklistBuckets: {
+          stuck: payload.buckets?.stuck ?? 0,
+          warm: payload.buckets?.warm ?? 0,
+          contacted: payload.buckets?.contacted ?? 0,
+          cold_a: payload.buckets?.cold_a ?? 0,
+          total: payload.buckets?.total ?? total,
+        },
+      });
+    }
 
     // 2. Build leads query
     let query = supabase.from('crm_leads').select('*', { count: 'exact' });

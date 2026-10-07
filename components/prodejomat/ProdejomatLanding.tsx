@@ -1,385 +1,654 @@
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 
 interface ProdejomatLandingProps {
   user?: { email?: string; id?: string } | null;
 }
 
+const PRICING = [
+  {
+    id: 'start',
+    name: 'Start',
+    price: '1 990',
+    hint: 'do ~50 nabídek',
+    description: 'Pro menší objem. Bazoš, obnova, základní sklad.',
+    features: ['Bazoš (+ Sbazar)', 'Automatická obnova', 'Centrální sklad', 'E-mail podpora'],
+    highlighted: false,
+  },
+  {
+    id: 'profi',
+    name: 'Profi',
+    price: '4 990',
+    hint: 'do ~250 nabídek',
+    description: 'Pro pneuservisy a střední vrakoviště. Multi-kanál + e-shop.',
+    features: [
+      'Vše ze Startu',
+      'Bazoš, Sbazar i e-shop',
+      'Vlastní e-shop',
+      'Prioritní obnova',
+    ],
+    highlighted: true,
+  },
+  {
+    id: 'firma',
+    name: 'Firma',
+    price: '9 990',
+    hint: 'vysoký objem',
+    description: 'Pro velké sklady. Více účtů, onboarding a priorita podpory.',
+    features: [
+      'Vše z Profi',
+      'Více účtů (CZ/SK)',
+      'Záložní napojení kanálů',
+      'Onboarding + priorita podpory',
+    ],
+    highlighted: false,
+  },
+] as const;
+
+const PAINS = [
+  {
+    pain: 'Inzeráty za pár dní zmizí z očí',
+    title: 'Pořád vás najdou',
+    body: 'Obnova na Bazoši a Sbazaru běží sama. Vy berete telefony, ne klikáte obnovit.',
+    icon: 'eye' as const,
+  },
+  {
+    pain: 'Stejné zboží přepisujete na 3 místech',
+    title: 'Jednou naskladnit, prodat všude',
+    body: 'Sklad je jedna pravda. Bazoš, Sbazar, e-shop, Google i Seznam berou ze stejného místa.',
+    icon: 'layers' as const,
+  },
+  {
+    pain: 'Prodáno tady — pořád visí jinde',
+    title: 'Prodej = stažení všude',
+    body: 'Žádné dvojprodeje, žádné trapné hovory. Sklad se synchronizuje sám.',
+    icon: 'sync' as const,
+  },
+  {
+    pain: 'Celý prodej visí na jednom portálu',
+    title: 'Sklad a e-shop jsou vaše',
+    body: 'Portály jsou trubky. Nabídky, fotky a ceny držíte u sebe — a prodáváte na víc místech.',
+    icon: 'shield' as const,
+  },
+] as const;
+
+function PainIcon({ name }: { name: (typeof PAINS)[number]['icon'] }) {
+  const common = 'h-5 w-5';
+  switch (name) {
+    case 'eye':
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.8}
+            d="M2.5 12S6.5 5.5 12 5.5 21.5 12 21.5 12 17.5 18.5 12 18.5 2.5 12 2.5 12Z"
+          />
+          <circle cx="12" cy="12" r="2.8" strokeWidth={1.8} />
+        </svg>
+      );
+    case 'layers':
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.8}
+            d="m12 4 8 4.5L12 13 4 8.5 12 4Zm-8 7.5 8 4.5 8-4.5M4 16l8 4.5L20 16"
+          />
+        </svg>
+      );
+    case 'sync':
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.8}
+            d="M4.5 12a7.5 7.5 0 0 1 12.6-5.5L19 8.5M19.5 12a7.5 7.5 0 0 1-12.6 5.5L5 15.5"
+          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 4.5v4h-4M5 19.5v-4h4" />
+        </svg>
+      );
+    case 'shield':
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.8}
+            d="M12 3.5 5 6.5v5c0 4.5 2.9 7.8 7 9.5 4.1-1.7 7-5 7-9.5v-5l-7-3Z"
+          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m9.5 12 1.8 1.8 3.7-3.8" />
+        </svg>
+      );
+  }
+}
+
+const PILLARS = [
+  {
+    title: 'Autopilot na Bazoš a Sbazar',
+    body: 'Inzeráty po pár dnech zapadnou. Prodejomat je obnovuje, abyste byli pořád vidět — a zboží se točilo.',
+    tag: 'Méně dřiny, víc prodejů',
+  },
+  {
+    title: 'Vlastní e-shop bez další práce',
+    body: 'Ze skladu vznikne storefront na vaší doméně. Vlastní kanál a značka — ne jen cizí portál.',
+    tag: 'Váš sklad, vaše značka',
+  },
+  {
+    title: 'Jeden sklad, nula chaosu',
+    body: 'Prodali jste na Bazoši? Prodejomat stáhne položku z e-shopu i Sbazaru. Žádné dvojprodeje.',
+    tag: '0 duplicitních prodejů',
+  },
+] as const;
+
+function CheckIcon({ className = 'h-4 w-4 text-emerald-500' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+function ChannelIcon({ name }: { name: string }) {
+  const className = 'h-3.5 w-3.5 shrink-0';
+  switch (name) {
+    case 'Bazoš':
+      // Oficiální značka Bazoš: oranžové @) na černém pozadí
+      return (
+        <span className="inline-flex h-3.5 w-[1.15rem] shrink-0 items-center justify-center rounded-[3px] bg-black px-px">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/bazos.png"
+            alt=""
+            width={16}
+            height={12}
+            className="h-3 w-[0.95rem] object-contain"
+          />
+        </span>
+      );
+    case 'Sbazar':
+      // Oficiální značka Sbazar: červené stylizované s
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/brand/sbazar.png"
+          alt=""
+          width={14}
+          height={14}
+          className="h-3.5 w-3.5 shrink-0 object-contain"
+        />
+      );
+    case 'E-shop':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect width="24" height="24" rx="5" fill="#34d399" />
+          <path
+            d="M7 9h10l-1 8H8L7 9Zm2.5-2.5a2.5 2.5 0 0 1 5 0"
+            stroke="#064e3b"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case 'Google':
+      return (
+        <svg className={className} viewBox="0 0 24 24" aria-hidden>
+          <path
+            fill="#4285F4"
+            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z"
+          />
+          <path
+            fill="#34A853"
+            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23Z"
+          />
+          <path
+            fill="#FBBC05"
+            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62Z"
+          />
+          <path
+            fill="#EA4335"
+            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53Z"
+          />
+        </svg>
+      );
+    case 'Seznam':
+      return (
+        <svg className={className} viewBox="0 0 24 24" aria-hidden>
+          <rect width="24" height="24" rx="5" fill="#CC0000" />
+          <path
+            fill="#fff"
+            d="M7.2 8.2c1.6-1.3 3.8-1.5 5.2-.4.7.6.7 1.5.1 2-.6.5-1.4.4-2-.1-.6-.5-1.5-.5-2.1.1-.5.5-.4 1.3.2 1.7l3.6 2.4c1.8 1.2 1.7 3.7-.3 4.7-1.8 1-4.2.5-5.5-1.1l1.5-1.2c.8 1 2.2 1.2 3.1.7.7-.4.7-1.2.1-1.6L8.1 13c-1.9-1.3-1.8-3.9.1-5.3.3-.2.6-.4 1-.5Z"
+          />
+        </svg>
+      );
+    case 'ChatGPT':
+      return (
+        <svg className={className} viewBox="0 0 24 24" aria-hidden>
+          <rect width="24" height="24" rx="5" fill="#10a37f" />
+          <path
+            fill="#fff"
+            d="M12.4 5.2c.9-.5 2-.5 2.9 0l2.2 1.3c.9.5 1.4 1.4 1.4 2.4v2.5c0 .3-.1.5-.2.7l-2.1-1.2V9c0-.3-.2-.6-.4-.8l-2.2-1.3c-.3-.1-.5-.1-.8 0L10.9 8l-1.3-.8 2.2-1.3c.2-.1.4-.1.6 0Zm-5.6 3c0-.9.5-1.8 1.4-2.3l2.1 1.2-.1.1c-.3.1-.4.4-.4.7v2.5c0 .3.2.6.4.8l2.2 1.3c.2.1.5.1.8 0l2.1-1.2 1.3.8-2.2 1.2c-.9.5-2 .5-2.9 0L8.2 12c-.9-.5-1.4-1.4-1.4-2.4V8.2Zm5.4 8.6c-.3.1-.5.1-.8 0l-2.2-1.3c-.3-.1-.4-.4-.4-.8v-2.4l-1.3-.7v2.4c0 1 .5 1.9 1.4 2.4l2.2 1.3c.9.5 2 .5 2.9 0l2.1-1.2-1.3-.8-2.1 1.2c-.2 0-.4.1-.5.1Zm6.2-3.5c.9-.5 1.4-1.4 1.4-2.4V9.4l-1.3.8v2.5c0 .3-.2.6-.4.8l-2.2 1.3c-.2.1-.5.1-.8 0l-2.1-1.2-1.3.8 2.2 1.2c.9.5 2 .5 2.9 0l2.2-1.3c.3-.1.4-.2.4-.4Z"
+          />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+const CHANNELS = ['Bazoš', 'Sbazar', 'E-shop', 'Google', 'Seznam', 'ChatGPT'] as const;
+
+function SectionEyebrow({ children, light = false }: { children: ReactNode; light?: boolean }) {
+  return (
+    <p
+      className={[
+        'text-[11px] font-bold uppercase tracking-[0.2em]',
+        light ? 'text-emerald-400' : 'text-emerald-600',
+      ].join(' ')}
+    >
+      {children}
+    </p>
+  );
+}
+
 export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
   const ctaHref = user ? '/' : '/login';
-  const ctaText = user ? 'Přejít do aplikace' : 'Vstoupit do aplikace';
+  const ctaText = user ? 'Přejít do aplikace' : 'Začít točit sklad';
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[hsl(210_28%_97%)] text-slate-900 selection:bg-emerald-500/20 selection:text-emerald-950">
-      {/* Ambientní podsvícení inspirované loginem (Apple/Spotify glow) */}
-      <div className="pointer-events-none absolute -top-48 left-1/2 -z-10 h-[36rem] w-[50rem] -translate-x-1/2 rounded-full bg-gradient-to-b from-emerald-500/12 via-teal-500/8 to-transparent blur-3xl" />
-      <div className="pointer-events-none absolute top-[38rem] -right-40 -z-10 h-[30rem] w-[30rem] rounded-full bg-slate-400/10 blur-3xl" />
-      <div className="pointer-events-none absolute top-[70rem] -left-40 -z-10 h-[32rem] w-[32rem] rounded-full bg-emerald-500/8 blur-3xl" />
+    <div className="relative min-h-screen overflow-hidden bg-[#f6f7f8] text-slate-900 selection:bg-emerald-500/20 selection:text-emerald-950">
+      <div className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[34rem] w-[48rem] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute top-[42rem] -right-32 -z-10 h-[28rem] w-[28rem] rounded-full bg-slate-300/20 blur-3xl" />
 
-      {/* --- HERO SECTION --- */}
-      <section className="relative mx-auto max-w-6xl px-4 pt-12 pb-16 sm:px-6 sm:pt-20 sm:pb-24 lg:px-8 text-center">
-        {/* Status Pill s pulzující tečkou */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/90 px-4 py-1.5 text-xs font-semibold text-slate-800 shadow-xs backdrop-blur-md transition hover:border-slate-300">
+      {/* Top bar */}
+      <header className="relative mx-auto flex max-w-5xl items-center justify-between px-4 pt-6 sm:px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-950 text-xs font-black text-white">
+            P
+          </span>
+          <span className="text-base font-black tracking-tight text-slate-950">
+            Prodej<span className="text-emerald-600">omat</span>
+            <span className="text-[10px] font-bold text-slate-400">.cz</span>
+          </span>
+        </Link>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href="#cenik"
+            className="hidden text-sm font-semibold text-slate-500 transition hover:text-slate-950 sm:inline"
+          >
+            Ceník
+          </Link>
+          <Link
+            href={user ? '/' : '/login'}
+            className="rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
+          >
+            {user ? 'Aplikace' : 'Přihlášení'}
+          </Link>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section className="relative mx-auto max-w-5xl px-4 pb-14 pt-14 text-center sm:px-6 sm:pb-16 sm:pt-20 lg:px-8">
+        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-4 py-1.5 text-xs font-semibold text-slate-700 shadow-xs">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="tracking-wide">Autopilot pro prodejce • Bazoš, Sbazar a vlastní e-shop</span>
+          Automat, co ti točí zboží
         </div>
 
-        {/* Úderný Apple H1 Headline se slovem PRODEJ */}
-        <h1 className="mt-8 text-4xl font-extrabold tracking-tight text-slate-950 sm:text-6xl sm:leading-[1.1] lg:text-7xl">
-          Prodej na autopilotu.{' '}
-          <span className="block mt-2 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">
-            Nahrajte jednou. Prodejte všude.
+        <h1 className="mt-7 text-4xl font-extrabold tracking-tight text-slate-950 sm:text-6xl sm:leading-[1.08]">
+          Prodáte víc a rychleji.
+          <span className="mt-2 block bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">
+            Zboží se točí.
           </span>
         </h1>
 
-        {/* Intuitivní a čistý podtitul */}
-        <p className="mx-auto mt-6 max-w-2xl text-base text-slate-600 sm:text-lg sm:leading-relaxed">
-          Centrální sklad pro Bazoš, Sbazar i váš vlastní e-shop. Prodejomat se postará o okamžité
-          vystavení, automatickou obnovu inzerátů a synchronizaci skladu, abyste prodávali víc a bez starostí.
+        <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+          Jednou naskladníte — Prodejomat vás prodává na Bazoši, Sbazaru, e-shopu i dál.
+          Pořád vás najdou. Vy jen vyřizujete poptávky.
         </p>
 
-        {/* CTA tlačítka (Spotify + Apple styl) */}
-        <div className="mt-10 flex flex-col items-center justify-center gap-3.5 sm:flex-row sm:gap-4">
+        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-3.5">
           <Link
             href={ctaHref}
-            className="group relative inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 px-8 py-4 text-base font-bold text-white shadow-[0_12px_28px_-6px_rgba(15,23,42,0.4),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-white/15 transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_16px_32px_-6px_rgba(15,23,42,0.45)] active:scale-[0.98] sm:w-auto"
+            className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-[0_12px_28px_-8px_rgba(16,185,129,0.55)] transition hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] sm:w-auto"
           >
-            {/* Subtilní horní světelná linka (sheen) */}
-            <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
             <span>{ctaText}</span>
-            <span className="transition-transform duration-200 group-hover:translate-x-1 text-emerald-400">→</span>
+            <span className="transition-transform group-hover:translate-x-0.5">→</span>
           </Link>
+          <Link
+            href="#cenik"
+            className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-7 py-3.5 text-base font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] sm:w-auto"
+          >
+            Zobrazit ceník
+          </Link>
+        </div>
 
-          {!user && (
-            <Link
-              href="/login"
-              className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200/90 bg-white/90 px-7 py-4 text-base font-semibold text-slate-800 shadow-2xs backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-slate-950 hover:border-slate-300 active:scale-[0.98] sm:w-auto"
-            >
-              Přihlásit se do účtu
-            </Link>
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
+          {['Pořád vidět na Bazoši', 'Jednou nahrát, prodat všude', 'Rychlejší obrátka skladu'].map(
+            (item) => (
+              <span key={item} className="inline-flex items-center gap-1.5">
+                <CheckIcon />
+                {item}
+              </span>
+            )
           )}
         </div>
+      </section>
 
-        {/* Drobné garance v řádku */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-semibold text-slate-400">
-          <span className="flex items-center gap-1.5">
-            <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
-            Během 2 minut v provozu
-          </span>
-          <span className="flex items-center gap-1.5">
-            <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
-            Plně automatická obnova
-          </span>
-          <span className="flex items-center gap-1.5">
-            <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
-            0 duplicit ve skladu
-          </span>
+      {/* Flow diagram */}
+      <section
+        className="relative mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8"
+        aria-label="Jak Prodejomat funguje"
+      >
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#1a1a1a] via-slate-950 to-black px-6 py-10 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] sm:px-12 sm:py-12">
+          <div className="pointer-events-none absolute inset-x-16 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent" />
+          <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-emerald-500/15 blur-3xl" />
+
+          <div className="relative mx-auto max-w-xl text-center">
+            <SectionEyebrow light>Takto jednoduché to je</SectionEyebrow>
+            <p className="mt-2 text-xl font-bold tracking-tight text-white sm:text-2xl">
+              Jednou nahrát → prodat všude
+            </p>
+          </div>
+
+          <div className="relative mx-auto mt-10 grid max-w-4xl grid-cols-1 items-center gap-4 sm:mt-12 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:gap-3 lg:gap-5">
+            <div className="flex h-full flex-col items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-6 text-center sm:min-h-[17.5rem] sm:justify-between sm:px-5 sm:py-7">
+              <div className="flex flex-col items-center">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-black text-black">
+                  1
+                </span>
+                <p className="mt-3 text-[15px] font-bold text-white">Nahrajete zboží</p>
+              </div>
+              <div className="my-5 w-full max-w-[12.5rem] rounded-2xl border border-white/10 bg-black/30 px-4 py-3.5 text-left">
+                <p className="text-sm font-semibold text-white">Zimní pneu 205/55</p>
+                <p className="mt-1 text-sm font-bold text-emerald-400">3 800 Kč</p>
+              </div>
+              <p className="text-xs font-medium text-slate-400">Jednou do skladu</p>
+            </div>
+
+            <div className="flex items-center justify-center text-emerald-400" aria-hidden>
+              <span className="rotate-90 text-2xl font-light leading-none sm:rotate-0">→</span>
+            </div>
+
+            <div className="flex h-full flex-col items-center rounded-2xl border border-emerald-400/25 bg-emerald-500/[0.08] px-4 py-6 text-center shadow-[0_0_40px_-12px_rgba(52,211,153,0.45)] ring-1 ring-emerald-400/15 sm:min-h-[17.5rem] sm:justify-between sm:px-5 sm:py-7">
+              <div className="flex flex-col items-center">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400 text-sm font-black text-black shadow-[0_0_24px_rgba(52,211,153,0.55)]">
+                  2
+                </span>
+                <p className="mt-3 text-[15px] font-bold text-white">Prodejomat to rozjede</p>
+              </div>
+              <div className="my-5 flex w-full max-w-[12.5rem] flex-col gap-2">
+                {['vystaví inzeráty', 'obnovuje je samo', 'stáhne po prodeji'].map((line) => (
+                  <p
+                    key={line}
+                    className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-center text-sm font-semibold text-emerald-100"
+                  >
+                    {line}
+                  </p>
+                ))}
+              </div>
+              <p className="text-xs font-medium text-emerald-300/80">Bez ruční dřiny</p>
+            </div>
+
+            <div className="flex items-center justify-center text-emerald-400" aria-hidden>
+              <span className="rotate-90 text-2xl font-light leading-none sm:rotate-0">→</span>
+            </div>
+
+            <div className="flex h-full flex-col items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-6 text-center sm:min-h-[17.5rem] sm:justify-between sm:px-5 sm:py-7">
+              <div className="flex flex-col items-center">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-black text-black">
+                  3
+                </span>
+                <p className="mt-3 text-[15px] font-bold text-white">Prodáváte všude</p>
+              </div>
+              <div className="my-5 grid w-full max-w-[14rem] grid-cols-2 gap-1.5">
+                {CHANNELS.map((channel) => (
+                  <div
+                    key={channel}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-2 py-2 text-[12px] font-semibold text-white"
+                  >
+                    <ChannelIcon name={channel} />
+                    <span>{channel}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs font-medium text-slate-400">Vy jen berete poptávky</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* --- LIVE SHOWCASE ENGINE (Spotify / Apple Studio Window) --- */}
-      <section className="relative mx-auto max-w-5xl px-4 pb-20 sm:px-6 lg:px-8">
-        <div className="relative rounded-3xl border border-slate-800/80 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_30px_70px_-15px_rgba(15,23,42,0.5),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl sm:p-5">
-          {/* Záře na hraně okna */}
-          <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
+      {/* Pain → killer */}
+      <section id="vysledek" className="relative mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <SectionEyebrow>Pro vrakoviště, autodíly, pneu</SectionEyebrow>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+            Znáte to. My to řešíme.
+          </h2>
+          <p className="mt-3 text-base text-slate-600">Ne marketing. Rychlejší obrátka skladu.</p>
+        </div>
 
-          {/* Horní ovládací lišta okna */}
-          <div className="flex items-center justify-between border-b border-slate-800/80 px-3 pb-3 text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="h-3 w-3 rounded-full bg-red-500/80" />
-              <div className="h-3 w-3 rounded-full bg-amber-500/80" />
-              <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
-            </div>
-            <div className="flex items-center gap-2 rounded-lg bg-slate-800/70 px-3 py-1 text-[11px] font-mono text-slate-300 ring-1 ring-white/10">
-              <span className="text-emerald-400">●</span>
-              <span>app.prodejomat.cz</span>
-            </div>
-            <div className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Autopilot aktivní
-            </div>
-          </div>
-
-          {/* Třísloupcový vizuální diagram synchronizace */}
-          <div className="grid grid-cols-1 gap-4 pt-4 sm:grid-cols-3">
-            {/* Sloupec 1: Centrální sklad */}
-            <div className="rounded-2xl border border-slate-800/70 bg-slate-900/60 p-4">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                <span>Centrální sklad</span>
-                <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">1× nahráno</span>
-              </div>
-              <div className="mt-3 space-y-2.5">
-                <div className="rounded-xl border border-slate-700/60 bg-slate-850 p-2.5 text-xs">
-                  <div className="font-semibold text-white">Sada ALU kol Škoda R18</div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="font-bold text-emerald-400">14 900 Kč</span>
-                    <span className="text-slate-500">1 sada</span>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-700/60 bg-slate-850 p-2.5 text-xs">
-                  <div className="font-semibold text-white">Zimní pneu Barum 205/55</div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="font-bold text-emerald-400">3 800 Kč</span>
-                    <span className="text-slate-500">4 ks</span>
-                  </div>
-                </div>
-              </div>
-              <p className="mt-3 text-[11px] text-slate-500">
-                Fotky, rozměry a ceny spravujete pouze na jednom místě.
-              </p>
-            </div>
-
-            {/* Sloupec 2: Prodejomat Autopilot Engine */}
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 relative overflow-hidden flex flex-col justify-between">
-              <div className="pointer-events-none absolute -top-12 -right-12 h-28 w-28 rounded-full bg-emerald-500/10 blur-xl" />
-              <div>
-                <div className="flex items-center justify-between text-xs font-bold text-emerald-400">
-                  <span>Prodejomat Engine</span>
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                </div>
-                <div className="mt-3 space-y-2 text-xs">
-                  <div className="flex items-center gap-2 rounded-lg bg-emerald-900/30 px-2.5 py-2 text-slate-200 border border-emerald-500/20">
-                    <span className="text-emerald-400">⚡</span>
-                    <span className="text-[11px]">Auto obnova Bazoš &amp; Sbazar</span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-lg bg-emerald-900/30 px-2.5 py-2 text-slate-200 border border-emerald-500/20">
-                    <span className="text-emerald-400">🔄</span>
-                    <span className="text-[11px]">Stažení položky při prodeji</span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-lg bg-emerald-900/30 px-2.5 py-2 text-slate-200 border border-emerald-500/20">
-                    <span className="text-emerald-400">🤖</span>
-                    <span className="text-[11px]">AI rozpad parametrů &amp; SEO</span>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 rounded-lg bg-slate-900/80 p-2 text-center text-[10px] font-semibold text-emerald-300 border border-emerald-500/30">
-                100% automatizováno na pozadí
-              </div>
-            </div>
-
-            {/* Sloupec 3: Propojené kanály */}
-            <div className="rounded-2xl border border-slate-800/70 bg-slate-900/60 p-4">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                <span>Aktivní kanály</span>
-                <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
-                  Synchronizováno
+        <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+          {PAINS.map((item) => (
+            <div
+              key={item.title}
+              className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_12px_32px_-18px_rgba(15,23,42,0.12)] sm:p-7"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.pain}</p>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                  <PainIcon name={item.icon} />
                 </span>
               </div>
-              <div className="mt-3 space-y-2 text-xs">
-                <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/90 p-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">🏷️</span>
-                    <div>
-                      <div className="font-semibold text-white text-[11px]">Bazoš.cz</div>
-                      <div className="text-[10px] text-emerald-400">Topováno &amp; obnoveno</div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-slate-500">Aktivní</span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/90 p-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">🛒</span>
-                    <div>
-                      <div className="font-semibold text-white text-[11px]">Sbazar.cz</div>
-                      <div className="text-[10px] text-emerald-400">Topováno</div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-slate-500">Aktivní</span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/90 p-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">🛍️</span>
-                    <div>
-                      <div className="font-semibold text-white text-[11px]">Vlastní e-shop</div>
-                      <div className="text-[10px] text-emerald-400">můj-eshop.cz</div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-slate-500">Online</span>
-                </div>
-              </div>
+              <p className="mt-3 text-lg font-bold tracking-tight text-slate-950">{item.title}</p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.body}</p>
             </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* --- 3 HLAVNÍ PILÍŘE (Apple Bento Box styl) --- */}
-      <section id="funkce" className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-700">
-            Jednoduchost bez kompromisů
+      {/* Pillars */}
+      <section id="funkce" className="relative mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <SectionEyebrow>Co dostanete</SectionEyebrow>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+            Vše, co prodejce potřebuje.
           </h2>
-          <p className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-            Vše, co prodejce potřebuje. Nic navíc.
+          <p className="mt-3 text-base text-slate-600">Nic navíc. Žádný chaos.</p>
+        </div>
+
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {PILLARS.map((item, index) => (
+            <div
+              key={item.title}
+              className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-7 shadow-[0_12px_32px_-18px_rgba(15,23,42,0.12)]"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+                {index + 1}
+              </span>
+              <h3 className="mt-5 text-lg font-bold tracking-tight text-slate-950">{item.title}</h3>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{item.body}</p>
+              <p className="mt-5 text-xs font-bold text-emerald-700">{item.tag}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="cenik" className="relative mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <SectionEyebrow>Ceník</SectionEyebrow>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+            Míň než jeden ušlý prodej.
+            <span className="mt-1 block text-emerald-600">Celý měsíc na autopilotu.</span>
+          </h2>
+          <p className="mt-3 text-base text-slate-600">
+            Profi od 4&nbsp;990&nbsp;Kč. Vrátí se hned prvním týdnem, co neobnovujete ručně.
           </p>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
-          {/* Karta 1 */}
-          <div className="relative rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-[0_20px_40px_-15px_rgba(15,23,42,0.06)] backdrop-blur-md transition hover:-translate-y-1 hover:shadow-lg">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 text-white shadow-xs">
-              <span className="text-xl">⚡</span>
-            </div>
-            <h3 className="mt-5 text-xl font-bold tracking-tight text-slate-950">
-              Autopilot na Bazoš a Sbazar
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Inzeráty na bazarech po pár dnech zapadnou. Prodejomat je pravidelně a bezpečně obnovuje,
-              aby byly stále na očích zájemcům — aniž byste museli hnout prstem.
-            </p>
-            <div className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-800">
-              ✓ Ušetříte 15+ hodin týdně
-            </div>
-          </div>
+        <div className="mt-10 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+          {PRICING.map((plan) => (
+            <div
+              key={plan.id}
+              className={[
+                'relative flex flex-col rounded-2xl border p-7 sm:p-8',
+                plan.highlighted
+                  ? 'border-emerald-400/30 bg-gradient-to-b from-[#1a1a1a] via-slate-950 to-black text-white shadow-[0_28px_60px_-20px_rgba(0,0,0,0.45)] ring-1 ring-emerald-400/20 lg:-translate-y-1'
+                  : 'border-slate-200/80 bg-white shadow-[0_12px_32px_-18px_rgba(15,23,42,0.12)]',
+              ].join(' ')}
+            >
+              {plan.highlighted && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-bold text-slate-950">
+                  Nejčastější volba
+                </span>
+              )}
 
-          {/* Karta 2 */}
-          <div className="relative rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-[0_20px_40px_-15px_rgba(15,23,42,0.06)] backdrop-blur-md transition hover:-translate-y-1 hover:shadow-lg">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 text-white shadow-xs">
-              <span className="text-xl">🛍️</span>
-            </div>
-            <h3 className="mt-5 text-xl font-bold tracking-tight text-slate-950">
-              Vlastní e-shop za 0 minut
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Z vašich inzerátů okamžitě vzniká profesionální storefront na vaší doméně s košíkem,
-              rezervacemi, XML feedy pro Google i Seznam a optimalizací pro AI nákupní asistenty.
-            </p>
-            <div className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-800">
-              ✓ Vlastní značka &amp; důvěra
-            </div>
-          </div>
-
-          {/* Karta 3 */}
-          <div className="relative rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-[0_20px_40px_-15px_rgba(15,23,42,0.06)] backdrop-blur-md transition hover:-translate-y-1 hover:shadow-lg">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 text-white shadow-xs">
-              <span className="text-xl">🔄</span>
-            </div>
-            <h3 className="mt-5 text-xl font-bold tracking-tight text-slate-950">
-              Centrální sklad bez duplicit
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Prodali jste sadu disků na Bazoši? Prodejomat ji během vteřiny stáhne z e-shopu i Sbazaru.
-              Už žádné trapné telefonáty zákazníkům, že zboží je už prodané.
-            </p>
-            <div className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-800">
-              ✓ 0 duplicitních prodejů
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* --- JAK TO FUNGUJE (3 KROKY) --- */}
-      <section id="jak-to-funguje" className="relative mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-slate-200/80 bg-white/80 p-8 sm:p-12 shadow-xs backdrop-blur-md">
-          <div className="text-center max-w-xl mx-auto">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              Jednoduchý proces
-            </h2>
-            <p className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
-              Jak začít prodávat na autopilotu
-            </p>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white shadow-xs">
-                1
+              <div className="flex items-baseline justify-between gap-3">
+                <h3
+                  className={[
+                    'text-lg font-bold tracking-tight',
+                    plan.highlighted ? 'text-white' : 'text-slate-950',
+                  ].join(' ')}
+                >
+                  {plan.name}
+                </h3>
+                <span
+                  className={[
+                    'text-xs font-semibold',
+                    plan.highlighted ? 'text-slate-400' : 'text-slate-400',
+                  ].join(' ')}
+                >
+                  {plan.hint}
+                </span>
               </div>
-              <h3 className="mt-4 text-base font-bold text-slate-900">Napojte své účty</h3>
-              <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                Připojte Bazoš, Sbazar nebo vlastní doménu během minuty v sekci Napojení účtů.
-              </p>
-            </div>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white shadow-xs">
-                2
+              <div className="mt-4 flex items-end gap-1.5">
+                <span
+                  className={[
+                    'text-4xl font-black tracking-tight',
+                    plan.highlighted ? 'text-white' : 'text-slate-950',
+                  ].join(' ')}
+                >
+                  {plan.price}
+                </span>
+                <span
+                  className={[
+                    'mb-1 text-sm font-semibold',
+                    plan.highlighted ? 'text-slate-400' : 'text-slate-500',
+                  ].join(' ')}
+                >
+                  Kč / měsíc
+                </span>
               </div>
-              <h3 className="mt-4 text-base font-bold text-slate-900">Nahrajte zboží</h3>
-              <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                Vložte fotky, rozměry a cenu. Zboží je uloženo v centrálním skladu.
+
+              <p
+                className={[
+                  'mt-3 text-sm leading-relaxed',
+                  plan.highlighted ? 'text-slate-300' : 'text-slate-600',
+                ].join(' ')}
+              >
+                {plan.description}
               </p>
-            </div>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white shadow-xs">
-                3
-              </div>
-              <h3 className="mt-4 text-base font-bold text-slate-900">Prodávejte</h3>
-              <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                Prodejomat inzeráty vystaví, automaticky obnovuje a synchronizuje objednávky.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+              <ul className="mt-6 flex-1 space-y-2.5">
+                {plan.features.map((feature) => (
+                  <li
+                    key={feature}
+                    className={[
+                      'flex items-start gap-2 text-sm',
+                      plan.highlighted ? 'text-slate-200' : 'text-slate-700',
+                    ].join(' ')}
+                  >
+                    <CheckIcon
+                      className={[
+                        'mt-0.5 h-4 w-4 shrink-0',
+                        plan.highlighted ? 'text-emerald-400' : 'text-emerald-500',
+                      ].join(' ')}
+                    />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
 
-      {/* --- FINÁLNÍ SPOTIFY-STYLE HERO BANNER --- */}
-      <section className="relative mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 p-8 sm:p-14 text-center text-white shadow-2xl ring-1 ring-white/10">
-          <div className="pointer-events-none absolute -top-24 left-1/2 -z-0 h-48 w-96 -translate-x-1/2 rounded-full bg-emerald-500/20 blur-3xl" />
-          <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
-
-          <div className="relative z-10 mx-auto max-w-2xl">
-            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Čas přestat přepisovat inzeráty ručně.
-            </h2>
-            <p className="mt-3 text-sm text-slate-300 sm:text-base">
-              Vstupte do Prodejomatu a mějte sklad, inzerci i e-shop plně pod kontrolou.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
                 href={ctaHref}
-                className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-8 py-4 text-base font-bold text-slate-950 shadow-[0_10px_25px_-5px_rgba(34,197,94,0.4)] transition-all duration-200 hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98]"
+                className={[
+                  'mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3.5 text-sm font-bold transition active:scale-[0.98]',
+                  plan.highlighted
+                    ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
+                    : 'border border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50',
+                ].join(' ')}
               >
-                <span>{ctaText}</span>
-                <span className="transition-transform group-hover:translate-x-1">→</span>
+                {user ? 'Přejít do aplikace' : `Začít s ${plan.name}`}
               </Link>
             </div>
+          ))}
+        </div>
+
+        <p className="mx-auto mt-8 max-w-xl text-center text-sm text-slate-500">
+          Jednorázový setup při migraci skladu:{' '}
+          <span className="font-semibold text-slate-700">4 990–14 990 Kč</span> podle rozsahu.
+        </p>
+      </section>
+
+      {/* Final CTA */}
+      <section className="relative mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8">
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#1a1a1a] via-slate-950 to-black px-6 py-12 text-center text-white shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] sm:px-12 sm:py-14">
+          <div className="pointer-events-none absolute inset-x-16 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
+          <div className="pointer-events-none absolute left-1/2 top-0 h-48 w-96 -translate-x-1/2 rounded-full bg-emerald-500/20 blur-3xl" />
+
+          <div className="relative mx-auto max-w-xl">
+            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Nahrajte jednou. Točte sklad.
+            </h2>
+            <p className="mt-3 text-base text-slate-300">
+              Přestaňte přepisovat inzeráty. Nechte Prodejomat držet vás vidět.
+            </p>
+            <Link
+              href={ctaHref}
+              className="group mt-8 inline-flex items-center justify-center gap-2 rounded-full bg-emerald-400 px-8 py-3.5 text-base font-bold text-slate-950 transition hover:bg-emerald-300 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span>{ctaText}</span>
+              <span className="transition-transform group-hover:translate-x-0.5">→</span>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* --- MINIMALISTICKÝ FOOTER (Apple styl) --- */}
-      <footer className="border-t border-slate-200/80 bg-white/70 py-10 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-black text-white shadow-xs">
-                P
-              </div>
-              <div className="flex items-baseline">
-                <span className="text-base font-black tracking-tight text-slate-950">
-                  Prodej<span className="text-emerald-600">omat</span>
-                </span>
-                <span className="text-[10px] font-bold text-slate-400 ml-0.5">.cz</span>
-              </div>
-              <span className="hidden sm:inline-block text-xs text-slate-400 ml-3">
-                • Automat na inzerci, sklad a prodej
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-500">
-              <Link href="/login" className="hover:text-slate-950 transition-colors">
-                Přihlášení
-              </Link>
-              <span className="inline-flex items-center gap-1.5 text-emerald-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Všechny systémy v provozu
-              </span>
-            </div>
+      {/* Footer */}
+      <footer className="border-t border-slate-200/80 bg-white/80">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-5 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-black text-white">
+              P
+            </span>
+            <span className="text-sm font-black tracking-tight text-slate-950">
+              Prodej<span className="text-emerald-600">omat</span>
+              <span className="text-[10px] font-bold text-slate-400">.cz</span>
+            </span>
           </div>
 
-          <div className="mt-6 border-t border-slate-100 pt-6 text-center text-[11px] text-slate-400">
-            © {new Date().getFullYear()} Prodejomat.cz. Všechna práva vyhrazena.
+          <div className="flex flex-wrap items-center justify-center gap-5 text-xs font-semibold text-slate-500">
+            <Link href="#cenik" className="transition hover:text-slate-950">
+              Ceník
+            </Link>
+            <Link href="/login" className="transition hover:text-slate-950">
+              Přihlášení
+            </Link>
+            <span className="inline-flex items-center gap-1.5 text-emerald-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Systémy v provozu
+            </span>
           </div>
+        </div>
+        <div className="border-t border-slate-100 py-4 text-center text-[11px] text-slate-400">
+          © {new Date().getFullYear()} Prodejomat.cz
         </div>
       </footer>
     </div>

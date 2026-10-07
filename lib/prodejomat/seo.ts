@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import { getProdejomatBaseUrl } from '@/lib/prodejomat/host';
 
 export const PRODEJOMAT_NAME = 'Prodejomat.cz';
-export const PRODEJOMAT_TAGLINE = 'Automat na inzerci a prodej';
+export const PRODEJOMAT_TAGLINE = 'Automat, co ti točí zboží';
 export const PRODEJOMAT_DESCRIPTION =
-  'Centrální sklad a automatická inzerce nabídek na Bazoš, Sbazar i vlastní e-shop. Obnova inzerátů, správa účtů a prodej z jednoho místa pro prodejce v ČR.';
+  'Prodáte víc a rychleji. Centrální sklad, automatická inzerce a obnova na Bazoš, Sbazar i vlastní e-shop — pro vrakoviště, autodíly a pneu v ČR.';
 
 export const PRODEJOMAT_KEYWORDS = [
   'automatická inzerce',
@@ -219,7 +219,7 @@ export function buildProdejomatLlmsTxt(origin: string): string {
 > ${PRODEJOMAT_TAGLINE}. SaaS platforma pro prodejce: centrální sklad, automatická inzerce na Bazoš/Sbazar a vlastní e-shop.
 
 ## Co je Prodejomat
-Prodejomat (také Sellin) je nástroj pro prodejce použitého a zánovního zboží v ČR (re-commerce). Umožňuje spravovat nabídky na jednom místě a synchronizovat je na inzertní portály i vlastní storefront.
+Prodejomat (také Sellin) je automat pro prodejce použitého a zánovního zboží v ČR — vrakoviště, autodíly, pneu. Cíl: prodat víc a rychleji (obrátka skladu). Jednou naskladníte, systém inzeruje na Bazoš/Sbazar i vlastní e-shop.
 
 ## Klíčové funkce
 - Centrální sklad nabídek (PIM / inventory)

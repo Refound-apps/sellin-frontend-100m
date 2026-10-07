@@ -55,6 +55,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Session cookie: admin může přepnout na Prodejce (/); bez něj je výchozí vstup /admin/offers
+  const ADMIN_VIEW_COOKIE = 'prodejomat_admin_view';
+
   // Pokud je přihlášen a jde na /login -> přesměrovat podle role
   // (admin defaultně do admin appky; přepínač Prodejce na / musí zůstat dostupný)
   if (user && pathname === '/login') {
@@ -80,7 +83,7 @@ export async function updateSession(request: NextRequest) {
 
   const isAdminRoute = pathname.startsWith('/admin') || isLegacyAdminRoute;
 
-  if (user && isAdminRoute) {
+  if (user && (isAdminRoute || pathname === '/')) {
     const { data: credential } = await supabase
       .from('credential_pg')
       .select('role')
@@ -89,24 +92,37 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle();
 
     const role = credential?.role ?? 'seller';
-    if (role !== 'admin') {
-      // Uživatel není admin -> přesměrovat na domovskou stránku /
-      const url = request.nextUrl.clone();
-      url.pathname = '/';
-      return NextResponse.redirect(url);
+
+    // První náběh admina na / → /admin/offers (Prodejce přepínač nastaví cookie a / pak nechá)
+    if (role === 'admin' && pathname === '/') {
+      const prefersSeller = request.cookies.get(ADMIN_VIEW_COOKIE)?.value === 'seller';
+      if (!prefersSeller) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/admin/offers';
+        return NextResponse.redirect(url);
+      }
     }
 
-    // Pro administrátora přesměrovat případné staré URL na /admin/*
-    if (isLegacyAdminRoute || pathname === '/admin' || pathname === '/admin/') {
-      const url = request.nextUrl.clone();
-      if (pathname === '/admin' || pathname === '/admin/') {
-        url.pathname = '/admin/offers';
-      } else if (pathname.startsWith('/users')) {
-        url.pathname = pathname.replace(/^\/users/, '/admin/users');
-      } else if (pathname.startsWith('/transactions')) {
-        url.pathname = pathname.replace(/^\/transactions/, '/admin/transactions');
+    if (isAdminRoute) {
+      if (role !== 'admin') {
+        // Uživatel není admin -> přesměrovat na domovskou stránku /
+        const url = request.nextUrl.clone();
+        url.pathname = '/';
+        return NextResponse.redirect(url);
       }
-      return NextResponse.redirect(url);
+
+      // Pro administrátora přesměrovat případné staré URL na /admin/*
+      if (isLegacyAdminRoute || pathname === '/admin' || pathname === '/admin/') {
+        const url = request.nextUrl.clone();
+        if (pathname === '/admin' || pathname === '/admin/') {
+          url.pathname = '/admin/offers';
+        } else if (pathname.startsWith('/users')) {
+          url.pathname = pathname.replace(/^\/users/, '/admin/users');
+        } else if (pathname.startsWith('/transactions')) {
+          url.pathname = pathname.replace(/^\/transactions/, '/admin/transactions');
+        }
+        return NextResponse.redirect(url);
+      }
     }
   }
 
