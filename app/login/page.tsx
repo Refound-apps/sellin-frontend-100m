@@ -142,7 +142,7 @@ function AuthForm() {
       // Pokud Supabase zaslala potvrzovací e-mail:
       setSuccessMessage(
         isTrial
-          ? `Trial účet je připravený. Na ${email} jsme poslali potvrzovací odkaz — po kliknutí rovnou napojíte Bazoš a spustíte obnovu.`
+          ? `Zkušební účet je připravený. Na ${email} jsme poslali potvrzovací odkaz — po kliknutí rovnou napojíte Bazoš a spustíte obnovu.`
           : `Registrace proběhla úspěšně! Na adresu ${email} jsme odeslali potvrzovací e-mail. Po kliknutí na odkaz se váš účet automaticky propojí s vašimi inzeráty a nastavením.`
       );
     } catch (err: any) {
@@ -217,7 +217,7 @@ function AuthForm() {
           ) : isTrial || mode === 'register' ? (
             <div className="mt-2.5">
               <h2 className="text-base font-bold text-slate-900">
-                {isTrial ? 'Spustit 7denní trial' : 'Vytvořit účet'}
+                {isTrial ? 'Spustit 7denní zkušební verzi' : 'Vytvořit účet'}
               </h2>
               <p className="mt-0.5 text-xs text-slate-500">
                 {isTrial
@@ -234,7 +234,7 @@ function AuthForm() {
 
         {isTrial && mode === 'register' && (
           <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-3.5 text-xs leading-relaxed text-emerald-950">
-            <p className="font-bold">Trial 7 dní zdarma</p>
+            <p className="font-bold">Zkušební 7 dní zdarma</p>
             <p className="mt-0.5 text-emerald-800/90">
               Nejdřív uvidíte obnovy a poptávky. Platba až když se rozhodnete pokračovat
               {planParam ? ` (zájem o plán ${planParam})` : ''}.
@@ -379,9 +379,9 @@ function AuthForm() {
         {mode === 'register' && (
           <form className="space-y-4" onSubmit={handleRegister}>
             <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/80 p-3.5 text-xs text-emerald-950 leading-relaxed shadow-[inset_0_1px_2px_rgba(16,185,129,0.04)]">
-              <strong>{isTrial ? 'Cold call / trial:' : 'Tip:'}</strong>{' '}
+              <strong>{isTrial ? 'Cold call / zkušební:' : 'Tip:'}</strong>{' '}
               {isTrial
-                ? 'Stačí e-mail a heslo. Hned potom napojíte Bazoš — trial běží 7 dní bez karty.'
+                ? 'Stačí e-mail a heslo. Hned potom napojíte Bazoš — zkušební běží 7 dní bez karty.'
                 : 'Zadejte svůj e-mail. Registrací si nastavíte heslo a Prodejomat může spárovat existující inzeráty / Bazoš účty.'}
             </div>
 

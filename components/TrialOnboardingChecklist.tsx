@@ -50,13 +50,13 @@ export default function TrialOnboardingChecklist({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-            Trial · 7 dní
+            Zkušební · 7 dní
           </p>
           <h3 className="mt-1 text-lg font-black tracking-tight text-slate-950 sm:text-xl">
             Spusťte hodnotu dnes
           </h3>
           <p className="mt-1 max-w-xl text-xs text-slate-600 sm:text-sm">
-            Po cold callu / trialu stačí 3 kroky. Nejdřív Bazoš — pak obnova a první nabídka.
+            Po cold callu / zkušební verzi stačí 3 kroky. Nejdřív Bazoš — pak obnova a první nabídka.
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold text-emerald-800">

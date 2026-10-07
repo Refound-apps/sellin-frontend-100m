@@ -257,50 +257,15 @@ function SectionEyebrow({ children, light = false }: { children: ReactNode; ligh
 export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
   const trialHref = '/login?mode=register&trial=1';
   const ctaHref = user ? '/?onboarding=1' : trialHref;
-  const ctaText = user ? 'Pokračovat v trialu' : 'Vyzkoušet 7 dní zdarma';
+  const ctaText = user ? 'Pokračovat ve zkušební verzi' : 'Vyzkoušet 7 dní zdarma';
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#f6f7f8] text-slate-900 selection:bg-emerald-500/20 selection:text-emerald-950">
       <div className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[28rem] w-[min(100vw,48rem)] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl" />
       <div className="pointer-events-none absolute top-[42rem] -right-32 -z-10 hidden h-[28rem] w-[28rem] rounded-full bg-slate-300/20 blur-3xl sm:block" />
 
-      {/* Top bar */}
-      <header className="relative mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8">
-        <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-xs font-black text-white">
-            P
-          </span>
-          <span className="truncate text-[15px] font-black tracking-tight text-slate-950 sm:text-base">
-            Prodej<span className="text-emerald-600">omat</span>
-            <span className="text-[10px] font-bold text-slate-400">.cz</span>
-          </span>
-        </Link>
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <Link
-            href="#cenik"
-            className="inline-flex min-h-10 items-center px-2 text-sm font-semibold text-slate-500 transition hover:text-slate-950 sm:px-0"
-          >
-            Ceník
-          </Link>
-          <Link
-            href={user ? '/' : '/login'}
-            className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-          >
-            {user ? 'Aplikace' : 'Přihlášení'}
-          </Link>
-          {!user && (
-            <Link
-              href={trialHref}
-              className="inline-flex min-h-10 items-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-emerald-400"
-            >
-              Trial 7 dní
-            </Link>
-          )}
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section className="relative mx-auto max-w-5xl px-4 pb-10 pt-10 text-center sm:px-6 sm:pb-16 sm:pt-20 lg:px-8">
+      {/* Hero — header je sdílený Navigation (stejný jako login / app) */}
+      <section className="relative mx-auto max-w-5xl px-4 pb-10 pt-10 text-center sm:px-6 sm:pb-16 sm:pt-16 lg:px-8">
         <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-200/90 bg-emerald-50 px-3.5 py-1.5 text-[11px] font-semibold text-emerald-900 shadow-xs sm:px-4 sm:text-xs">
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -518,7 +483,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
             <span className="mt-1 block text-emerald-600">Celý měsíc na autopilotu.</span>
           </h2>
           <p className="mt-2 text-[15px] text-slate-600 sm:mt-3 sm:text-base">
-            Nejdřív 7 dní trial zdarma. Ceník platí až když uvidíte, že se točí.
+            Nejdřív 7 dní zkušební zdarma. Ceník platí až když uvidíte, že se točí.
           </p>
         </div>
 
@@ -537,7 +502,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
             >
               {plan.highlighted && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-bold text-slate-950">
-                  Trial + nejčastější volba
+                  Zkušební + nejčastější volba
                 </span>
               )}
 
@@ -610,14 +575,14 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
                     : 'border border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50',
                 ].join(' ')}
               >
-                {user ? 'Pokračovat v trialu' : `Trial 7 dní · ${plan.name}`}
+                {user ? 'Pokračovat ve zkušební verzi' : `Zkušební 7 dní · ${plan.name}`}
               </Link>
             </div>
           ))}
         </div>
 
         <p className="mx-auto mt-7 max-w-xl px-1 text-center text-sm leading-relaxed text-slate-500 sm:mt-8">
-          Trial je zdarma. Setup migrace skladu řešíme až po aktivaci — a jen když dává smysl.
+          Zkušební verze je zdarma. Setup migrace skladu řešíme až po aktivaci — a jen když dává smysl.
         </p>
       </section>
 
@@ -639,7 +604,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
               </li>
               <li className="flex gap-2">
                 <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                Trial 7 dní bez karty. Nejdřív uvidíte poptávky, pak řešíme plán.
+                Zkušební 7 dní bez karty. Nejdřív uvidíte poptávky, pak řešíme plán.
               </li>
               <li className="flex gap-2">
                 <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
@@ -657,7 +622,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
                 href={trialHref}
                 className="inline-flex min-h-10 items-center rounded-full bg-slate-950 px-4 text-xs font-bold text-white transition hover:bg-slate-800"
               >
-                Spustit trial
+                Spustit zkušební verzi
               </Link>
             </div>
           </div>
@@ -667,7 +632,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
             <div className="mt-4 space-y-4 text-sm">
               <div>
                 <p className="font-bold text-white">Musím platit hned?</p>
-                <p className="mt-1 text-slate-400">Ne. 7 dní trial zdarma, bez karty.</p>
+                <p className="mt-1 text-slate-400">Ne. 7 dní zkušební zdarma, bez karty.</p>
               </div>
               <div>
                 <p className="font-bold text-white">Funguje to i při 50+ inzerátech?</p>
@@ -678,7 +643,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
               <div>
                 <p className="font-bold text-white">Co když to nebude sedět?</p>
                 <p className="mt-1 text-slate-400">
-                  Po trialu nic neplatíte. Setup migrace řešíme jen když pokračujete.
+                  Po zkušební verzi nic neplatíte. Setup migrace řešíme jen když pokračujete.
                 </p>
               </div>
             </div>
