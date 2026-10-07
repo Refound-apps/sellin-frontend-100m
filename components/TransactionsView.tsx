@@ -474,7 +474,8 @@ export default function TransactionsView() {
     return Math.max(1, Math.ceil(totalCount / pageSize));
   }, [totalCount, pageSize]);
 
-  // Seskupení po sobě jdoucích transakcí se stejným ID nabídky (např. obnovené inzeráty)
+  // Collapse only renew history on the same portal (e.g. Bazoš recreate chain).
+  // Do NOT collapse Sbazar+Bazoš deletes/updates for the same offer — those are separate actions.
   const groupedRows = useMemo(() => {
     const result: {
       tx: OfferDetail;
@@ -486,18 +487,50 @@ export default function TransactionsView() {
       groupId: string;
     }[] = [];
 
+    const marketplaceKey = (tx: OfferDetail) =>
+      String(tx.bb_marketplace_id || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '')
+        .trim();
+
+    const isRenewHistoryCondition = (condition: string | null | undefined) => {
+      const c = (condition || '').toLowerCase().trim();
+      return (
+        c === 'ok_renewed' ||
+        c === 'ok_topped' ||
+        c === 'ok_created' ||
+        c === 'ok_deleted' // older recreate generations
+      );
+    };
+
     let i = 0;
     while (i < transactions.length) {
       const current = transactions[i];
       const offerId = current.offer_id;
+      const market = marketplaceKey(current);
 
-      if (offerId != null) {
+      // Group only consecutive renew-history rows for the same offer + same marketplace
+      const canGroup =
+        offerId != null &&
+        market.length > 0 &&
+        isRenewHistoryCondition(current.condition);
+
+      if (canGroup) {
         let j = i + 1;
-        while (j < transactions.length && transactions[j].offer_id === offerId) {
+        while (
+          j < transactions.length &&
+          transactions[j].offer_id === offerId &&
+          marketplaceKey(transactions[j]) === market &&
+          isRenewHistoryCondition(transactions[j].condition)
+        ) {
           j++;
         }
         const count = j - i;
-        const groupId = `offer-${offerId}-${current.id}`;
+        const groupId =
+          count > 1
+            ? `offer-${offerId}-${market}-${current.id}`
+            : `tx-${current.id}`;
         for (let k = 0; k < count; k++) {
           result.push({
             tx: transactions[i + k],
