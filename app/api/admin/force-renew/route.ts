@@ -78,6 +78,45 @@ function parseEmails(raw: unknown): string[] {
   return [...new Set(text.split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean))];
 }
 
+/** Keep only the newest detail row per offer (same as cron DISTINCT ON). */
+async function filterToLatestDetailsPerOffer(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  items: any[],
+  marketplace: Marketplace
+) {
+  if (items.length === 0) return items;
+
+  const offerIds = [
+    ...new Set(items.map((d) => d.bb_offer_id).filter(Boolean).map(String)),
+  ];
+  if (offerIds.length === 0) return items;
+
+  const { data: peers, error } = await supabase
+    .from('offer_detail_pg')
+    .select('auto id, bb_offer_id')
+    .eq('bb_marketplace_id', marketplace)
+    .in('bb_offer_id', offerIds);
+
+  if (error) {
+    throw new Error(`Chyba kontroly latest offer_detail: ${error.message}`);
+  }
+
+  const latestIdByOffer = new Map<string, number>();
+  for (const row of peers || []) {
+    const offerId = String(row.bb_offer_id || '');
+    const id = Number(row['auto id']);
+    if (!offerId || !Number.isFinite(id)) continue;
+    const prev = latestIdByOffer.get(offerId);
+    if (prev == null || id > prev) latestIdByOffer.set(offerId, id);
+  }
+
+  return items.filter((d) => {
+    const offerId = String(d.bb_offer_id || '');
+    const id = Number(d['auto id']);
+    return offerId && Number.isFinite(id) && latestIdByOffer.get(offerId) === id;
+  });
+}
+
 async function loadOfferDetailRows(
   supabase: Awaited<ReturnType<typeof createClient>>,
   opts: {
@@ -89,41 +128,63 @@ async function loadOfferDetailRows(
   }
 ) {
   const { emails, max, offset, marketplace, tillToday } = opts;
+  // Over-fetch: stale superseded ok_created rows sort early by next_date_renew and would
+  // fill the page before latest-only filtering. Cron uses DISTINCT ON; we approximate.
+  const pageSize = Math.min(Math.max(max * 8, max + 50), 2000);
+  const collected: any[] = [];
+  let cursor = offset;
+  let guard = 0;
 
-  let query = supabase
-    .from('offer_detail_pg')
-    .select('*')
-    .eq('bb_marketplace_id', marketplace)
-    .not('condition', 'in', `(${EXCLUDED_CONDITIONS.join(',')})`)
-    .or('platform_blocked.is.null,platform_blocked.eq.false')
-    .or('skip_renew.is.null,skip_renew.eq.false')
-    .order('next_date_renew', { ascending: true, nullsFirst: true })
-    .range(offset, offset + Math.max(max, 1) - 1);
+  while (collected.length < max && guard < 6) {
+    guard += 1;
 
-  // Budibase: bb_email_od LIKE '%{{email}}%' (prázdný email = %%)
-  if (emails.length === 1) {
-    query = query.ilike('bb_email_od', emailLikePattern(emails[0]));
-  } else if (emails.length > 1) {
-    query = query.or(
-      emails.map((e) => `bb_email_od.ilike."${emailLikePattern(e).replace(/"/g, '')}"`).join(',')
-    );
+    let query = supabase
+      .from('offer_detail_pg')
+      .select('*')
+      .eq('bb_marketplace_id', marketplace)
+      .not('condition', 'in', `(${EXCLUDED_CONDITIONS.join(',')})`)
+      .or('platform_blocked.is.null,platform_blocked.eq.false')
+      .or('skip_renew.is.null,skip_renew.eq.false')
+      .order('next_date_renew', { ascending: true, nullsFirst: true })
+      .range(cursor, cursor + pageSize - 1);
+
+    // Budibase: bb_email_od LIKE '%{{email}}%' (prázdný email = %%)
+    if (emails.length === 1) {
+      query = query.ilike('bb_email_od', emailLikePattern(emails[0]));
+    } else if (emails.length > 1) {
+      query = query.or(
+        emails.map((e) => `bb_email_od.ilike."${emailLikePattern(e).replace(/"/g, '')}"`).join(',')
+      );
+    }
+
+    if (tillToday) {
+      // Budibase RENEW TILL TODAY query
+      const { from, to } = renewTillTodayWindow();
+      query = query
+        .neq('autorenew_freq', 'Neobnovovat')
+        .gte('next_date_renew', from)
+        .lte('next_date_renew', to);
+    }
+
+    const { data: details, error: detailsErr } = await query;
+    if (detailsErr) {
+      throw new Error(`Chyba načítání offer_detail_pg: ${detailsErr.message}`);
+    }
+
+    const batch = details || [];
+    if (batch.length === 0) break;
+
+    const latestOnly = await filterToLatestDetailsPerOffer(supabase, batch, marketplace);
+    for (const row of latestOnly) {
+      collected.push(row);
+      if (collected.length >= max) break;
+    }
+
+    cursor += batch.length;
+    if (batch.length < pageSize) break;
   }
 
-  if (tillToday) {
-    // Budibase RENEW TILL TODAY query
-    const { from, to } = renewTillTodayWindow();
-    query = query
-      .neq('autorenew_freq', 'Neobnovovat')
-      .gte('next_date_renew', from)
-      .lte('next_date_renew', to);
-  }
-
-  const { data: details, error: detailsErr } = await query;
-  if (detailsErr) {
-    throw new Error(`Chyba načítání offer_detail_pg: ${detailsErr.message}`);
-  }
-
-  return details || [];
+  return collected.slice(0, max);
 }
 
 async function loadForceRenewCandidates(
