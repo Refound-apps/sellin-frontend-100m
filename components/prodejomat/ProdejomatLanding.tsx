@@ -255,8 +255,9 @@ function SectionEyebrow({ children, light = false }: { children: ReactNode; ligh
 }
 
 export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
-  const ctaHref = user ? '/' : '/login';
-  const ctaText = user ? 'Přejít do aplikace' : 'Začít točit sklad';
+  const trialHref = '/login?mode=register&trial=1';
+  const ctaHref = user ? '/?onboarding=1' : trialHref;
+  const ctaText = user ? 'Pokračovat v trialu' : 'Vyzkoušet 7 dní zdarma';
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#f6f7f8] text-slate-900 selection:bg-emerald-500/20 selection:text-emerald-950">
@@ -283,21 +284,29 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
           </Link>
           <Link
             href={user ? '/' : '/login'}
-            className="inline-flex min-h-10 items-center rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
+            className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             {user ? 'Aplikace' : 'Přihlášení'}
           </Link>
+          {!user && (
+            <Link
+              href={trialHref}
+              className="inline-flex min-h-10 items-center rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-emerald-400"
+            >
+              Trial 7 dní
+            </Link>
+          )}
         </div>
       </header>
 
       {/* Hero */}
       <section className="relative mx-auto max-w-5xl px-4 pb-10 pt-10 text-center sm:px-6 sm:pb-16 sm:pt-20 lg:px-8">
-        <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-slate-200/90 bg-white px-3.5 py-1.5 text-[11px] font-semibold text-slate-700 shadow-xs sm:px-4 sm:text-xs">
+        <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-200/90 bg-emerald-50 px-3.5 py-1.5 text-[11px] font-semibold text-emerald-900 shadow-xs sm:px-4 sm:text-xs">
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
-          Automat, co ti točí zboží
+          7 dní zdarma · bez karty · bez závazku
         </div>
 
         <h1 className="mt-5 text-[2rem] font-extrabold leading-[1.12] tracking-tight text-slate-950 sm:mt-7 sm:text-5xl sm:leading-[1.08] md:text-6xl">
@@ -308,8 +317,8 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
         </h1>
 
         <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-slate-600 sm:mt-5 sm:text-lg">
-          Jednou naskladníte — Prodejomat vás prodává na Bazoši, Sbazaru, e-shopu i dál.
-          Pořád vás najdou. Vy jen vyřizujete poptávky.
+          Máte desítky inzerátů na Bazoši? Jednou naskladníte — Prodejomat obnovuje, topuje
+          a prodává na Bazoši, Sbazaru i e-shopu. Vy jen berete poptávky.
         </p>
 
         <div className="mx-auto mt-7 flex w-full max-w-md flex-col items-stretch justify-center gap-2.5 sm:mt-9 sm:max-w-none sm:flex-row sm:items-center sm:gap-3.5">
@@ -321,15 +330,15 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
             <span className="transition-transform group-hover:translate-x-0.5">→</span>
           </Link>
           <Link
-            href="#cenik"
+            href="#jak-to-funguje"
             className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-slate-200 bg-white px-7 py-3.5 text-[15px] font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] sm:w-auto sm:text-base"
           >
-            Zobrazit ceník
+            Jak to funguje
           </Link>
         </div>
 
         <div className="mt-6 flex flex-col items-center gap-2 text-xs font-semibold text-slate-500 sm:mt-7 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-5 sm:gap-y-2">
-          {['Pořád vidět na Bazoši', 'Jednou nahrát, prodat všude', 'Rychlejší obrátka skladu'].map(
+          {['Pořád vidět na Bazoši', 'Jednou nahrát, prodat všude', 'Bez peněz předem'].map(
             (item) => (
               <span key={item} className="inline-flex items-center gap-1.5">
                 <CheckIcon />
@@ -342,7 +351,8 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
 
       {/* Flow diagram */}
       <section
-        className="relative mx-auto max-w-5xl px-3 pb-12 sm:px-6 sm:pb-20 lg:px-8"
+        id="jak-to-funguje"
+        className="relative mx-auto max-w-5xl scroll-mt-6 px-3 pb-12 sm:px-6 sm:pb-20 lg:px-8"
         aria-label="Jak Prodejomat funguje"
       >
         <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#1a1a1a] via-slate-950 to-black px-4 py-8 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] sm:rounded-[2rem] sm:px-12 sm:py-12">
@@ -431,12 +441,13 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
         className="relative mx-auto max-w-5xl scroll-mt-6 px-4 pb-12 sm:px-6 sm:pb-20 lg:px-8"
       >
         <div className="mx-auto max-w-2xl text-center">
-          <SectionEyebrow>Pro vrakoviště, autodíly, pneu</SectionEyebrow>
+          <SectionEyebrow>Pro bazary, autodíly, pneu, elektroniku</SectionEyebrow>
           <h2 className="mt-2 text-[1.65rem] font-extrabold tracking-tight text-slate-950 sm:text-4xl">
             Prodejomat řeší reálné problémy prodejců.
           </h2>
           <p className="mt-2 text-[15px] text-slate-600 sm:mt-3 sm:text-base">
-            Ne další marketing. Konkrétní věci, které vás denně brzdí.
+            Ne další marketing. Konkrétní věci, které vás denně brzdí — zvlášť když máte desítky
+            inzerátů.
           </p>
         </div>
 
@@ -507,7 +518,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
             <span className="mt-1 block text-emerald-600">Celý měsíc na autopilotu.</span>
           </h2>
           <p className="mt-2 text-[15px] text-slate-600 sm:mt-3 sm:text-base">
-            Profi od 4&nbsp;990&nbsp;Kč. Vrátí se hned prvním týdnem, co neobnovujete ručně.
+            Nejdřív 7 dní trial zdarma. Ceník platí až když uvidíte, že se točí.
           </p>
         </div>
 
@@ -526,7 +537,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
             >
               {plan.highlighted && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-bold text-slate-950">
-                  Nejčastější volba
+                  Trial + nejčastější volba
                 </span>
               )}
 
@@ -591,7 +602,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
               </ul>
 
               <Link
-                href={ctaHref}
+                href={user ? ctaHref : `${trialHref}&plan=${plan.id}`}
                 className={[
                   'mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-full px-5 py-3.5 text-sm font-bold transition active:scale-[0.98] sm:mt-8',
                   plan.highlighted
@@ -599,16 +610,80 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
                     : 'border border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50',
                 ].join(' ')}
               >
-                {user ? 'Přejít do aplikace' : `Začít s ${plan.name}`}
+                {user ? 'Pokračovat v trialu' : `Trial 7 dní · ${plan.name}`}
               </Link>
             </div>
           ))}
         </div>
 
         <p className="mx-auto mt-7 max-w-xl px-1 text-center text-sm leading-relaxed text-slate-500 sm:mt-8">
-          Jednorázový setup při migraci skladu:{' '}
-          <span className="font-semibold text-slate-700">4 990–14 990 Kč</span> podle rozsahu.
+          Trial je zdarma. Setup migrace skladu řešíme až po aktivaci — a jen když dává smysl.
         </p>
+      </section>
+
+      {/* Trust + FAQ */}
+      <section
+        id="faq"
+        className="relative mx-auto max-w-5xl scroll-mt-6 px-4 pb-12 sm:px-6 sm:pb-20 lg:px-8"
+      >
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_12px_32px_-18px_rgba(15,23,42,0.12)] sm:p-8">
+            <SectionEyebrow>Proč nám věřit</SectionEyebrow>
+            <h2 className="mt-2 text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl">
+              Stavíme to pro prodejce s reálným objemem.
+            </h2>
+            <ul className="mt-5 space-y-3 text-sm text-slate-600">
+              <li className="flex gap-2">
+                <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                Autopilot obnovy a multi-kanál z jednoho skladu — Bazoš, Sbazar, e-shop.
+              </li>
+              <li className="flex gap-2">
+                <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                Trial 7 dní bez karty. Nejdřív uvidíte poptávky, pak řešíme plán.
+              </li>
+              <li className="flex gap-2">
+                <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                Přístupy k Bazoši slouží jen k publikaci a obnově — neprodáváme data.
+              </li>
+            </ul>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <a
+                href="mailto:info@prodejomat.cz"
+                className="inline-flex min-h-10 items-center rounded-full border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-800 transition hover:bg-white"
+              >
+                info@prodejomat.cz
+              </a>
+              <Link
+                href={trialHref}
+                className="inline-flex min-h-10 items-center rounded-full bg-slate-950 px-4 text-xs font-bold text-white transition hover:bg-slate-800"
+              >
+                Spustit trial
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200/80 bg-slate-950 p-6 text-white shadow-[0_12px_32px_-18px_rgba(15,23,42,0.35)] sm:p-8">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-400">FAQ</p>
+            <div className="mt-4 space-y-4 text-sm">
+              <div>
+                <p className="font-bold text-white">Musím platit hned?</p>
+                <p className="mt-1 text-slate-400">Ne. 7 dní trial zdarma, bez karty.</p>
+              </div>
+              <div>
+                <p className="font-bold text-white">Funguje to i při 50+ inzerátech?</p>
+                <p className="mt-1 text-slate-400">
+                  Ano — právě tam šetří nejvíc času na obnovách a přepisování.
+                </p>
+              </div>
+              <div>
+                <p className="font-bold text-white">Co když to nebude sedět?</p>
+                <p className="mt-1 text-slate-400">
+                  Po trialu nic neplatíte. Setup migrace řešíme jen když pokračujete.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Final CTA */}
@@ -618,11 +693,14 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
           <div className="pointer-events-none absolute left-1/2 top-0 h-40 w-[min(100%,24rem)] -translate-x-1/2 rounded-full bg-emerald-500/20 blur-3xl sm:h-48 sm:w-96" />
 
           <div className="relative mx-auto max-w-xl">
-            <h2 className="text-[1.65rem] font-extrabold tracking-tight sm:text-4xl">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-400">
+              7 dní zdarma
+            </p>
+            <h2 className="mt-2 text-[1.65rem] font-extrabold tracking-tight sm:text-4xl">
               Nahrajte jednou. Prodávejte všude.
             </h2>
             <p className="mt-3 text-[15px] text-slate-300 sm:text-base">
-              Přestaňte přepisovat inzeráty. Nechte Prodejomat držet vás vidět.
+              Bez karty. Bez závazku. Nejdřív uvidíte obnovy a poptávky.
             </p>
             <Link
               href={ctaHref}
@@ -652,9 +730,18 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
             <Link href="#cenik" className="inline-flex min-h-10 items-center transition hover:text-slate-950">
               Ceník
             </Link>
+            <Link href="#faq" className="inline-flex min-h-10 items-center transition hover:text-slate-950">
+              FAQ
+            </Link>
             <Link href="/login" className="inline-flex min-h-10 items-center transition hover:text-slate-950">
               Přihlášení
             </Link>
+            <a
+              href="mailto:info@prodejomat.cz"
+              className="inline-flex min-h-10 items-center transition hover:text-slate-950"
+            >
+              Kontakt
+            </a>
             <span className="inline-flex items-center gap-1.5 text-emerald-600">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Systémy v provozu

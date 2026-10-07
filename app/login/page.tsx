@@ -1,17 +1,30 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { trackEvent } from '@/lib/analytics';
 
 type AuthMode = 'login' | 'register' | 'forgot';
 
 function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/';
+  const isTrial = searchParams.get('trial') === '1';
+  const modeParam = searchParams.get('mode');
+  const planParam = searchParams.get('plan');
+  const redirectTo = useMemo(() => {
+    const raw = searchParams.get('redirect');
+    if (raw) return raw;
+    return isTrial ? '/?onboarding=1' : '/';
+  }, [searchParams, isTrial]);
 
-  const [mode, setMode] = useState<AuthMode>('login');
+  const initialMode: AuthMode =
+    modeParam === 'register' || modeParam === 'forgot' || isTrial
+      ? (modeParam === 'forgot' ? 'forgot' : 'register')
+      : 'login';
+
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,6 +33,21 @@ function AuthForm() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const supabase = createClient();
+
+  useEffect(() => {
+    if (modeParam === 'register' || isTrial) setMode('register');
+    else if (modeParam === 'login') setMode('login');
+    else if (modeParam === 'forgot') setMode('forgot');
+  }, [modeParam, isTrial]);
+
+  useEffect(() => {
+    trackEvent('auth_view', {
+      mode: initialMode,
+      trial: isTrial,
+      plan: planParam || null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +85,7 @@ function AuthForm() {
         }
       }
 
+      trackEvent('login', { trial: isTrial, plan: planParam || null });
       router.push(targetPath);
       router.refresh();
     } catch (err: any) {
@@ -101,6 +130,8 @@ function AuthForm() {
         return;
       }
 
+      trackEvent('sign_up', { trial: isTrial, plan: planParam || null, has_session: !!data.session });
+
       // Pokud Supabase nevyžaduje potvrzení e-mailu a uživatel má aktivní session:
       if (data.session) {
         router.push(redirectTo);
@@ -110,7 +141,9 @@ function AuthForm() {
 
       // Pokud Supabase zaslala potvrzovací e-mail:
       setSuccessMessage(
-        `Registrace proběhla úspěšně! Na adresu ${email} jsme odeslali potvrzovací e-mail. Po kliknutí na odkaz se váš účet automaticky propojí s vašimi inzeráty a nastavením.`
+        isTrial
+          ? `Trial účet je připravený. Na ${email} jsme poslali potvrzovací odkaz — po kliknutí rovnou napojíte Bazoš a spustíte obnovu.`
+          : `Registrace proběhla úspěšně! Na adresu ${email} jsme odeslali potvrzovací e-mail. Po kliknutí na odkaz se váš účet automaticky propojí s vašimi inzeráty a nastavením.`
       );
     } catch (err: any) {
       setError(err?.message || 'Nastala chyba při vytváření účtu.');
@@ -181,12 +214,33 @@ function AuthForm() {
                 Zadejte svůj e-mail a my vám zašleme odkaz pro nastavení nového hesla.
               </p>
             </div>
+          ) : isTrial || mode === 'register' ? (
+            <div className="mt-2.5">
+              <h2 className="text-base font-bold text-slate-900">
+                {isTrial ? 'Spustit 7denní trial' : 'Vytvořit účet'}
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {isTrial
+                  ? 'Bez karty · bez závazku. Po registraci napojíte Bazoš a zapnete obnovu.'
+                  : 'Automat na inzerci, sklad a prodej'}
+              </p>
+            </div>
           ) : (
             <p className="mt-1 text-xs font-semibold text-slate-400">
               Automat na inzerci, sklad a prodej
             </p>
           )}
         </div>
+
+        {isTrial && mode === 'register' && (
+          <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-3.5 text-xs leading-relaxed text-emerald-950">
+            <p className="font-bold">Trial 7 dní zdarma</p>
+            <p className="mt-0.5 text-emerald-800/90">
+              Nejdřív uvidíte obnovy a poptávky. Platba až když se rozhodnete pokračovat
+              {planParam ? ` (zájem o plán ${planParam})` : ''}.
+            </p>
+          </div>
+        )}
 
         {/* Přepínač režimů (zobrazuje se pro login i registrace) */}
         {mode !== 'forgot' ? (
@@ -325,7 +379,10 @@ function AuthForm() {
         {mode === 'register' && (
           <form className="space-y-4" onSubmit={handleRegister}>
             <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/80 p-3.5 text-xs text-emerald-950 leading-relaxed shadow-[inset_0_1px_2px_rgba(16,185,129,0.04)]">
-              💡 <strong>Pro stávající prodejce:</strong> Zadejte svůj e-mail. Registrací si k němu nastavíte vlastní heslo a Prodejomat váš účet automaticky spáruje se všemi vašimi existujícími inzeráty, Bazošem i Sbazar účty.
+              <strong>{isTrial ? 'Cold call / trial:' : 'Tip:'}</strong>{' '}
+              {isTrial
+                ? 'Stačí e-mail a heslo. Hned potom napojíte Bazoš — trial běží 7 dní bez karty.'
+                : 'Zadejte svůj e-mail. Registrací si nastavíte heslo a Prodejomat může spárovat existující inzeráty / Bazoš účty.'}
             </div>
 
             <div>

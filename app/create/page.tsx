@@ -1289,10 +1289,16 @@ function CreateOfferContent() {
                   </div>
                 ) : pairedAccounts.length === 0 ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 font-medium">
-                    <p className="font-bold">⚠️ Nenalezen žádný spárovaný účet</p>
+                    <p className="font-bold">Nenalezen žádný spárovaný účet</p>
                     <p className="mt-1 text-slate-600">
-                      Zkontrolujte prosím napojení účtů v nastavení profilu.
+                      Nejdřív napojte Bazoš (nebo jiný kanál), teprve pak půjde inzerát vystavit.
                     </p>
+                    <a
+                      href="/accounts"
+                      className="mt-2.5 inline-flex min-h-9 items-center rounded-lg bg-slate-950 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-slate-800"
+                    >
+                      Přejít na Napojení účtů →
+                    </a>
                   </div>
                 ) : (
                   <div className="space-y-2">

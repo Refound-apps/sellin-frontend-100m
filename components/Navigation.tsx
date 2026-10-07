@@ -113,6 +113,27 @@ export default function Navigation() {
     return null;
   }
 
+  // Marketing landing má vlastní header v ProdejomatLanding — bez duplicitní app navigace
+  const forceLandingPreview =
+    typeof window !== 'undefined' &&
+    (() => {
+      const sp = new URLSearchParams(window.location.search);
+      return (
+        sp.get('landing') === '1' ||
+        sp.get('landing') === 'true' ||
+        sp.get('preview') === 'landing'
+      );
+    })();
+
+  if (pathname === '/landing' || forceLandingPreview) {
+    return null;
+  }
+
+  // Nepřihlášený (nebo ještě loading) na `/` → landing page se svým headerem
+  if (pathname === '/' && (loading || !user)) {
+    return null;
+  }
+
   // Client-side guard: hide app navigation on custom tenant domains and shop previews
   if (typeof window !== 'undefined') {
     const host = window.location.hostname.toLowerCase();
@@ -373,6 +394,12 @@ export default function Navigation() {
                   className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors"
                 >
                   Jak to funguje
+                </Link>
+                <Link
+                  href="/login?mode=register&trial=1"
+                  className="rounded-full bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition-colors"
+                >
+                  Trial 7 dní
                 </Link>
               </div>
             )}

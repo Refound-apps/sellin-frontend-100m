@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '@/lib/types';
 import { updateCredential, createCredential } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics';
 
 interface BazosAccountsModalProps {
   onClose: () => void;
@@ -140,6 +141,7 @@ export default function BazosAccountsModal({
 
       const updated = await updateCredential(currentAccount.id, payload);
       onAccountsUpdated(updated);
+      trackEvent('account_connected', { channel: 'bazos', action: 'update' });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -174,6 +176,7 @@ export default function BazosAccountsModal({
       onAccountsUpdated(created);
       setSelectedId(created.id);
       setIsAddingNew(false);
+      trackEvent('account_connected', { channel: 'bazos', action: 'create' });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {

@@ -10,8 +10,10 @@ import OfferCard from './OfferCard';
 import OfferModal from './OfferModal';
 import SellerAccountSwitcher from './SellerAccountSwitcher';
 import PairedAccountSwitcher from './PairedAccountSwitcher';
+import TrialOnboardingChecklist from './TrialOnboardingChecklist';
 import { formatPhoneNumber, isOfferHiddenFromListings } from './offerStatus';
 import { resolveLinkedEmails, resolvePairedUserAccounts, getSubaccountFilterEmails } from '@/lib/sellerAccounts';
+import { trackEvent } from '@/lib/analytics';
 
 interface OffersListProps {
   mode?: 'user' | 'admin';
@@ -21,6 +23,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
   const supabase = useMemo(() => createClient(), []);
   const searchParams = useSearchParams();
   const urlAccountParam = searchParams?.get('account') || searchParams?.get('seller') || null;
+  const showOnboarding = searchParams?.get('onboarding') === '1';
 
   // Offers state
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -561,6 +564,16 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
         </div>
       </div>
 
+      {/* Trial / first-value activation */}
+      {mode === 'user' && !userLoading && (showOnboarding || (offers.length === 0 && !searchQuery && !loading)) && (
+        <div className="mb-6">
+          <TrialOnboardingChecklist
+            hasPairedAccounts={pairedAccounts.length > 0}
+            hasOffers={offers.length > 0}
+          />
+        </div>
+      )}
+
       {/* Search Input Bar with layered depth */}
       <form onSubmit={(e) => e.preventDefault()} className="mb-6">
         <div className="group relative rounded-2xl bg-white/95 shadow-[0_12px_32px_-8px_rgba(15,23,42,0.07),0_2px_8px_rgba(15,23,42,0.03)] ring-1 ring-slate-200/80 transition-all focus-within:shadow-[0_16px_36px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.05)] focus-within:ring-slate-900/20 backdrop-blur-xs overflow-hidden">
@@ -701,7 +714,7 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           ))}
         </div>
       ) : offers.length === 0 ? (
-        <div className="rounded-3xl bg-white/95 p-12 text-center border border-slate-200/80 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.06),0_2px_10px_rgba(15,23,42,0.02)] ring-1 ring-black/[0.02]">
+        <div className="rounded-3xl bg-white/95 p-10 text-center border border-slate-200/80 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.06),0_2px_10px_rgba(15,23,42,0.02)] ring-1 ring-black/[0.02]">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -715,8 +728,26 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
               ? 'Zkuste jiný dotaz, rozměr pneu nebo zkontrolujte překlepy.'
               : isFiltered && activeAccountDisplay
               ? `Pro účet ${activeAccountDisplay} nebyly v centrální databázi nalezeny žádné inzeráty.`
-              : 'Zatím zde nejsou žádné inzeráty.'}
+              : 'Začněte napojením Bazoše a vytvořením první nabídky — checklist nahoře vás provede.'}
           </p>
+          {!searchQuery && mode === 'user' && (
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <Link
+                href="/accounts"
+                onClick={() => trackEvent('empty_state_cta', { target: 'accounts' })}
+                className="inline-flex min-h-10 items-center rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
+              >
+                Napojit Bazoš
+              </Link>
+              <Link
+                href="/create"
+                onClick={() => trackEvent('empty_state_cta', { target: 'create' })}
+                className="inline-flex min-h-10 items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-50"
+              >
+                Nový inzerát
+              </Link>
+            </div>
+          )}
         </div>
       ) : (
         <div className="admin-offer-grid">
