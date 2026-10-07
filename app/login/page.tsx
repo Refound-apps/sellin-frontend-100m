@@ -379,10 +379,10 @@ function AuthForm() {
         {mode === 'register' && (
           <form className="space-y-4" onSubmit={handleRegister}>
             <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/80 p-3.5 text-xs text-emerald-950 leading-relaxed shadow-[inset_0_1px_2px_rgba(16,185,129,0.04)]">
-              <strong>{isTrial ? 'Cold call / zkušební:' : 'Tip:'}</strong>{' '}
+              <strong>Tip:</strong>{' '}
               {isTrial
-                ? 'Stačí e-mail a heslo. Hned potom napojíte Bazoš — zkušební běží 7 dní bez karty.'
-                : 'Zadejte svůj e-mail. Registrací si nastavíte heslo a Prodejomat může spárovat existující inzeráty / Bazoš účty.'}
+                ? 'E-mail a heslo stačí. Pak napojíte Bazoš — 7 dní zdarma, bez karty.'
+                : 'Zadejte e-mail a heslo. Prodejomat pak může spárovat existující inzeráty a Bazoš účty.'}
             </div>
 
             <div>
