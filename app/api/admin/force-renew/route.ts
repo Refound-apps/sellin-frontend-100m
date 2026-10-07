@@ -91,9 +91,10 @@ async function filterToLatestDetailsPerOffer(
   ];
   if (offerIds.length === 0) return items;
 
+  // select('*') — column "auto id" breaks Supabase's typed select parser
   const { data: peers, error } = await supabase
     .from('offer_detail_pg')
-    .select('auto id, bb_offer_id')
+    .select('*')
     .eq('bb_marketplace_id', marketplace)
     .in('bb_offer_id', offerIds);
 
