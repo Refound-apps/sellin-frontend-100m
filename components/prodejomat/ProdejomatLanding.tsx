@@ -608,7 +608,7 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
               </li>
               <li className="flex gap-2">
                 <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                Přístupy k Bazoši slouží jen k publikaci a obnově — neprodáváme data.
+                Stavíme to s prodejci z terénu — pneu, autodíly, vrakoviště. Ne z PowerPointu.
               </li>
             </ul>
             <div className="mt-6 flex flex-wrap gap-2">
