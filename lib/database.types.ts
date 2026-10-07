@@ -691,6 +691,84 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_leads: {
+        Row: {
+          id: number
+          name: string
+          company_name: string | null
+          contact_person: string | null
+          phone: string | null
+          email: string | null
+          website: string | null
+          bazos_url: string | null
+          bazos_phone_id: string | null
+          category: string
+          source: string
+          stage: string
+          tier: number | null
+          notes: string | null
+          response: string | null
+          first_call_date: string | null
+          onboarding_date: string | null
+          offers_count: number | null
+          location: string | null
+          tags: string[] | null
+          origin_sheets: string[] | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          name: string
+          company_name?: string | null
+          contact_person?: string | null
+          phone?: string | null
+          email?: string | null
+          website?: string | null
+          bazos_url?: string | null
+          bazos_phone_id?: string | null
+          category?: string
+          source?: string
+          stage?: string
+          tier?: number | null
+          notes?: string | null
+          response?: string | null
+          first_call_date?: string | null
+          onboarding_date?: string | null
+          offers_count?: number | null
+          location?: string | null
+          tags?: string[] | null
+          origin_sheets?: string[] | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          name?: string
+          company_name?: string | null
+          contact_person?: string | null
+          phone?: string | null
+          email?: string | null
+          website?: string | null
+          bazos_url?: string | null
+          bazos_phone_id?: string | null
+          category?: string
+          source?: string
+          stage?: string
+          tier?: number | null
+          notes?: string | null
+          response?: string | null
+          first_call_date?: string | null
+          onboarding_date?: string | null
+          offers_count?: number | null
+          location?: string | null
+          tags?: string[] | null
+          origin_sheets?: string[] | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -698,6 +776,7 @@ export type Database = {
     Functions: {
       get_current_user_role: { Args: never; Returns: string }
       increment_shop_visit: { Args: { p_shop_id: string }; Returns: undefined }
+      get_crm_stats: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never

@@ -149,6 +149,7 @@ export default function Navigation() {
   const adminNavItems = [
     { href: '/admin/offers', label: 'Nabídka', exact: false },
     { href: '/admin/transactions', label: 'Transakce', exact: false },
+    { href: '/admin/crm', label: 'Sales CRM', exact: false },
     { href: '/admin/automations', label: 'Automatizace & Cron', exact: false },
     { href: '/admin/errors', label: 'Scraping errors', exact: false },
     { href: '/admin/force-renew', label: 'Force renew', exact: false },

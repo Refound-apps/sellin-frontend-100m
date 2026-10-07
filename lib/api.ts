@@ -12,6 +12,8 @@ import {
   CronJobLog,
   ScraperJob,
   ScraperJobCounts,
+  CrmLead,
+  CrmStats,
 } from './types';
 
 export const SHOP_SBAZAR_EMAIL = 'duplux@seznam.cz';
@@ -1100,4 +1102,89 @@ export async function getAdminErrorScreenshots(params?: {
     baseUrl: data.baseUrl || 'https://error.sellin.cz',
   };
 }
+
+export interface GetCrmLeadsParams {
+  page?: number;
+  limit?: number;
+  tab?: 'pipeline' | 'firmy' | 'bazos' | 'eshop' | 'all';
+  stage?: string;
+  category?: string;
+  source?: string;
+  tier?: string | number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface GetCrmLeadsResponse {
+  leads: CrmLead[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  stats: CrmStats | null;
+}
+
+export async function getCrmLeads(params?: GetCrmLeadsParams): Promise<GetCrmLeadsResponse> {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.tab) qs.set('tab', params.tab);
+  if (params?.stage) qs.set('stage', params.stage);
+  if (params?.category) qs.set('category', params.category);
+  if (params?.source) qs.set('source', params.source);
+  if (params?.tier) qs.set('tier', String(params.tier));
+  if (params?.search) qs.set('search', params.search);
+  if (params?.sortBy) qs.set('sortBy', params.sortBy);
+  if (params?.sortOrder) qs.set('sortOrder', params.sortOrder);
+
+  const response = await fetch(`/api/admin/crm/leads?${qs.toString()}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se načíst CRM kontakty');
+  }
+  return data;
+}
+
+export async function updateCrmLead(id: number, updates: Partial<CrmLead>): Promise<CrmLead> {
+  const response = await fetch(`/api/admin/crm/leads/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se aktualizovat CRM lead');
+  }
+  return data.lead;
+}
+
+export async function createCrmLead(lead: Partial<CrmLead>): Promise<CrmLead> {
+  const response = await fetch('/api/admin/crm/leads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(lead),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se vytvořit CRM lead');
+  }
+  return data.lead;
+}
+
+export async function deleteCrmLead(id: number): Promise<void> {
+  const response = await fetch(`/api/admin/crm/leads/${id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se smazat CRM lead');
+  }
+}
+
 

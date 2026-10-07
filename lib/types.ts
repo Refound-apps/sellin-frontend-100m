@@ -286,3 +286,40 @@ export interface ScraperJobCounts {
   cancelled: number;
 }
 
+export type CrmStage = 'all' | 'lead' | 'contacted' | 'warm' | 'trial' | 'onboarding' | 'won' | 'lost';
+
+export interface CrmLead {
+  id: number;
+  name: string;
+  company_name: string | null;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  bazos_url: string | null;
+  bazos_phone_id: string | null;
+  category: string;
+  source: string;
+  stage: string;
+  tier: number | null;
+  notes: string | null;
+  response: string | null;
+  first_call_date: string | null;
+  onboarding_date: string | null;
+  offers_count: number | null;
+  location: string | null;
+  tags: string[] | null;
+  origin_sheets: string[] | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface CrmStats {
+  total: number;
+  pipelineCount: number;
+  stages: Record<string, number>;
+  categories: Record<string, number>;
+  sources: Record<string, number>;
+}
+
+
