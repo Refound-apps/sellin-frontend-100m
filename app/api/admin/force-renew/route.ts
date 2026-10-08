@@ -102,19 +102,45 @@ async function filterToLatestDetailsPerOffer(
     throw new Error(`Chyba kontroly latest offer_detail: ${error.message}`);
   }
 
-  const latestIdByOffer = new Map<string, number>();
+  // Prefer live portal rows over deleted generations (same rule as cron renew).
+  const isGone = (condition: unknown) => {
+    const c = String(condition || '').toLowerCase();
+    return (
+      c === 'ok_deleted' ||
+      c === 'error_delete' ||
+      c === 'app_archive' ||
+      c === 'app_delete' ||
+      c === 'error_create' ||
+      c === 'error_create_blocked' ||
+      c === 'ok_blocked'
+    );
+  };
+
+  type Ranked = { id: number; gone: boolean };
+  const bestByOffer = new Map<string, Ranked>();
   for (const row of peers || []) {
     const offerId = String(row.bb_offer_id || '');
     const id = Number(row['auto id']);
     if (!offerId || !Number.isFinite(id)) continue;
-    const prev = latestIdByOffer.get(offerId);
-    if (prev == null || id > prev) latestIdByOffer.set(offerId, id);
+    const gone = isGone(row.condition);
+    const prev = bestByOffer.get(offerId);
+    if (!prev) {
+      bestByOffer.set(offerId, { id, gone });
+      continue;
+    }
+    // Live beats deleted; then higher auto id wins.
+    if (prev.gone && !gone) {
+      bestByOffer.set(offerId, { id, gone });
+    } else if (prev.gone === gone && id > prev.id) {
+      bestByOffer.set(offerId, { id, gone });
+    }
   }
 
   return items.filter((d) => {
     const offerId = String(d.bb_offer_id || '');
     const id = Number(d['auto id']);
-    return offerId && Number.isFinite(id) && latestIdByOffer.get(offerId) === id;
+    const best = bestByOffer.get(offerId);
+    return offerId && Number.isFinite(id) && best?.id === id;
   });
 }
 
