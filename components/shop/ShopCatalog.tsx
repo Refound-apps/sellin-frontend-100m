@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ShopOffer } from '@/lib/types';
-import { getShopOffers, SHOP_SBAZAR_EMAIL, ShopOfferFilters } from '@/lib/api';
+import { getShopOffers, ShopOfferFilters } from '@/lib/api';
 import { getProductPath } from '@/lib/shop/seo';
 import { useShop } from './ShopContext';
 import ShopOfferCard from './ShopOfferCard';
@@ -182,7 +182,18 @@ export default function ShopCatalog() {
         const emailsToQuery =
           linkedEmails && linkedEmails.length > 0
             ? linkedEmails
-            : (shop?.owner_email || SHOP_SBAZAR_EMAIL);
+            : shop?.owner_email
+              ? [shop.owner_email]
+              : [];
+
+        if (emailsToQuery.length === 0) {
+          if (requestId === activeRequestIdRef.current) {
+            setOffers([]);
+            setTotalOffers(0);
+            setLoading(false);
+          }
+          return;
+        }
 
         const { offers: data, total } = await getShopOffers(
           limit,

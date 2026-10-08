@@ -330,16 +330,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!shop) {
-      // Fallback to primary shop (Alu Bazar Plzeň)
-      const { data } = await supabase
-        .from('shops')
-        .select('id, shop_name, email, owner_email, custom_domain, slug')
-        .eq('slug', 'alubazar-plzen')
-        .limit(1);
-      shop = data?.[0] || null;
-    }
-
-    if (!shop) {
       return NextResponse.json(
         { success: false, error: 'E-shop nebyl nalezen.' },
         { status: 404 }

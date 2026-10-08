@@ -10,6 +10,9 @@ export async function generateShopStaticMetadata(
   page: ShopStaticPageKey
 ): Promise<Metadata> {
   const shop = await resolveShopFromRequest();
+  if (!shop) {
+    return { title: 'E-shop nenalezen', robots: { index: false, follow: false } };
+  }
   const seo = getShopStaticPageSeo(shop, page);
   return buildShopPageMetadata(shop, {
     title: seo.title,

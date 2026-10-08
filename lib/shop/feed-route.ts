@@ -8,10 +8,11 @@ import {
   type FeedProduct,
 } from '@/lib/shop/seo';
 import { fetchAllShopOffers, resolveShopFromRequest } from '@/lib/shop/server';
+import { shopInventoryEmails } from '@/lib/shop/resolveShop';
 
 export type FeedKind = 'google' | 'zbozi' | 'heureka';
 
-async function resolveShopForFeed(request: NextRequest): Promise<ShopConfigData> {
+async function resolveShopForFeed(request: NextRequest): Promise<ShopConfigData | null> {
   const { searchParams } = new URL(request.url);
   const domain =
     request.headers.get('x-shop-domain') ||
@@ -31,7 +32,10 @@ function buildXml(kind: FeedKind, shop: ShopConfigData, products: FeedProduct[])
 export async function handleShopFeedRequest(request: NextRequest, kind: FeedKind) {
   try {
     const shop = await resolveShopForFeed(request);
-    const offers = await fetchAllShopOffers(shop.linked_credential_emails || [], 5000);
+    if (!shop) {
+      return NextResponse.json({ success: false, error: 'Shop not found' }, { status: 404 });
+    }
+    const offers = await fetchAllShopOffers(shopInventoryEmails(shop), 5000);
     const products = offers.map((offer) => offerToFeedProduct(offer, shop));
     const xml = buildXml(kind, shop, products);
 

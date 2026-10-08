@@ -13,13 +13,11 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const tenant = isTenantHost(host, shopDomainHeader);
 
   if (tenant) {
-    let baseUrl = 'https://www.alubazarplzen.cz';
-    try {
-      const shop = await resolveShopFromRequest();
-      baseUrl = getShopBaseUrl(shop);
-    } catch {
-      // fallback
+    const shop = await resolveShopFromRequest();
+    if (!shop) {
+      return { rules: [{ userAgent: '*', disallow: '/' }] };
     }
+    const baseUrl = getShopBaseUrl(shop);
 
     return {
       rules: [

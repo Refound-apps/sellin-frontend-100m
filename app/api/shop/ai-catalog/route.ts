@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOfferPricingInfo, getOfferSpecsList } from '@/components/shop/offerMeta';
 import { backendFetch } from '@/lib/backend';
+import { createClient } from '@/lib/supabase/server';
+import { findShopByIdentity, shopInventoryEmails } from '@/lib/shop/resolveShop';
 import { ShopOffer } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -8,10 +10,31 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const host = request.headers.get('host') || '';
-    const domainHeader = request.headers.get('x-shop-domain') || searchParams.get('domain') || searchParams.get('shop') || '';
+    const host = (request.headers.get('host') || '').toLowerCase().split(':')[0].trim();
+    const domainHeader =
+      request.headers.get('x-shop-domain') ||
+      searchParams.get('domain') ||
+      searchParams.get('shop') ||
+      '';
 
-    // Forward relevant filtering params to backend
+    const supabase = await createClient();
+    const shop = await findShopByIdentity(supabase, {
+      domain: domainHeader || null,
+      slug: searchParams.get('slug'),
+      host,
+    });
+
+    if (!shop) {
+      return NextResponse.json({ success: false, error: 'Shop not found' }, { status: 404 });
+    }
+
+    const linkedEmails = shopInventoryEmails(shop);
+    const shopName = shop.shop_name || 'E-shop';
+    const address = [shop.address_line, shop.address_city].filter(Boolean).join(', ');
+    const phone = shop.phone || '';
+    const phoneHref = shop.phone_href || '';
+    const customDomain = shop.custom_domain || host;
+
     const backendParams = new URLSearchParams();
     const query = searchParams.get('q') || searchParams.get('search') || '';
     if (query) backendParams.set('search', query);
@@ -43,42 +66,16 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     backendParams.set('offset', String(offset));
 
-    // Resolve tenant config
-    let domainParam = domainHeader;
-    if (!domainParam && !host.includes('localhost') && !host.includes('vercel.app')) {
-      domainParam = host.replace(/^www\./, '');
+    if (linkedEmails.length === 0) {
+      return NextResponse.json({
+        success: true,
+        shop: { name: shopName, address, phone, phoneHref, domain: customDomain },
+        total: 0,
+        products: [],
+      });
     }
 
-    let linkedEmails: string[] = [];
-    let shopName = 'Duplux Pneu / Alubazar Plzeň';
-    let address = 'Úslavská 32, Plzeň';
-    let phone = '602 390 038';
-    let phoneHref = '+420602390038';
-    let customDomain = 'alubazarplzen.cz';
-
-    try {
-      const resolveUrl = new URL(`${request.nextUrl.origin}/api/shop/resolve`);
-      if (domainParam) resolveUrl.searchParams.set('domain', domainParam);
-      const resolveRes = await fetch(resolveUrl.toString(), { cache: 'no-store' });
-      if (resolveRes.ok) {
-        const json = await resolveRes.json();
-        if (json.data) {
-          const cfg = json.data;
-          linkedEmails = cfg.linked_credential_emails || [];
-          shopName = cfg.shop_name || shopName;
-          address = `${cfg.address_line || 'Úslavská 32'}, ${cfg.address_city || 'Plzeň'}`;
-          phone = cfg.phone || phone;
-          phoneHref = cfg.phone_href || phoneHref;
-          customDomain = cfg.custom_domain || host;
-        }
-      }
-    } catch {
-      // fallback to defaults
-    }
-
-    if (linkedEmails.length > 0) {
-      backendParams.set('emails', linkedEmails.join(','));
-    }
+    backendParams.set('emails', linkedEmails.join(','));
 
     const res = await backendFetch(`/api/shop/offers?${backendParams.toString()}`);
 

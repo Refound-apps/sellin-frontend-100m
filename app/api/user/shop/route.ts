@@ -99,9 +99,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // If no specific shop was requested or not found, check if admin has their own shop,
-      // otherwise fallback to the primary/first shop (e.g. Duplux / Alubazar)
-      if (!shop) {
+      // No seller/shop requested → admin's own shop only (never steal first/Duplux shop)
+      if (!shop && !requestedShopId && !requestedSeller) {
         const { data: myShops } = await supabase
           .from('shops')
           .select('*')
@@ -110,17 +109,9 @@ export async function GET(request: NextRequest) {
 
         if (myShops && myShops.length > 0) {
           shop = myShops[0];
-        } else if (allShops.length > 0) {
-          const { data: firstShop } = await supabase
-            .from('shops')
-            .select('*')
-            .eq('id', allShops[0].id)
-            .limit(1);
-          if (firstShop && firstShop.length > 0) {
-            shop = firstShop[0];
-          }
         }
       }
+      // requested seller/shop missing → shop stays null (UI can create a new one)
 
       // Collect distinct seller accounts from credential_pg and shops
       const { data: distinctCreds } = await supabase

@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic';
 
 async function shopSitemap(): Promise<MetadataRoute.Sitemap> {
   const shop = await resolveShopFromRequest();
+  if (!shop) return [];
+
   const baseUrl = getShopBaseUrl(shop);
   const now = new Date();
 
@@ -23,7 +25,8 @@ async function shopSitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const offers = await fetchAllShopOffers(shop.linked_credential_emails || [], 45000);
+    const { shopInventoryEmails } = await import('@/lib/shop/resolveShop');
+    const offers = await fetchAllShopOffers(shopInventoryEmails(shop), 45000);
     const productPages = offers.map((offer) => ({
       url: getProductUrl(shop, offer.id),
       lastModified: offer.created_at ? new Date(offer.created_at) : now,

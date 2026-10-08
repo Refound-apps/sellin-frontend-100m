@@ -31,6 +31,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
   try {
     const shop = await resolveShopFromRequest();
+    if (!shop) {
+      return buildProdejomatMetadata({ host });
+    }
     const home = getShopHomeMetadata(shop);
     return {
       ...buildShopPageMetadata(shop, {

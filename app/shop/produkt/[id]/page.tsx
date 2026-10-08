@@ -9,7 +9,7 @@ import {
   getShopBaseUrl,
 } from '@/lib/shop/seo';
 import {
-  fetchShopOfferById,
+  fetchShopOfferForShop,
   fetchShopOfferImages,
   resolveShopFromRequest,
 } from '@/lib/shop/server';
@@ -28,10 +28,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'Produkt nenalezen' };
   }
 
-  const [shop, offer] = await Promise.all([
-    resolveShopFromRequest(),
-    fetchShopOfferById(id),
-  ]);
+  const shop = await resolveShopFromRequest();
+  if (!shop) {
+    return { title: 'E-shop nenalezen', robots: { index: false, follow: false } };
+  }
+
+  const offer = await fetchShopOfferForShop(id, shop);
 
   if (!offer) {
     return {
@@ -72,11 +74,10 @@ export default async function ShopProductPage({ params }: PageProps) {
   const id = parseInt(rawId, 10);
   if (!id || Number.isNaN(id)) notFound();
 
-  const [shop, offer] = await Promise.all([
-    resolveShopFromRequest(),
-    fetchShopOfferById(id),
-  ]);
+  const shop = await resolveShopFromRequest();
+  if (!shop) notFound();
 
+  const offer = await fetchShopOfferForShop(id, shop);
   if (!offer) notFound();
 
   const images = await fetchShopOfferImages(offer.id);

@@ -189,7 +189,10 @@ export async function getOfferDetails(bbOfferId: string): Promise<OfferDetail[]>
   }
 }
 
-export async function getShopInfo(sbazarEmail: string = SHOP_SBAZAR_EMAIL): Promise<ShopInfo> {
+export async function getShopInfo(sbazarEmail: string): Promise<ShopInfo> {
+  if (!sbazarEmail?.trim()) {
+    throw new Error('Chybí e-mail shopu');
+  }
   try {
     const response = await apiFetch(
       `/api/shop?sbazar_email=${encodeURIComponent(sbazarEmail)}`
@@ -235,7 +238,7 @@ export async function getShopOffers(
   limit: number = 24,
   offset: number = 0,
   search?: string,
-  sbazarEmailOrEmails: string | string[] = SHOP_SBAZAR_EMAIL,
+  sbazarEmailOrEmails: string | string[] = [],
   filters: ShopOfferFilters = {},
   forceRefresh: boolean = false
 ): Promise<ShopOffersResponse> {
@@ -258,19 +261,22 @@ export async function getShopOffers(
     }
   }
 
+  const emailsList = Array.isArray(sbazarEmailOrEmails)
+    ? sbazarEmailOrEmails.map((e) => e.trim()).filter(Boolean)
+    : sbazarEmailOrEmails?.trim()
+      ? [sbazarEmailOrEmails.trim()]
+      : [];
+
+  if (emailsList.length === 0) {
+    return { offers: [], total: 0 };
+  }
+
   try {
     const params = new URLSearchParams({
       limit: String(limit),
       offset: String(offset),
+      emails: emailsList.join(','),
     });
-
-    if (Array.isArray(sbazarEmailOrEmails)) {
-      if (sbazarEmailOrEmails.length > 0) {
-        params.set('emails', sbazarEmailOrEmails.join(','));
-      }
-    } else if (sbazarEmailOrEmails) {
-      params.set('sbazar_email', sbazarEmailOrEmails);
-    }
 
     if (search && search.trim()) params.set('search', search.trim());
     if (filters.type) params.set('type', filters.type);
