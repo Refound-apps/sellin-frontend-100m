@@ -1,7 +1,12 @@
+const PROD_SCRAPER_API = 'https://api.sellin.cz/prod/api';
+
 /**
  * Base URL of the Node scraper backend (Express).
  * Local: http://localhost:3300
  * Prod (Budibase legacy): https://api.sellin.cz/prod/api
+ *
+ * Prefer SCRAPER_API_URL / API_URL (server-only). NEXT_PUBLIC_API_URL is a last resort
+ * and must never be localhost on Vercel.
  */
 export function getBackendBaseUrl(): string {
   const raw =
@@ -9,7 +14,18 @@ export function getBackendBaseUrl(): string {
     process.env.API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
     'http://localhost:3300';
-  return raw.replace(/\/$/, '');
+  let base = raw.replace(/\/$/, '');
+
+  const onVercel = Boolean(process.env.VERCEL);
+  if (onVercel && /localhost|127\.0\.0\.1/i.test(base)) {
+    console.error(
+      '[backend] NEXT_PUBLIC_API_URL/API points at localhost on Vercel — falling back to',
+      PROD_SCRAPER_API
+    );
+    base = PROD_SCRAPER_API;
+  }
+
+  return base;
 }
 
 /** Headers for server→backend calls (INTERNAL_API_SECRET). */
