@@ -17,6 +17,11 @@ const BAZOS_TITLE_MAX = 59;
 const LAST_BB_EMAIL_KEY = 'sellin_last_bb_email';
 const OFFER_TEMPLATE_KEY = 'sellin_offer_template';
 
+function templateStorageKey(bbEmail?: string | null) {
+  const email = (bbEmail || '').trim().toLowerCase();
+  return email ? `${OFFER_TEMPLATE_KEY}:${email}` : OFFER_TEMPLATE_KEY;
+}
+
 interface MarketplaceOption {
   id: string;
   label: string;
@@ -109,9 +114,13 @@ function CreateOfferContent() {
     }
   };
 
-  const fetchTemplatePayload = async (): Promise<Record<string, any> | null> => {
+  const fetchTemplatePayload = async (
+    bbEmail?: string | null
+  ): Promise<Record<string, any> | null> => {
+    const email = (bbEmail || '').trim();
     try {
-      const res = await fetch('/api/offer-templates');
+      const qs = email ? `?bb_email=${encodeURIComponent(email)}` : '';
+      const res = await fetch(`/api/offer-templates${qs}`);
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.success && data?.template?.payload) {
         return data.template.payload;
@@ -119,8 +128,11 @@ function CreateOfferContent() {
     } catch {}
 
     try {
-      const stored = localStorage.getItem(OFFER_TEMPLATE_KEY);
-      if (stored) return JSON.parse(stored);
+      const scoped = localStorage.getItem(templateStorageKey(email));
+      if (scoped) return JSON.parse(scoped);
+      // Legacy single-template fallback
+      const legacy = localStorage.getItem(OFFER_TEMPLATE_KEY);
+      if (legacy) return JSON.parse(legacy);
     } catch {}
     return null;
   };
@@ -138,22 +150,31 @@ function CreateOfferContent() {
     categoryId: formData.categoryId,
   });
 
-  const applyTemplatePayload = (t: Record<string, any>, paired?: User[]) => {
+  const accountLabel = (email: string) => {
+    const match =
+      pairedAccounts.find((p) => p.email.toLowerCase() === email.toLowerCase()) ||
+      availableUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    return match?.bazos_name || email;
+  };
+
+  /** Apply template fields but keep the currently selected sub-account. */
+  const applyTemplatePayload = (
+    t: Record<string, any>,
+    paired?: User[],
+    lockBbEmail?: string | null
+  ) => {
     setFormData((prev) => {
       const nextTitle =
         typeof t.title === 'string' ? t.title.slice(0, BAZOS_TITLE_MAX) : prev.title;
 
-      let nextBbEmail =
-        typeof t.bb_email === 'string' && t.bb_email.trim() ? t.bb_email.trim() : prev.bb_email;
+      const locked = (lockBbEmail || prev.bb_email || '').trim();
+      let nextBbEmail = locked || prev.bb_email;
 
-      // Prefer last used Bazoš account when it belongs to current paired set
-      const lastEmail = readLastBbEmail();
-      if (lastEmail && paired?.length) {
-        const match = paired.find(
-          (p) => p.email.toLowerCase().trim() === lastEmail.toLowerCase().trim()
-        );
-        if (match) nextBbEmail = match.email;
-      } else if (nextBbEmail && paired?.length) {
+      if (!locked && typeof t.bb_email === 'string' && t.bb_email.trim()) {
+        nextBbEmail = t.bb_email.trim();
+      }
+
+      if (nextBbEmail && paired?.length) {
         const inPaired = paired.some(
           (p) => p.email.toLowerCase().trim() === nextBbEmail.toLowerCase().trim()
         );
@@ -191,33 +212,49 @@ function CreateOfferContent() {
             : prev.categoryId,
       };
     });
+  };
 
-    if (typeof t.bb_email === 'string' && t.bb_email.trim()) {
-      // Keep last-used preference if already set; otherwise remember template account
-      if (!readLastBbEmail()) rememberBbEmail(t.bb_email);
+  const loadTemplateForAccount = async (
+    bbEmail: string,
+    paired: User[],
+    opts?: { toast?: boolean }
+  ) => {
+    const payload = await fetchTemplatePayload(bbEmail);
+    if (!payload) return false;
+    applyTemplatePayload(payload, paired, bbEmail);
+    if (opts?.toast !== false) {
+      showTemplateToast(`Šablona pro ${accountLabel(bbEmail)} předvyplněna.`);
     }
+    return true;
   };
 
   const handleSaveTemplate = async () => {
     if (templateBusy) return;
+    if (!formData.bb_email?.trim()) {
+      showTemplateToast('Nejdřív vyberte účet, pro který chcete šablonu uložit.');
+      return;
+    }
     setTemplateBusy(true);
     try {
       const payload = buildTemplatePayload();
+      const email = formData.bb_email.trim();
       try {
-        localStorage.setItem(OFFER_TEMPLATE_KEY, JSON.stringify(payload));
+        localStorage.setItem(templateStorageKey(email), JSON.stringify(payload));
       } catch {}
-      rememberBbEmail(formData.bb_email);
+      rememberBbEmail(email);
 
       const res = await fetch('/api/offer-templates', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload }),
+        body: JSON.stringify({ payload, bb_email: email }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || `Uložení selhalo (${res.status})`);
       }
-      showTemplateToast('Šablona uložena — při dalším inzerátu se předvyplní automaticky.');
+      showTemplateToast(
+        `Šablona uložena pro ${accountLabel(email)} — při příštím inzerátu na tomto účtu se předvyplní.`
+      );
     } catch (e: any) {
       console.error('Failed to save template:', e);
       showTemplateToast(e?.message || 'Šablonu se nepodařilo uložit.');
@@ -230,14 +267,17 @@ function CreateOfferContent() {
     if (templateBusy) return;
     setTemplateBusy(true);
     try {
-      const payload = await fetchTemplatePayload();
+      const email = formData.bb_email;
+      const payload = await fetchTemplatePayload(email);
       if (!payload) {
-        showTemplateToast('Zatím nemáte uloženou šablonu. Vyplňte formulář a klikněte Uložit šablonu.');
+        showTemplateToast(
+          'Pro tento účet zatím nemáte šablonu. Vyplňte formulář a klikněte Uložit šablonu.'
+        );
         return;
       }
 
-      applyTemplatePayload(payload, pairedAccounts);
-      showTemplateToast('Šablona načtena do formuláře.');
+      applyTemplatePayload(payload, pairedAccounts, email);
+      showTemplateToast(`Šablona pro ${accountLabel(email)} načtena.`);
     } catch (e: any) {
       console.error('Failed to apply template:', e);
       showTemplateToast(e?.message || 'Šablonu se nepodařilo načíst.');
@@ -360,8 +400,7 @@ function CreateOfferContent() {
       const paired = resolvePairedUserAccounts(targetQuery, allUsers);
       setPairedAccounts(paired);
 
-      // 7. Initialize form with saved template + last used Bazoš account
-      const templatePayload = await fetchTemplatePayload();
+      // 7. Initialize form with last used Bazoš account + that account's template
       const lastBbEmail = readLastBbEmail();
 
       const sellerLocation = targetSeller?.location || 'Praha';
@@ -373,14 +412,6 @@ function CreateOfferContent() {
             (p) => p.email.toLowerCase().trim() === lastBbEmail.toLowerCase().trim()
           );
           if (lastMatch) return lastMatch.email;
-        }
-        if (templatePayload?.bb_email) {
-          const tplMatch = pairedList.find(
-            (p) =>
-              p.email.toLowerCase().trim() ===
-              String(templatePayload.bb_email).toLowerCase().trim()
-          );
-          if (tplMatch) return tplMatch.email;
         }
         return fallback;
       };
@@ -402,10 +433,7 @@ function CreateOfferContent() {
           marketplace: prev.marketplace,
         }));
 
-        if (templatePayload) {
-          applyTemplatePayload(templatePayload, paired);
-          showTemplateToast('Šablona předvyplněna.');
-        }
+        await loadTemplateForAccount(initialEmail, paired);
       } else if (targetSeller) {
         setFormData((prev) => ({
           ...prev,
@@ -414,10 +442,7 @@ function CreateOfferContent() {
           zipcode: targetSeller.zipcode ? String(targetSeller.zipcode) : sellerZipcode,
         }));
 
-        if (templatePayload) {
-          applyTemplatePayload(templatePayload, []);
-          showTemplateToast('Šablona předvyplněna.');
-        }
+        await loadTemplateForAccount(targetSeller.email, []);
       }
     } catch (err) {
       console.error('Failed to load user and accounts for create offer:', err);
@@ -427,7 +452,7 @@ function CreateOfferContent() {
   };
 
   // Admin Switcher action: select another seller
-  const handleSelectSeller = (user: User | null, customEmail?: string) => {
+  const handleSelectSeller = async (user: User | null, customEmail?: string) => {
     if (user) {
       setSelectedSeller(user);
       setSelectedCustomEmail(null);
@@ -448,6 +473,7 @@ function CreateOfferContent() {
         location: matched.location || prev.location || 'Praha',
         zipcode: matched.zipcode ? String(matched.zipcode) : prev.zipcode || '11000',
       }));
+      await loadTemplateForAccount(defaultEmail, paired);
     } else if (customEmail) {
       setSelectedSeller(null);
       setSelectedCustomEmail(customEmail);
@@ -460,6 +486,7 @@ function CreateOfferContent() {
         paired[0]?.email ||
         customEmail;
       setFormData((prev) => ({ ...prev, bb_email: email }));
+      await loadTemplateForAccount(email, paired);
     } else {
       // Reset back to logged in user / admin
       setSelectedSeller(null);
@@ -490,12 +517,13 @@ function CreateOfferContent() {
               ? String(meUser.zipcode)
               : prev.zipcode || '11000',
         }));
+        await loadTemplateForAccount(email, paired);
       }
     }
   };
 
-  // Direct selection of one of the paired accounts
-  const handleSelectPairedAccount = (accountEmail: string) => {
+  // Direct selection of one of the paired accounts — also loads that account's template
+  const handleSelectPairedAccount = async (accountEmail: string) => {
     const matched = pairedAccounts.find((p) => p.email.toLowerCase() === accountEmail.toLowerCase());
     rememberBbEmail(accountEmail);
     setFormData((prev) => ({
@@ -504,6 +532,7 @@ function CreateOfferContent() {
       location: matched?.location || prev.location,
       zipcode: matched?.zipcode ? String(matched.zipcode) : prev.zipcode,
     }));
+    await loadTemplateForAccount(accountEmail, pairedAccounts);
   };
 
   const handleMarketplaceToggle = (marketplaceId: string) => {
@@ -1507,14 +1536,16 @@ function CreateOfferContent() {
               </div>
             </div>
 
-            {/* Box: Šablona inzerátu */}
+            {/* Box: Šablona inzerátu — jedna na každý subúčet */}
             <div className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-3">
               <div>
                 <h2 className="text-sm sm:text-base font-bold text-slate-950 flex items-center gap-2">
                   <span>📋</span> Šablona inzerátu
                 </h2>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Uloží texty, cenu, kategorii, portály a nastavení (bez fotek) do vašeho účtu.
+                  {formData.bb_email
+                    ? `Pro účet ${accountLabel(formData.bb_email)} — texty, cena, kategorie a portály (bez fotek). Po přepnutí účtu se načte jeho šablona.`
+                    : 'Každý subúčet má vlastní šablonu. Vyberte účet a uložte.'}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2">

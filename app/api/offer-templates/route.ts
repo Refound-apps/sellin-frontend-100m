@@ -3,7 +3,13 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-const TEMPLATE_NAME = 'default';
+const DEFAULT_NAME = 'default';
+
+function templateNameForBbEmail(bbEmail?: string | null): string {
+  const email = (bbEmail || '').trim().toLowerCase();
+  if (!email) return DEFAULT_NAME;
+  return `bb:${email}`;
+}
 
 async function requireUser() {
   const supabase = await createClient();
@@ -18,28 +24,41 @@ async function requireUser() {
   return { supabase, user, error: null as null };
 }
 
-/** GET — načte výchozí šablonu přihlášeného uživatele */
-export async function GET() {
+/** GET — šablona pro konkrétní subúčet (?bb_email=), fallback na výchozí */
+export async function GET(request: NextRequest) {
   try {
     const { supabase, user, error: authError } = await requireUser();
     if (!user) {
       return NextResponse.json({ success: false, error: authError }, { status: 401 });
     }
 
+    const bbEmail = request.nextUrl.searchParams.get('bb_email');
+    const scopedName = templateNameForBbEmail(bbEmail);
+
+    // Prefer per-subaccount template; fall back to legacy single "default"
+    const names =
+      scopedName === DEFAULT_NAME ? [DEFAULT_NAME] : [scopedName, DEFAULT_NAME];
+
     const { data, error } = await supabase
       .from('offer_templates')
       .select('id, name, payload, updated_at')
       .eq('user_id', user.id)
-      .eq('name', TEMPLATE_NAME)
-      .maybeSingle();
+      .in('name', names);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    const rows = data || [];
+    const scoped = rows.find((r) => r.name === scopedName) || null;
+    const fallback = rows.find((r) => r.name === DEFAULT_NAME) || null;
+    const template = scoped || fallback;
+
     return NextResponse.json({
       success: true,
-      template: data || null,
+      template: template || null,
+      scoped: Boolean(scoped),
+      bb_email: bbEmail?.trim().toLowerCase() || null,
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -49,7 +68,7 @@ export async function GET() {
   }
 }
 
-/** PUT — uloží / přepíše výchozí šablonu (celý formulář) */
+/** PUT — uloží šablonu pro aktuální subúčet (bb_email v payloadu / body) */
 export async function PUT(request: NextRequest) {
   try {
     const { supabase, user, error: authError } = await requireUser();
@@ -66,12 +85,18 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    const bbEmail =
+      (typeof body?.bb_email === 'string' && body.bb_email.trim()) ||
+      (typeof payload?.bb_email === 'string' && payload.bb_email.trim()) ||
+      '';
+    const name = templateNameForBbEmail(bbEmail);
+
     const { data, error } = await supabase
       .from('offer_templates')
       .upsert(
         {
           user_id: user.id,
-          name: TEMPLATE_NAME,
+          name,
           payload,
           updated_at: new Date().toISOString(),
         },
@@ -84,7 +109,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, template: data });
+    return NextResponse.json({
+      success: true,
+      template: data,
+      bb_email: bbEmail.trim().toLowerCase() || null,
+    });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err?.message || 'Chyba při ukládání šablony' },
