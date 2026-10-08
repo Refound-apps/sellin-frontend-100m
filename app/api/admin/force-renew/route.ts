@@ -16,14 +16,18 @@ const EXCLUDED_CONDITIONS = [
 
 const ARCHIVED_OFFER_STATES = new Set(['app_archive', 'app_delete', 'ok_deleted']);
 
-type Marketplace = 'Bazoš' | 'Bazoš.sk';
+type Marketplace = 'Bazoš' | 'Bazoš.sk' | 'Sbazar';
 
 function parseMarketplace(value: unknown): Marketplace {
-  return value === 'Bazoš.sk' ? 'Bazoš.sk' : 'Bazoš';
+  if (value === 'Bazoš.sk') return 'Bazoš.sk';
+  if (value === 'Sbazar') return 'Sbazar';
+  return 'Bazoš';
 }
 
 function forceEndpoint(marketplace: Marketplace): string {
-  return marketplace === 'Bazoš.sk' ? '/renewofferbazosskforce' : '/renewofferbazosforce';
+  if (marketplace === 'Bazoš.sk') return '/renewofferbazosskforce';
+  if (marketplace === 'Sbazar') return '/renewoffersbazarforce';
+  return '/renewofferbazosforce';
 }
 
 function orIlike(column: string, values: string[]): string {
@@ -116,23 +120,28 @@ async function filterToLatestDetailsPerOffer(
     );
   };
 
-  type Ranked = { id: number; gone: boolean };
+  type Ranked = { id: number; gone: boolean; time: number };
   const bestByOffer = new Map<string, Ranked>();
   for (const row of peers || []) {
     const offerId = String(row.bb_offer_id || '');
     const id = Number(row['auto id']);
     if (!offerId || !Number.isFinite(id)) continue;
     const gone = isGone(row.condition);
+    const time = new Date(row.last_date_renewed || row.date || 0).getTime() || 0;
     const prev = bestByOffer.get(offerId);
     if (!prev) {
-      bestByOffer.set(offerId, { id, gone });
+      bestByOffer.set(offerId, { id, gone, time });
       continue;
     }
-    // Live beats deleted; then higher auto id wins.
+    // Live beats deleted; then newer renewal/creation time; then higher auto id wins.
     if (prev.gone && !gone) {
-      bestByOffer.set(offerId, { id, gone });
-    } else if (prev.gone === gone && id > prev.id) {
-      bestByOffer.set(offerId, { id, gone });
+      bestByOffer.set(offerId, { id, gone, time });
+    } else if (prev.gone === gone) {
+      if (time > prev.time) {
+        bestByOffer.set(offerId, { id, gone, time });
+      } else if (time === prev.time && id > prev.id) {
+        bestByOffer.set(offerId, { id, gone, time });
+      }
     }
   }
 
