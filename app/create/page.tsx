@@ -5,8 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatPhoneNumber } from '@/components/offerStatus';
-import { apiFetch, getUsers, uploadImagesToR2 } from '@/lib/api';
-import { filesToCompressedBase64 } from '@/lib/compressImage';
+import { apiFetch, getUsers, uploadImagesToR2, uploadSingleImageToR2 } from '@/lib/api';
+import { compressImageFile, filesToCompressedBase64 } from '@/lib/compressImage';
 import { logClientError } from '@/lib/logger';
 import { DEFAULT_OFFER_CATEGORIES, OfferCategoryItem, fetchOfferCategories } from '@/lib/categories';
 import { createClient } from '@/lib/supabase/client';
@@ -546,7 +546,9 @@ function CreateOfferContent() {
   };
 
   const uploadImageFiles = async (files: FileList | File[]) => {
-    const fileArray = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    const fileArray = Array.from(files).filter(
+      (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)
+    );
     if (fileArray.length === 0) return;
 
     const remainingSlots = 9 - imageList.length;
@@ -559,24 +561,36 @@ function CreateOfferContent() {
     setUploadingImages(true);
     setError(null);
 
-    try {
-      const base64Files = await filesToCompressedBase64(selectedFiles);
-      const uploadedUrls = await uploadImagesToR2(base64Files);
-
-      setImageList((prev) => [...prev, ...uploadedUrls].slice(0, 9));
-    } catch (err: any) {
-      console.error('Upload failed:', err);
-      void logClientError({
-        message: err?.message || 'Nepodařilo se nahrát obrázky',
-        errorType: 'ClientImageUploadFailed',
-        path: '/create (uploadImageFiles)',
-        userEmail: formData.bb_email,
-        metadata: { fileCount: selectedFiles.length },
-      });
-      setError('Nepodařilo se nahrát obrázky: ' + (err.message || 'Zkuste to prosím znovu.'));
-    } finally {
-      setUploadingImages(false);
+    let failedCount = 0;
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      try {
+        const compressed = await compressImageFile(file);
+        const uploadedUrl = await uploadSingleImageToR2(compressed);
+        if (uploadedUrl) {
+          setImageList((prev) => [...prev, uploadedUrl].slice(0, 9));
+        }
+      } catch (err: any) {
+        console.error(`Upload failed for ${file.name}:`, err);
+        failedCount++;
+        void logClientError({
+          message: err?.message || `Nepodařilo se nahrát obrázek ${file.name}`,
+          errorType: 'ClientImageUploadFailed',
+          path: '/create (uploadImageFiles)',
+          userEmail: formData.bb_email,
+          metadata: { fileName: file.name, fileSize: file.size, fileType: file.type },
+        });
+      }
     }
+
+    if (failedCount > 0) {
+      setError(
+        failedCount === selectedFiles.length
+          ? 'Nepodařilo se nahrát vybrané fotografie. Zkuste to prosím znovu.'
+          : `Některé fotografie (${failedCount} z ${selectedFiles.length}) se nepodařilo nahrát. Ostatní byly v pořádku přidány.`
+      );
+    }
+    setUploadingImages(false);
   };
 
   const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {

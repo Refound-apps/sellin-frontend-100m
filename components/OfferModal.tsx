@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Offer, OfferDetail } from '@/lib/types';
-import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, deleteOfferById, restoreOfferById, publishOfferToMarketplace } from '@/lib/api';
-import { filesToCompressedBase64 } from '@/lib/compressImage';
+import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, uploadSingleImageToR2, deleteOfferById, restoreOfferById, publishOfferToMarketplace } from '@/lib/api';
+import { compressImageFile, filesToCompressedBase64 } from '@/lib/compressImage';
 import { logClientError } from '@/lib/logger';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
 import {
@@ -196,7 +196,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     }
 
     const selectedFiles = Array.from(files)
-      .filter((f) => f.type.startsWith('image/'))
+      .filter((f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name))
       .slice(0, remainingSlots);
     if (selectedFiles.length === 0) {
       e.target.value = '';
@@ -205,25 +205,37 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     setUploadingImages(true);
     setSaveError(null);
 
-    try {
-      const base64Files = await filesToCompressedBase64(selectedFiles);
-      const uploadedUrls = await uploadImagesToR2(base64Files);
-
-      setEditedImages((prev) => [...prev, ...uploadedUrls].slice(0, 9));
-    } catch (err: any) {
-      console.error('Upload to R2 failed in modal:', err);
-      void logClientError({
-        message: err?.message || 'Nepodařilo se nahrát fotografie',
-        errorType: 'ModalImageUploadFailed',
-        path: '/modal (image upload)',
-        userEmail: offer?.bb_email,
-        metadata: { offerId: offer?.bb_id || offer?.id, fileCount: selectedFiles.length },
-      });
-      setSaveError('Nepodařilo se nahrát fotografie: ' + (err.message || ''));
-    } finally {
-      setUploadingImages(false);
-      e.target.value = '';
+    let failedCount = 0;
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      try {
+        const compressed = await compressImageFile(file);
+        const uploadedUrl = await uploadSingleImageToR2(compressed);
+        if (uploadedUrl) {
+          setEditedImages((prev) => [...prev, uploadedUrl].slice(0, 9));
+        }
+      } catch (err: any) {
+        console.error(`Upload to R2 failed in modal for ${file.name}:`, err);
+        failedCount++;
+        void logClientError({
+          message: err?.message || `Nepodařilo se nahrát fotografii ${file.name}`,
+          errorType: 'ModalImageUploadFailed',
+          path: '/modal (image upload)',
+          userEmail: offer?.bb_email,
+          metadata: { offerId: offer?.bb_id || offer?.id, fileName: file.name, fileSize: file.size },
+        });
+      }
     }
+
+    if (failedCount > 0) {
+      setSaveError(
+        failedCount === selectedFiles.length
+          ? 'Nepodařilo se nahrát vybrané fotografie.'
+          : `Některé fotografie (${failedCount} z ${selectedFiles.length}) se nepodařilo nahrát. Ostatní byly přidány.`
+      );
+    }
+    setUploadingImages(false);
+    e.target.value = '';
   };
 
   const handleAddImageUrl = () => {
