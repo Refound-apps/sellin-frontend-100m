@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/analytics';
+import { safeRedirectPath } from '@/lib/safeRedirect';
 
 type AuthMode = 'login' | 'register' | 'forgot';
 
@@ -14,9 +15,8 @@ function AuthForm() {
   const modeParam = searchParams.get('mode');
   const planParam = searchParams.get('plan');
   const redirectTo = useMemo(() => {
-    const raw = searchParams.get('redirect');
-    if (raw) return raw;
-    return isTrial ? '/?onboarding=1' : '/';
+    const fallback = isTrial ? '/?onboarding=1' : '/';
+    return safeRedirectPath(searchParams.get('redirect'), fallback);
   }, [searchParams, isTrial]);
 
   const initialMode: AuthMode =

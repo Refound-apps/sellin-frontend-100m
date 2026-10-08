@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/adminAuth';
 import type { Database } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +11,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    const { supabase } = auth;
+
     const { id } = await params;
     const leadId = parseInt(id, 10);
     if (isNaN(leadId)) {
@@ -18,7 +24,6 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const supabase = await createClient();
 
     const allowedKeys: (keyof CrmLeadUpdate)[] = [
       'name',
@@ -83,13 +88,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAdmin();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    const { supabase } = auth;
+
     const { id } = await params;
     const leadId = parseInt(id, 10);
     if (isNaN(leadId)) {
       return NextResponse.json({ error: 'Neplatné ID leadu' }, { status: 400 });
     }
 
-    const supabase = await createClient();
     const { error } = await supabase.from('crm_leads').delete().eq('id', leadId);
 
     if (error) {

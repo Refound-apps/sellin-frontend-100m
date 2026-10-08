@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/adminAuth';
 import type { Database } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,12 @@ type CrmLeadInsert = Database['public']['Tables']['crm_leads']['Insert'];
 
 export async function GET(request: Request) {
   try {
+    const auth = await requireAdmin();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    const { supabase } = auth;
+
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(200, Math.max(10, parseInt(searchParams.get('limit') || '50', 10)));
@@ -20,8 +26,6 @@ export async function GET(request: Request) {
     const search = searchParams.get('search')?.trim() || '';
     const sortBy = searchParams.get('sortBy') || (tab === 'pipeline' ? 'stage_prio' : 'id');
     const sortOrder = searchParams.get('sortOrder') === 'desc';
-
-    const supabase = await createClient();
 
     // 1. Stats query (fast RPC)
     const { data: statsData } = await supabase.rpc('get_crm_stats');
@@ -158,8 +162,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAdmin();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    const { supabase } = auth;
+
     const body = await request.json();
-    const supabase = await createClient();
 
     const leadPayload: CrmLeadInsert = {
       name: body.name?.trim() || 'Nový kontakt',
