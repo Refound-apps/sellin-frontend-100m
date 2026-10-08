@@ -3,9 +3,27 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { User } from '@/lib/types';
-import { updateCredential } from '@/lib/api';
+import {
+  getAdminUserActivity,
+  updateCredential,
+  type AdminUserActivityItem,
+} from '@/lib/api';
 import { formatPhoneNumber } from './offerStatus';
 import { formatDateTime } from './TransactionsView';
+
+function activityStatusCls(status: string | null): string {
+  const s = (status || '').toLowerCase();
+  if (s === 'done' || s === 'ok' || s === 'saved' || s === 'created') {
+    return 'bg-emerald-50 text-emerald-800 border-emerald-200/90';
+  }
+  if (s === 'failed' || s.includes('error')) {
+    return 'bg-rose-50 text-rose-800 border-rose-200/90';
+  }
+  if (s === 'running' || s === 'pending') {
+    return 'bg-amber-50 text-amber-800 border-amber-200/90';
+  }
+  return 'bg-slate-50 text-slate-600 border-slate-200/90';
+}
 
 function statusInfo(status: string | null) {
   if (status === 'OK') {
@@ -124,11 +142,34 @@ export default function AdminUserEditModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [showSecrets, setShowSecrets] = useState(false);
+  const [activity, setActivity] = useState<AdminUserActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
 
   useEffect(() => {
     setForm(toForm(user));
     setError(null);
     setSuccess(false);
+  }, [user.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setActivityLoading(true);
+    setActivityError(null);
+    setActivity([]);
+    void getAdminUserActivity(user.id)
+      .then((rows) => {
+        if (!cancelled) setActivity(rows);
+      })
+      .catch((err: any) => {
+        if (!cancelled) setActivityError(err?.message || 'Nepodařilo se načíst aktivitu');
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user.id]);
 
   const set = (key: keyof FormState, value: string | boolean) => {
@@ -245,6 +286,50 @@ export default function AdminUserEditModal({
               Uloženo.
             </div>
           )}
+
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+            <h4 className="mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Poslední aktivita v app
+            </h4>
+            {activityLoading ? (
+              <p className="text-xs text-slate-400">Načítám log…</p>
+            ) : activityError ? (
+              <p className="text-xs text-rose-600">{activityError}</p>
+            ) : activity.length === 0 ? (
+              <p className="text-xs italic text-slate-400">Zatím žádná zaznamenaná aktivita.</p>
+            ) : (
+              <ul className="max-h-56 space-y-0 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100">
+                {activity.map((item) => {
+                  const when = formatDateTime(item.at);
+                  return (
+                    <li key={item.id} className="flex gap-3 px-3 py-2.5">
+                      <div className="w-[4.5rem] shrink-0 pt-0.5">
+                        <div className="text-[11px] font-semibold text-slate-800">{when.relative}</div>
+                        <div className="text-[10px] text-slate-400">{when.short}</div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-900">{item.label}</span>
+                          {item.status ? (
+                            <span
+                              className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${activityStatusCls(item.status)}`}
+                            >
+                              {item.status}
+                            </span>
+                          ) : null}
+                        </div>
+                        {item.detail ? (
+                          <p className="mt-0.5 truncate text-[11px] text-slate-500" title={item.detail}>
+                            {item.detail}
+                          </p>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
 
           <section className="rounded-2xl border border-slate-200/90 bg-slate-50/60 p-4">
             <div className="mb-3 flex items-center justify-between">

@@ -624,6 +624,29 @@ export async function getAdminUsers(): Promise<User[]> {
   return ((data.data || []) as Record<string, unknown>[]).map(mapCredentialRow);
 }
 
+export type AdminUserActivityItem = {
+  id: string;
+  at: string;
+  kind: string;
+  label: string;
+  status: string | null;
+  detail: string | null;
+  source: 'scraper_job' | 'auth' | 'offer';
+};
+
+export async function getAdminUserActivity(credentialId: number): Promise<AdminUserActivityItem[]> {
+  const response = await fetch(`/api/admin/users/${credentialId}/activity`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se načíst aktivitu');
+  }
+  return (data.data || []) as AdminUserActivityItem[];
+}
+
 export async function updateCredential(
   id: number,
   updates: Partial<User>
