@@ -18,6 +18,10 @@ export function getInternalApiHeaders(extra?: HeadersInit): Headers {
   const secret = process.env.INTERNAL_API_SECRET;
   if (secret) {
     headers.set('Authorization', `Bearer ${secret}`);
+    // Backup header — some proxies strip Authorization
+    headers.set('x-internal-api-key', secret);
+  } else {
+    console.error('[backend] INTERNAL_API_SECRET is not set — backend will return Unauthorized');
   }
   return headers;
 }

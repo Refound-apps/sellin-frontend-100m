@@ -74,6 +74,25 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
+
+    // Express internalAuth → English "Unauthorized" when Vercel secret ≠ VPS secret / missing
+    if (
+      backendRes.status === 401 &&
+      String((data as { error?: string }).error || '').toLowerCase() === 'unauthorized'
+    ) {
+      const hasSecret = Boolean(process.env.INTERNAL_API_SECRET);
+      console.error('[offers/create] backend Unauthorized', { hasSecret });
+      return NextResponse.json(
+        {
+          success: false,
+          error: hasSecret
+            ? 'Backend odmítl požadavek (neplatný INTERNAL_API_SECRET). Zkontrolujte secret na Vercel vs VPS.'
+            : 'Chybí INTERNAL_API_SECRET na frontendu (Vercel). Bez něj nelze vytvořit inzerát.',
+        },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(data, { status: backendRes.status });
   } catch (err: unknown) {
     console.error('POST /api/offers/create error:', err);

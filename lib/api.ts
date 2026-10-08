@@ -26,11 +26,11 @@ let credentialsCache: Record<string, { phone: string; name: string }> | null = n
 export function getEndpoints(pathWithQuery: string): string[] {
   const cleanPath = pathWithQuery.startsWith('/') ? pathWithQuery : `/${pathWithQuery}`;
   if (typeof window !== 'undefined') {
-    // In client browser: ALWAYS call current origin relative path first!
-    // This avoids CORS, Mixed Content (http vs https), and port issues on Vercel
-    return [cleanPath, `${API_BASE_URL}${cleanPath}`];
+    // Browser → only same-origin Next BFF. Never call the scraper API from the client:
+    // Express requires INTERNAL_API_SECRET and a direct call returns plain "Unauthorized".
+    return [cleanPath];
   }
-  // On server: use API_BASE_URL (or internal localhost:3300)
+  // Server-side fallbacks (not used by app router BFF — that uses backendFetch)
   return [`${API_BASE_URL}${cleanPath}`, `http://localhost:3300${cleanPath}`];
 }
 
