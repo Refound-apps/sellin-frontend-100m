@@ -201,7 +201,11 @@ export default function ShopCatalog() {
           searchQuery,
           emailsToQuery,
           filters,
-          forceRefresh
+          forceRefresh,
+          {
+            slug: shop?.slug || null,
+            domain: shop?.custom_domain || null,
+          }
         );
 
         // Discard result if newer request has already started
@@ -242,7 +246,7 @@ export default function ShopCatalog() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [page, searchQuery, filtersSerialized, linkedEmailsSerialized, shop?.owner_email]
+    [page, searchQuery, filtersSerialized, linkedEmailsSerialized, shop?.owner_email, shop?.slug, shop?.custom_domain]
   );
 
   useEffect(() => {

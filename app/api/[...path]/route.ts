@@ -39,8 +39,11 @@ const BLOCKED_PREFIXES = [
   'bbofferstopgoffers',
 ];
 
-/** Narrow allowlist for authenticated proxy fallbacks. */
-const ALLOWED_PREFIXES = ['categories', 'shop', 'upload', 'user'];
+/**
+ * Narrow allowlist for authenticated proxy fallbacks.
+ * Public shop catalog lives in dedicated /api/shop/* routes — not here.
+ */
+const ALLOWED_PREFIXES = ['categories', 'upload'];
 
 function isBlocked(subpath: string): boolean {
   const lower = subpath.toLowerCase();

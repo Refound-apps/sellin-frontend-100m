@@ -240,7 +240,8 @@ export async function getShopOffers(
   search?: string,
   sbazarEmailOrEmails: string | string[] = [],
   filters: ShopOfferFilters = {},
-  forceRefresh: boolean = false
+  forceRefresh: boolean = false,
+  shopIdentity?: { slug?: string | null; domain?: string | null }
 ): Promise<ShopOffersResponse> {
   const emailKey = Array.isArray(sbazarEmailOrEmails)
     ? sbazarEmailOrEmails.slice().sort().join(',')
@@ -287,6 +288,8 @@ export async function getShopOffers(
     if (filters.brand) params.set('brand', filters.brand);
     if (filters.pcd) params.set('pcd', filters.pcd);
     if (filters.sort) params.set('sort', filters.sort);
+    if (shopIdentity?.slug) params.set('slug', shopIdentity.slug);
+    if (shopIdentity?.domain) params.set('domain', shopIdentity.domain);
 
     const response = await apiFetch(`/api/shop/offers?${params.toString()}`);
 
