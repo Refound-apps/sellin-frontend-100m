@@ -375,19 +375,22 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
       setError(null);
 
       try {
-        // In user mode: if user has no emails, don't load everything
+        // Seller: always pass own/subaccount emails (API also enforces server-side).
+        // Admin mode: omit emails → platform-wide list.
+        if (mode === 'user') {
+          if (userEmails === null) return;
+          if (userEmails.length === 0) {
+            setOffers([]);
+            setTotalOffers(0);
+            setHasMore(false);
+            return;
+          }
+        }
+
         const filterEmails =
           mode === 'user' && userEmails && userEmails.length > 0
             ? userEmails
             : undefined;
-
-        // If user mode and userEmails resolved to empty, return empty list
-        if (mode === 'user' && userEmails && userEmails.length === 0) {
-          setOffers([]);
-          setTotalOffers(0);
-          setHasMore(false);
-          return;
-        }
 
         const { offers: data, total } = await getOffers(
           limit,
@@ -432,14 +435,16 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
     [mode, userEmails, exactBbEmail, searchQuery, limit]
   );
 
-  // Trigger initial / filter reload
+  // Trigger initial / filter reload — wait until seller emails are resolved
   useEffect(() => {
     if (userLoading) return;
+    // user mode: null = still resolving; never fetch unscoped
+    if (mode === 'user' && userEmails === null) return;
 
     setPage(0);
     setHasMore(true);
     loadOffers(0);
-  }, [searchQuery, userLoading, userEmails, exactBbEmail, loadOffers]);
+  }, [searchQuery, userLoading, userEmails, exactBbEmail, loadOffers, mode]);
 
   // Load next page
   const handleLoadMore = useCallback(() => {

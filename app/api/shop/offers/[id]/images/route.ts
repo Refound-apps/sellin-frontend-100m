@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
+import { backendFetch } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,11 +10,8 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // 1. Fetch images from backend (which gets them from internal Postgres / MinIO)
     try {
-      const backendRes = await fetch(`${BACKEND_URL}/api/shop/offers/${id}/images`, {
-        cache: 'no-store',
-      });
+      const backendRes = await backendFetch(`/api/shop/offers/${id}/images`);
 
       if (backendRes.ok) {
         const data = await backendRes.json();
@@ -27,9 +23,8 @@ export async function GET(
       console.warn(`Backend image fetch failed for offer ${id}:`, e);
     }
 
-    // 2. Direct fallback from offer data in DB if image endpoint was temporarily unreachable
     try {
-      const offerRes = await fetch(`${BACKEND_URL}/api/offers/${id}`, { cache: 'no-store' });
+      const offerRes = await backendFetch(`/api/offers/${id}`);
       if (offerRes.ok) {
         const offerData = await offerRes.json();
         const offer = offerData.data;
@@ -39,7 +34,6 @@ export async function GET(
           const pushImg = (url?: string | null) => {
             if (!url || typeof url !== 'string' || !url.trim()) return;
             const trimmed = url.trim();
-            // Relative MinIO paths → R2 CDN (HTTPS). Never use http://MinIO (mixed content).
             const full = trimmed.startsWith('/')
               ? `https://pub-d4238224a90a49f98bf05b686985171f.r2.dev${trimmed}`
               : trimmed;

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/lib/database.types';
+import { redactCredentialSecrets } from '@/lib/credentialsRedact';
+import { resolveCallerOfferScope } from '@/lib/offerScope';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,22 +54,15 @@ export async function PUT(
 
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    // Check user role
-    let isAdmin = false;
-    let userEmail = (user?.email || '').toLowerCase().trim();
-
-    if (user) {
-      const { data: userCreds } = await supabase
-        .from('credential_pg')
-        .select('role')
-        .or(`user_id.eq.${user.id},email.ilike.${userEmail}`)
-        .eq('role', 'admin')
-        .limit(1);
-
-      isAdmin = Boolean(userCreds && userCreds.length > 0);
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 });
     }
+
+    const { isAdmin, allowedEmails } = await resolveCallerOfferScope(supabase, user);
+    const userEmail = (user.email || '').toLowerCase().trim();
 
     // Check existing credential
     const { data: existing, error: fetchErr } = await supabase
@@ -88,12 +83,17 @@ export async function PUT(
       );
     }
 
-    // Permission check: admin can update any, seller can update if it matches their email or sbazar_email
-    if (!isAdmin && user) {
+    // Permission: admin any; seller only own / linked subaccounts
+    if (!isAdmin) {
+      const ownerEmail = (existing.email || '').toLowerCase().trim();
       const isOwner =
         existing.user_id === user.id ||
-        (existing.email && existing.email.toLowerCase().trim() === userEmail) ||
-        (existing.sbazar_email && existing.sbazar_email.toLowerCase().trim() === userEmail);
+        (ownerEmail && allowedEmails.includes(ownerEmail)) ||
+        (existing.sbazar_email &&
+          allowedEmails.includes(existing.sbazar_email.toLowerCase().trim())) ||
+        (userEmail &&
+          (ownerEmail === userEmail ||
+            (existing.sbazar_email || '').toLowerCase().trim() === userEmail));
 
       if (!isOwner) {
         return NextResponse.json(
@@ -146,7 +146,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: updated,
+      data: redactCredentialSecrets(updated as unknown as Record<string, unknown>),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Chyba při aktualizaci účtu';

@@ -5,14 +5,12 @@ import { getScraperActionUrl } from '@/lib/backend';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const CRON_SECRET = process.env.CRON_SECRET || 'sellin-cron-secret-2026';
+const CRON_SECRET = process.env.CRON_SECRET;
 
 function isCronSecretAuth(request: NextRequest): boolean {
+  if (!CRON_SECRET) return false;
   const authHeader = request.headers.get('authorization');
-  return (
-    authHeader === `Bearer ${CRON_SECRET}` ||
-    authHeader === `Bearer ${process.env.CRON_SECRET}`
-  );
+  return authHeader === `Bearer ${CRON_SECRET}`;
 }
 
 async function requireAdmin() {
@@ -64,14 +62,21 @@ export async function POST(request: NextRequest) {
     const triggeredBy =
       cronAuth && body?.triggered_by === 'cron' ? 'cron' : 'manual_admin';
 
-    const backendUrl = getScraperActionUrl('/cron/run');
-    const backendRes = await fetch(backendUrl, {
+    if (!CRON_SECRET) {
+      return NextResponse.json(
+        { success: false, error: 'CRON_SECRET není nastaven' },
+        { status: 503 }
+      );
+    }
+
+    const backendRes = await fetch(getScraperActionUrl('/cron/run'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${CRON_SECRET}`,
       },
       body: JSON.stringify({ id, triggered_by: triggeredBy }),
+      cache: 'no-store',
     });
 
     const payload = await backendRes.json().catch(() => ({}));
@@ -79,9 +84,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            payload?.error ||
-            `Backend cron/run vrátil ${backendRes.status} (${backendUrl})`,
+          error: payload?.error || `Backend cron/run vrátil ${backendRes.status}`,
         },
         { status: backendRes.status >= 400 ? backendRes.status : 500 }
       );

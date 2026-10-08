@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { backendFetch } from '@/lib/backend';
 import type { ShopConfigData, ShopOffer } from '@/lib/types';
 import {
   SHOP_NAME,
@@ -50,8 +51,6 @@ const FALLBACK_SHOP: ShopConfigData = {
   primary_color: '#0f172a',
   logo_url: null,
 };
-
-const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
 
 const HIDDEN_SHOP_STATES = new Set(['app_archive', 'ok_deleted', 'app_delete']);
 
@@ -161,9 +160,7 @@ export async function fetchShopOffersPage(opts: {
     params.set('emails', opts.emails.join(','));
   }
 
-  const res = await fetch(`${BACKEND_URL}/api/shop/offers?${params.toString()}`, {
-    cache: 'no-store',
-  });
+  const res = await backendFetch(`/api/shop/offers?${params.toString()}`);
   if (!res.ok) {
     return { offers: [], total: 0 };
   }
@@ -203,7 +200,7 @@ export async function fetchAllShopOffers(
 }
 
 export async function fetchShopOfferById(id: number): Promise<ShopOffer | null> {
-  const res = await fetch(`${BACKEND_URL}/api/offers/${id}`, { cache: 'no-store' });
+  const res = await backendFetch(`/api/offers/${id}`);
   if (!res.ok) return null;
   const json = await res.json();
   const offer = json.data as ShopOffer | undefined;
@@ -217,9 +214,7 @@ export async function fetchShopOfferById(id: number): Promise<ShopOffer | null> 
 
 export async function fetchShopOfferImages(id: number): Promise<string[]> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/shop/offers/${id}/images`, {
-      cache: 'no-store',
-    });
+    const res = await backendFetch(`/api/shop/offers/${id}/images`);
     if (!res.ok) return [];
     const json = await res.json();
     return (json.data || []) as string[];

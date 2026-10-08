@@ -12,6 +12,16 @@ export function getBackendBaseUrl(): string {
   return raw.replace(/\/$/, '');
 }
 
+/** Headers for server→backend calls (INTERNAL_API_SECRET). */
+export function getInternalApiHeaders(extra?: HeadersInit): Headers {
+  const headers = new Headers(extra);
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (secret) {
+    headers.set('Authorization', `Bearer ${secret}`);
+  }
+  return headers;
+}
+
 /**
  * Absolute URL for scraper actions like /renewofferbazosforce.
  * Production nginx historically exposes them under /prod/api/* (same as Budibase).
@@ -38,4 +48,30 @@ export function getScraperActionUrl(endpoint: string): string {
 
   // Bare host (e.g. https://api.sellin.cz) → Budibase default prefix
   return `${base}/prod/api${path}`;
+}
+
+/** Resolve absolute backend URL for /api/* and scraper paths. */
+export function backendUrl(pathWithQuery: string): string {
+  const raw = pathWithQuery.startsWith('/') ? pathWithQuery : `/${pathWithQuery}`;
+  const qIndex = raw.indexOf('?');
+  const path = qIndex >= 0 ? raw.slice(0, qIndex) : raw;
+  const search = qIndex >= 0 ? raw.slice(qIndex) : '';
+
+  if (path === '/testsellin' || path.startsWith('/api/') || path.startsWith('/cron/')) {
+    return `${getBackendBaseUrl()}${path}${search}`;
+  }
+  return `${getScraperActionUrl(path)}${search}`;
+}
+
+/** Authenticated fetch to Express backend (server-side only). */
+export async function backendFetch(pathWithQuery: string, init?: RequestInit): Promise<Response> {
+  const headers = getInternalApiHeaders(init?.headers);
+  if (init?.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  return fetch(backendUrl(pathWithQuery), {
+    ...init,
+    headers,
+    cache: 'no-store',
+  });
 }

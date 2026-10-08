@@ -1,24 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/lib/database.types';
+import { redactCredentialSecrets } from '@/lib/credentialsRedact';
+import { resolveCallerOfferScope } from '@/lib/offerScope';
 
 export const dynamic = 'force-dynamic';
 
 type CredentialInsert = Database['public']['Tables']['credential_pg']['Insert'];
+type CredentialRow = Database['public']['Tables']['credential_pg']['Row'];
+
+const SAFE_SELECT =
+  'id, email, bazos_name, bazos_email, telephone1, telephone2, location, zipcode, zipcode_sk, bazos_rewrite, bazos_top_max, status_cz, status_sk, sbazar_email, sbazar_profile, proxy_ip, proxy_ip_sbazar, facebook_email, role, user_id, created_at, bazos_bkod, bazos_sk_bkod, sbazar_cookie_ds, bazos_password, sbazar_password, facebook_password, facebook_cuser, facebook_xs';
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 });
+    }
+
+    const { isAdmin, allowedEmails } = await resolveCallerOfferScope(supabase, user);
     const { searchParams } = new URL(request.url);
     const emailParam = searchParams.get('email');
 
     let query = supabase
       .from('credential_pg')
-      .select('*')
+      .select(SAFE_SELECT)
       .order('created_at', { ascending: false, nullsFirst: false })
       .order('id', { ascending: false });
 
-    if (emailParam) {
+    if (!isAdmin) {
+      if (allowedEmails.length === 0) {
+        return NextResponse.json({ success: true, data: [] });
+      }
+      query = query.in('email', allowedEmails);
+    } else if (emailParam) {
       const clean = emailParam.toLowerCase().trim();
       query = query.or(
         `email.ilike.${clean},sbazar_email.ilike.${clean},bazos_email.ilike.${clean}`
@@ -32,9 +53,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    const redacted = ((data || []) as unknown as CredentialRow[]).map((row) =>
+      redactCredentialSecrets(row as unknown as Record<string, unknown>)
+    );
+
     return NextResponse.json({
       success: true,
-      data: data || [],
+      data: redacted,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Chyba při načítání účtů';
@@ -46,15 +71,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const body = await request.json();
-
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    const userEmail = (user?.email || '').toLowerCase().trim();
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 });
+    }
 
-    // Required field
+    const body = await request.json();
+    const { isAdmin } = await resolveCallerOfferScope(supabase, user);
+    const userEmail = (user.email || '').toLowerCase().trim();
+
     if (!body.email) {
       return NextResponse.json(
         { success: false, error: 'E-mail účtu je povinný.' },
@@ -84,14 +113,15 @@ export async function POST(request: NextRequest) {
       sbazar_cookie_ds: body.sbazar_cookie_ds?.trim() || null,
       proxy_ip: body.proxy_ip?.trim() || null,
       proxy_ip_sbazar: body.proxy_ip_sbazar?.trim() || null,
-      role: body.role || 'seller',
-      user_id: user?.id || null,
+      // Never allow self-promotion to admin
+      role: isAdmin && body.role === 'admin' ? 'admin' : 'seller',
+      user_id: user.id,
     };
 
     const { data: created, error } = await supabase
       .from('credential_pg')
       .insert(newRecord)
-      .select('*')
+      .select(SAFE_SELECT)
       .single();
 
     if (error) {
@@ -101,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: created,
+      data: redactCredentialSecrets(created as unknown as Record<string, unknown>),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Chyba při vytváření účtu';

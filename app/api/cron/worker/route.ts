@@ -8,16 +8,13 @@ export const maxDuration = 300;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const CRON_SECRET = process.env.CRON_SECRET || 'sellin-cron-secret-2026';
+const CRON_SECRET = process.env.CRON_SECRET;
 
 function isAuthorized(request: NextRequest): boolean {
+  if (!CRON_SECRET) return false;
   const authHeader = request.headers.get('authorization');
-  const key = new URL(request.url).searchParams.get('key');
-  return (
-    authHeader === `Bearer ${CRON_SECRET}` ||
-    authHeader === `Bearer ${process.env.CRON_SECRET}` ||
-    key === CRON_SECRET
-  );
+  // Bearer only — never accept ?key= (leaks via logs/Referer)
+  return authHeader === `Bearer ${CRON_SECRET}`;
 }
 
 function resolveAppOrigin(request: NextRequest): string {
@@ -35,6 +32,12 @@ function resolveAppOrigin(request: NextRequest): string {
 
 export async function GET(request: NextRequest) {
   try {
+    if (!CRON_SECRET) {
+      return NextResponse.json(
+        { success: false, error: 'CRON_SECRET is not configured' },
+        { status: 503 }
+      );
+    }
     if (!isAuthorized(request)) {
       return NextResponse.json({ success: false, error: 'Unauthorized cron worker' }, { status: 401 });
     }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getScraperActionUrl } from '@/lib/backend';
+import { backendFetch } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -47,14 +47,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Neplatný název souboru' }, { status: 400 });
     }
 
-    // Primary: same endpoint as listing (already proven reachable in prod)
-    const primaryUrl = `${getScraperActionUrl('/error-screenshots')}?file=${encodeURIComponent(name)}`;
-    let backendRes = await fetch(primaryUrl, { method: 'GET', cache: 'no-store' });
+    let backendRes = await backendFetch(
+      `/error-screenshots?file=${encodeURIComponent(name)}`
+    );
 
     // Fallback for older backend deploys
     if (!backendRes.ok && backendRes.status === 404) {
-      const fallbackUrl = `${getScraperActionUrl('/error-screenshots/file')}?name=${encodeURIComponent(name)}`;
-      backendRes = await fetch(fallbackUrl, { method: 'GET', cache: 'no-store' });
+      backendRes = await backendFetch(
+        `/error-screenshots/file?name=${encodeURIComponent(name)}`
+      );
     }
 
     if (!backendRes.ok) {

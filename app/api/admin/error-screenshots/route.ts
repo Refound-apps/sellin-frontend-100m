@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getScraperActionUrl } from '@/lib/backend';
+import { backendFetch } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -51,12 +51,7 @@ export async function GET(request: NextRequest) {
     }
     if (!qs.has('limit')) qs.set('limit', '120');
 
-    const backendUrl = `${getScraperActionUrl('/error-screenshots')}?${qs.toString()}`;
-    const backendRes = await fetch(backendUrl, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    });
+    const backendRes = await backendFetch(`/error-screenshots?${qs.toString()}`);
 
     const payload = await backendRes.json().catch(() => ({}));
     if (!backendRes.ok) {
@@ -65,7 +60,7 @@ export async function GET(request: NextRequest) {
           success: false,
           error:
             payload?.error ||
-            `Backend error-screenshots vrátil ${backendRes.status} (${backendUrl})`,
+            `Backend error-screenshots vrátil ${backendRes.status}`,
         },
         { status: backendRes.status >= 400 ? backendRes.status : 500 }
       );

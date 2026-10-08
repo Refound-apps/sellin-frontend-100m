@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getScraperActionUrl } from '@/lib/backend';
+import { backendFetch, getScraperActionUrl } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
 
@@ -239,9 +239,8 @@ export async function POST(request: NextRequest) {
       `[recreate] POST ${backendUrl} count=${offers.length} email=${email} offset=${offset} max=${max}`
     );
 
-    const backendPromise = fetch(backendUrl, {
+    const backendPromise = backendFetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 

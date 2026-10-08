@@ -1,35 +1,97 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
+import { createClient } from '@/lib/supabase/server';
+import { backendFetch } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
 
+/** Paths that must never go through the catch-all (dedicated routes or admin-only). */
+const BLOCKED_PREFIXES = [
+  'credentials',
+  'jobs',
+  'cron',
+  'error-screenshots',
+  'transactions',
+  'offers',
+  'admin',
+  'coldmail',
+  'dailyreport',
+  'weeklyreport',
+  'test-email',
+  'renew',
+  'recreate',
+  'init',
+  'deleteoffer',
+  'createofferv2',
+  'updateoffer',
+  'archive',
+  'minifyimages',
+  'addvouchers',
+  'freeproxies',
+  'proxyhealth',
+  'bazoscookie',
+  'topbazos',
+  'mysqltopostgres',
+  'importeshop',
+  'synceshop',
+  'enhanceimages',
+  'updatelinks',
+  'vouchers-alert',
+  'bbofferstopgoffers',
+];
+
+/** Narrow allowlist for authenticated proxy fallbacks. */
+const ALLOWED_PREFIXES = ['categories', 'shop', 'upload', 'user'];
+
+function isBlocked(subpath: string): boolean {
+  const lower = subpath.toLowerCase();
+  return BLOCKED_PREFIXES.some(
+    (p) => lower === p || lower.startsWith(`${p}/`) || lower.startsWith(p)
+  );
+}
+
+function isAllowed(subpath: string): boolean {
+  const lower = subpath.toLowerCase();
+  return ALLOWED_PREFIXES.some((p) => lower === p || lower.startsWith(`${p}/`));
+}
+
 async function proxyRequest(request: NextRequest, pathParts: string[]) {
   try {
-    const subpath = pathParts.join('/');
-    const search = request.nextUrl.search;
-    const targetUrl = `${BACKEND_URL}/api/${subpath}${search}`;
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    const headers = new Headers();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 });
+    }
+
+    const subpath = pathParts.join('/');
+    if (!subpath || isBlocked(subpath) || !isAllowed(subpath)) {
+      return NextResponse.json({ success: false, error: 'Endpoint není dostupný' }, { status: 404 });
+    }
+
+    const search = request.nextUrl.search;
+    const targetPath = `/api/${subpath}${search}`;
+
+    const headers: HeadersInit = {};
     const contentType = request.headers.get('content-type');
     if (contentType) {
-      headers.set('content-type', contentType);
+      headers['content-type'] = contentType;
     }
 
     const init: RequestInit = {
       method: request.method,
       headers,
-      cache: 'no-store',
     };
 
-    if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
       const body = await request.text();
       if (body) {
         init.body = body;
       }
     }
 
-    const backendRes = await fetch(targetUrl, init);
+    const backendRes = await backendFetch(targetPath, init);
     const resContentType = backendRes.headers.get('content-type') || '';
 
     if (resContentType.includes('application/json')) {

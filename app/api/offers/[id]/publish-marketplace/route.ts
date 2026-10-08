@@ -1,25 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
+import { createClient } from '@/lib/supabase/server';
+import { backendFetch } from '@/lib/backend';
+import { resolveCallerOfferScope } from '@/lib/offerScope';
 
 export const dynamic = 'force-dynamic';
 
-/** Proxy: any seller can queue create on a single marketplace for their offer. */
+/** Proxy: seller can queue marketplace publish only for their own / subaccount offers. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 });
+    }
+
+    const { isAdmin, allowedEmails } = await resolveCallerOfferScope(supabase, user);
+
+    if (!isAdmin) {
+      const offerRes = await backendFetch(`/api/offers/${id}`);
+      const offerPayload = await offerRes.json().catch(() => null);
+      const offer = offerPayload?.data ?? offerPayload;
+      const owner = offer?.bb_email?.toLowerCase().trim();
+
+      if (!offerRes.ok || !owner || !allowedEmails.includes(owner)) {
+        return NextResponse.json(
+          { success: false, error: 'Nemáte přístup k této nabídce' },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await request.json().catch(() => ({}));
 
-    const backendRes = await fetch(`${BACKEND_URL}/api/offers/${id}/publish-marketplace`, {
+    const backendRes = await backendFetch(`/api/offers/${id}/publish-marketplace`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(body),
-      cache: 'no-store',
     });
 
     const data = await backendRes.json().catch(() => null);

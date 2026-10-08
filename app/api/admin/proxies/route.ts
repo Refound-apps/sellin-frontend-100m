@@ -334,7 +334,7 @@ export async function POST(request: NextRequest) {
         meta: { synced: freeIps.length },
       });
     } else if (action === 'run_health_check') {
-      const { getScraperActionUrl } = await import('@/lib/backend');
+      const { backendFetch } = await import('@/lib/backend');
       const overview = await buildOverview(supabase, zone);
       const assigned = new Set<string>();
       for (const row of overview.ips) {
@@ -358,10 +358,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const backendUrl = getScraperActionUrl('/proxyhealthcheck');
-      const backendRes = await fetch(backendUrl, {
+      const backendUrl = '/proxyhealthcheck';
+      const backendRes = await backendFetch(backendUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ips,
           platforms,

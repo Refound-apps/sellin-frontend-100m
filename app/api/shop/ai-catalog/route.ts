@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOfferPricingInfo, getOfferSpecsList } from '@/components/shop/offerMeta';
+import { backendFetch } from '@/lib/backend';
 import { ShopOffer } from '@/lib/types';
-
-const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3300';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,8 +80,7 @@ export async function GET(request: NextRequest) {
       backendParams.set('emails', linkedEmails.join(','));
     }
 
-    const backendUrl = `${BACKEND_URL}/api/shop/offers?${backendParams.toString()}`;
-    const res = await fetch(backendUrl, { cache: 'no-store' });
+    const res = await backendFetch(`/api/shop/offers?${backendParams.toString()}`);
 
     if (!res.ok) {
       return NextResponse.json(

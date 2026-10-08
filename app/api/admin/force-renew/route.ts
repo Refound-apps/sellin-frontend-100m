@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getScraperActionUrl } from '@/lib/backend';
+import { backendFetch, getScraperActionUrl } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
 
@@ -474,9 +474,8 @@ export async function POST(request: NextRequest) {
     console.log(`[force-renew] POST ${backendUrl} count=${items.length} email=${emails.join(',')}`);
 
     const payloadJson = JSON.stringify(payload);
-    const backendPromise = fetch(backendUrl, {
+    const backendPromise = backendFetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: payloadJson,
     });
 
