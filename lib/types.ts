@@ -336,4 +336,18 @@ export interface CrmWorklistLead extends CrmLead {
   worklist_bucket?: CrmWorklistBucket;
 }
 
+export interface AppErrorLog {
+  id: number;
+  created_at: string;
+  source: 'frontend' | 'backend' | 'api' | string;
+  error_type: string | null;
+  message: string;
+  status_code: number | null;
+  path: string | null;
+  user_email: string | null;
+  metadata: Record<string, any> | null;
+  resolved: boolean;
+  resolved_at: string | null;
+}
+
 

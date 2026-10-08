@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
       countsFailed,
       countsPendingErr,
       countsStuck,
+      countsAppErrors,
+      recentAppErrorsRes,
     ] = await Promise.all([
       jobsTable(supabase)
         .select('*')
@@ -106,6 +108,15 @@ export async function GET(request: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .eq('status', 'running')
         .lt('locked_at', stuckBefore),
+      supabase
+        .from('app_error_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('resolved', false),
+      supabase
+        .from('app_error_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit),
     ]);
 
     if (failedRes.error) {
@@ -170,12 +181,14 @@ export async function GET(request: NextRequest) {
           stuckRunning: countsStuck.count || 0,
           cronErrors: (cronErrRes.data || []).length,
           missingCookies: missingCookies.length,
+          appErrorsUnresolved: countsAppErrors.count || 0,
           windowDays: 14,
         },
         errorGroups: Object.entries(errorGroups)
           .map(([signature, g]) => ({ signature, ...g }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 30),
+        appErrors: recentAppErrorsRes.data || [],
         failedJobs: failedRes.data || [],
         retryingJobs: retryingRes.data || [],
         stuckJobs: stuckRes.data || [],

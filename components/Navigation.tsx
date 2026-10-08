@@ -176,7 +176,7 @@ export default function Navigation() {
     { href: '/admin/transactions', label: 'Transakce', exact: false },
     { href: '/admin/crm', label: 'Sales CRM', exact: false },
     { href: '/admin/automations', label: 'Automatizace & Cron', exact: false },
-    { href: '/admin/errors', label: 'Scraping errors', exact: false },
+    { href: '/admin/errors', label: 'Chyby & Logy', exact: false },
     { href: '/admin/force-renew', label: 'Force renew', exact: false },
     { href: '/admin/recreate', label: 'Recreate', exact: false },
     { href: '/admin/proxies', label: 'Proxy IP', exact: false },

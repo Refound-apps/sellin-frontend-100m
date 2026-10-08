@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import AdminErrorsView from '@/components/AdminErrorsView';
 
 export const metadata: Metadata = {
-  title: 'Scraping errors',
-  description: 'Přehled chyb scrapingu, VPS error screenshotů, nedokončených úloh a chybějících cookies.',
+  title: 'Chyby & Monitoring',
+  description: 'Přehled chyb aplikace (Frontend / Backend), scraperů, cron úloh a screenshotů.',
 };
 
 export default function AdminErrorsPage() {

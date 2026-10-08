@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { formatPhoneNumber } from '@/components/offerStatus';
 import { apiFetch, getUsers, uploadImagesToR2 } from '@/lib/api';
 import { filesToCompressedBase64 } from '@/lib/compressImage';
+import { logClientError } from '@/lib/logger';
 import { DEFAULT_OFFER_CATEGORIES, OfferCategoryItem, fetchOfferCategories } from '@/lib/categories';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@/lib/types';
@@ -565,6 +566,13 @@ function CreateOfferContent() {
       setImageList((prev) => [...prev, ...uploadedUrls].slice(0, 9));
     } catch (err: any) {
       console.error('Upload failed:', err);
+      void logClientError({
+        message: err?.message || 'Nepodařilo se nahrát obrázky',
+        errorType: 'ClientImageUploadFailed',
+        path: '/create (uploadImageFiles)',
+        userEmail: formData.bb_email,
+        metadata: { fileCount: selectedFiles.length },
+      });
       setError('Nepodařilo se nahrát obrázky: ' + (err.message || 'Zkuste to prosím znovu.'));
     } finally {
       setUploadingImages(false);
@@ -739,10 +747,26 @@ function CreateOfferContent() {
 
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
-        throw new Error(
+        const errMessage =
           (errBody && (errBody.error || errBody.message)) ||
-            `Nepodařilo se vytvořit inzerát (${response.status})`
-        );
+          `Nepodařilo se vytvořit inzerát (${response.status})`;
+
+        void logClientError({
+          message: errMessage,
+          errorType: response.status === 413 ? 'PayloadTooLarge_413' : 'CreateOfferFailed',
+          statusCode: response.status,
+          path: '/create -> /api/offers/create',
+          userEmail: formData.bb_email,
+          metadata: {
+            title: formData.title,
+            price: formData.price,
+            imageCount: imageList.length,
+            marketplace: formData.marketplace,
+            errBody,
+          },
+        });
+
+        throw new Error(errMessage);
       }
 
       rememberBbEmail(formData.bb_email);
@@ -751,6 +775,16 @@ function CreateOfferContent() {
       const returnAccount = selectedSeller?.email || selectedCustomEmail;
       router.push(returnAccount ? `/?account=${encodeURIComponent(returnAccount)}` : '/');
     } catch (err: any) {
+      void logClientError({
+        message: err?.message || 'Chyba při odesílání inzerátu',
+        errorType: 'CreateOfferCatch',
+        path: '/create',
+        userEmail: formData.bb_email,
+        metadata: {
+          title: formData.title,
+          imageCount: imageList.length,
+        },
+      });
       setError(err?.message || 'Nepodařilo se vytvořit inzerát. Zkuste to prosím znovu.');
       console.error(err);
       window.scrollTo({ top: 0, behavior: 'smooth' });

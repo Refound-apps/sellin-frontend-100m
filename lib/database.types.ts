@@ -12,6 +12,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_error_logs: {
+        Row: {
+          created_at: string
+          error_type: string | null
+          id: number
+          message: string
+          metadata: Json | null
+          path: string | null
+          resolved: boolean
+          resolved_at: string | null
+          source: string
+          status_code: number | null
+          user_email: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_type?: string | null
+          id?: number
+          message: string
+          metadata?: Json | null
+          path?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          source: string
+          status_code?: number | null
+          user_email?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_type?: string | null
+          id?: number
+          message?: string
+          metadata?: Json | null
+          path?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          source?: string
+          status_code?: number | null
+          user_email?: string | null
+        }
+        Relationships: []
+      }
       credential_pg: {
         Row: {
           bazos_bkod: string | null

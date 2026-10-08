@@ -14,6 +14,7 @@ import {
   ScraperJobCounts,
   CrmLead,
   CrmStats,
+  AppErrorLog,
 } from './types';
 import { toShopMediaUrl } from './shop/mediaUrl';
 
@@ -1233,5 +1234,71 @@ export async function deleteCrmLead(id: number): Promise<void> {
     throw new Error(data.error || 'Nepodařilo se smazat CRM lead');
   }
 }
+
+// ================= Application Error Logs (FE & BE) ================= //
+
+export interface AppErrorsResponse {
+  data: AppErrorLog[];
+  total: number;
+  summary: {
+    unresolved: number;
+    unresolvedFrontend: number;
+    unresolvedBackend: number;
+  };
+}
+
+export async function getAdminAppErrors(params?: {
+  source?: string;
+  resolved?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AppErrorsResponse> {
+  const qs = new URLSearchParams();
+  if (params?.source) qs.set('source', params.source);
+  if (params?.resolved) qs.set('resolved', params.resolved);
+  if (params?.q) qs.set('q', params.q);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.offset) qs.set('offset', String(params.offset));
+
+  const response = await fetch(`/api/admin/app-errors?${qs.toString()}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se načíst chyby aplikace');
+  }
+  return {
+    data: data.data || [],
+    total: data.total || 0,
+    summary: data.summary || { unresolved: 0, unresolvedFrontend: 0, unresolvedBackend: 0 },
+  };
+}
+
+export async function patchAppError(id: number, resolved: boolean): Promise<void> {
+  const response = await fetch('/api/admin/app-errors', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, resolved }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se aktualizovat stav chyby');
+  }
+}
+
+export async function purgeResolvedAppErrors(): Promise<void> {
+  const response = await fetch('/api/admin/app-errors?purge_resolved=true', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Nepodařilo se promazat vyřešené chyby');
+  }
+}
+
 
 

@@ -4,8 +4,9 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getAdminErrors, getAdminErrorScreenshots, patchScraperJob, runNowAllRetryingScraperJobs } from '@/lib/api';
 import type { ErrorScreenshot } from '@/lib/api';
-import type { CronJobLog, ScraperJob } from '@/lib/types';
+import type { CronJobLog, ScraperJob, AppErrorLog } from '@/lib/types';
 import { formatDateTime } from './TransactionsView';
+import AppErrorsTable from './admin/AppErrorsTable';
 
 type MissingCookieRow = {
   id: number;
@@ -31,9 +32,11 @@ type ErrorsPayload = {
     stuckRunning: number;
     cronErrors: number;
     missingCookies: number;
+    appErrorsUnresolved?: number;
     windowDays: number;
   };
   errorGroups: ErrorGroup[];
+  appErrors?: AppErrorLog[];
   failedJobs: ScraperJob[];
   retryingJobs: ScraperJob[];
   stuckJobs: ScraperJob[];
@@ -41,7 +44,7 @@ type ErrorsPayload = {
   missingCookies: MissingCookieRow[];
 };
 
-type TabKey = 'failed' | 'retrying' | 'stuck' | 'cron' | 'cookies' | 'screenshots';
+type TabKey = 'app_errors' | 'failed' | 'retrying' | 'stuck' | 'cron' | 'cookies' | 'screenshots';
 
 const TYPE_LABEL: Record<string, string> = {
   renew_bazos: 'Renew Bazoš.cz',
@@ -366,7 +369,7 @@ export default function AdminErrorsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [tab, setTab] = useState<TabKey>('failed');
+  const [tab, setTab] = useState<TabKey>('app_errors');
 
   const [shots, setShots] = useState<ErrorScreenshot[]>([]);
   const [shotsTotal, setShotsTotal] = useState(0);
@@ -471,10 +474,10 @@ export default function AdminErrorsView() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Scraping errors</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Chyby a monitoring systému</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Chyby workerů, nedokončené úlohy, cron selhání, cookies a VPS error screenshoty.
-            {s ? ` Okno jobů: ${s.windowDays} dní.` : ''}
+            Přehled chyb aplikace (Frontend / Backend), scraperů, cron úloh, chybějících cookies a screenshotů.
+            {s ? ` Okno scraper jobů: ${s.windowDays} dní.` : ''}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -512,47 +515,67 @@ export default function AdminErrorsView() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         {(
           [
-            ['failed', 'Failed joby', s?.failedJobs ?? '—', 'failed'],
+            ['app_errors', 'Chyby aplikace (FE/BE)', s?.appErrorsUnresolved ?? '—', 'app_errors'],
+            ['failed', 'Failed scrapery', s?.failedJobs ?? '—', 'failed'],
             ['retrying', 'Retry s chybou', s?.retryingWithError ?? '—', 'retrying'],
             ['stuck', 'Stuck running', s?.stuckRunning ?? '—', 'stuck'],
             ['cron', 'Cron errors', s?.cronErrors ?? '—', 'cron'],
             ['cookies', 'Chybějící cookies', s?.missingCookies ?? '—', 'cookies'],
             ['screenshots', 'Error screenshots', shotsTotal || '—', 'screenshots'],
           ] as const
-        ).map(([key, label, value, tabKey]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(tabKey)}
-            className={`rounded-2xl border p-4 text-left shadow-2xs transition ${
-              tab === tabKey
-                ? 'border-slate-900 bg-slate-950 text-white'
-                : 'border-slate-200/80 bg-white hover:border-slate-300'
-            }`}
-          >
-            <p className={`text-xs font-medium ${tab === tabKey ? 'text-slate-300' : 'text-slate-500'}`}>
-              {label}
-            </p>
-            <p className="mt-1 text-xl font-bold tracking-tight">
-              {tabKey === 'screenshots'
-                ? shotsLoading && !shotsTotal
-                  ? '…'
-                  : value
-                : loading && !data
-                  ? '…'
-                  : value}
-            </p>
-          </button>
-        ))}
+        ).map(([key, label, value, tabKey]) => {
+          const isAppErrors = tabKey === 'app_errors';
+          const hasUnresolved = isAppErrors && typeof value === 'number' && value > 0;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(tabKey)}
+              className={`rounded-2xl border p-4 text-left shadow-2xs transition ${
+                tab === tabKey
+                  ? 'border-slate-900 bg-slate-950 text-white'
+                  : hasUnresolved
+                    ? 'border-rose-300 bg-rose-50/70 hover:border-rose-400'
+                    : 'border-slate-200/80 bg-white hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <p className={`text-xs font-medium ${
+                  tab === tabKey
+                    ? 'text-slate-300'
+                    : hasUnresolved
+                      ? 'text-rose-800 font-bold'
+                      : 'text-slate-500'
+                }`}>
+                  {label}
+                </p>
+                {hasUnresolved && tab !== tabKey && (
+                  <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                )}
+              </div>
+              <p className={`mt-1 text-xl font-bold tracking-tight ${
+                hasUnresolved && tab !== tabKey ? 'text-rose-900' : ''
+              }`}>
+                {tabKey === 'screenshots'
+                  ? shotsLoading && !shotsTotal
+                    ? '…'
+                    : value
+                  : loading && !data
+                    ? '…'
+                    : value}
+              </p>
+            </button>
+          );
+        })}
       </div>
 
-      {data && data.errorGroups.length > 0 && tab !== 'screenshots' && (
+      {data && data.errorGroups.length > 0 && tab !== 'screenshots' && tab !== 'app_errors' && (
         <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
           <div className="border-b border-slate-100 px-4 py-3">
-            <h2 className="text-sm font-bold text-slate-900">Nejčastější chyby</h2>
+            <h2 className="text-sm font-bold text-slate-900">Nejčastější chyby scraperů</h2>
           </div>
           <ul className="divide-y divide-slate-100">
             {data.errorGroups.slice(0, 8).map((g) => (
@@ -576,7 +599,7 @@ export default function AdminErrorsView() {
       )}
 
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
-        {tab !== 'screenshots' && (
+        {tab !== 'screenshots' && tab !== 'app_errors' && (
           <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-bold text-slate-900">
               {tab === 'failed' && 'Failed scraper joby'}
@@ -598,7 +621,24 @@ export default function AdminErrorsView() {
           </div>
         )}
 
-        {tab === 'screenshots' ? (
+        {tab === 'app_errors' ? (
+          <AppErrorsTable
+            initialItems={data?.appErrors}
+            onCountsChange={(unresolved) => {
+              setData((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      summary: {
+                        ...prev.summary,
+                        appErrorsUnresolved: unresolved,
+                      },
+                    }
+                  : prev
+              );
+            }}
+          />
+        ) : tab === 'screenshots' ? (
           <ScreenshotsGallery
             items={shots}
             total={shotsTotal}

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Offer, OfferDetail } from '@/lib/types';
 import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2, deleteOfferById, restoreOfferById, publishOfferToMarketplace } from '@/lib/api';
 import { filesToCompressedBase64 } from '@/lib/compressImage';
+import { logClientError } from '@/lib/logger';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
 import {
   formatOfferDate,
@@ -211,6 +212,13 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
       setEditedImages((prev) => [...prev, ...uploadedUrls].slice(0, 9));
     } catch (err: any) {
       console.error('Upload to R2 failed in modal:', err);
+      void logClientError({
+        message: err?.message || 'Nepodařilo se nahrát fotografie',
+        errorType: 'ModalImageUploadFailed',
+        path: '/modal (image upload)',
+        userEmail: offer?.bb_email,
+        metadata: { offerId: offer?.bb_id || offer?.id, fileCount: selectedFiles.length },
+      });
       setSaveError('Nepodařilo se nahrát fotografie: ' + (err.message || ''));
     } finally {
       setUploadingImages(false);
@@ -313,6 +321,13 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
       setTimeout(() => setSaveSuccess(false), 5000);
     } catch (error: any) {
       console.error('Error saving offer:', error);
+      void logClientError({
+        message: error?.message || 'Chyba při ukládání nabídky v modalu',
+        errorType: 'ModalSaveOfferFailed',
+        path: `/api/offers/${offer?.bb_id || offer?.id}`,
+        userEmail: offer?.bb_email,
+        metadata: { offerId: offer?.bb_id || offer?.id, title: editedOffer.title },
+      });
       setSaveError('Chyba při ukládání: ' + (error.message || 'Chyba při komunikaci se serverem.'));
     } finally {
       setSaving(false);
