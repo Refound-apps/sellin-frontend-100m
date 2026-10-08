@@ -879,6 +879,9 @@ export async function uploadImagesToR2(images: { data: string; filename?: string
     }
     const data = await response.json();
     const urls: string[] = data.urls || (data.url ? [data.url] : []);
+    if (urls.some((u) => typeof u === 'string' && u.trim().startsWith('data:'))) {
+      throw new Error('Chyba nahrávání do úložiště: server vrátil base64 místo odkazu.');
+    }
     allUrls.push(...urls);
   }
   return allUrls;

@@ -688,6 +688,13 @@ function CreateOfferContent() {
       return;
     }
 
+    const hasDataUri = imageList.some((url) => typeof url === 'string' && url.trim().startsWith('data:'));
+    if (hasDataUri) {
+      setError('Fotografie nejsou řádně nahrány v R2 úložišti. Odeberte je prosím a nahrajte znovu.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
