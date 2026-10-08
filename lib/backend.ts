@@ -22,32 +22,40 @@ export function getInternalApiHeaders(extra?: HeadersInit): Headers {
   return headers;
 }
 
+function isLocalBase(base: string): boolean {
+  return /localhost|127\.0\.0\.1/i.test(base);
+}
+
+/**
+ * Public nginx prefix that is stripped before Express.
+ * Express routes live at /api/... and /testsellin — so prod calls must be:
+ *   https://api.sellin.cz/prod/api + /api/offers/create
+ *   → after strip Express sees /api/offers/create
+ */
+export function getPublicApiPrefix(): string {
+  const base = getBackendBaseUrl();
+  if (isLocalBase(base)) return base;
+  if (/\/prod\/api$/i.test(base)) return base;
+  if (/\/api$/i.test(base)) return base;
+  if (/\/prod$/i.test(base)) return `${base}/api`;
+  return `${base}/prod/api`;
+}
+
 /**
  * Absolute URL for scraper actions like /renewofferbazosforce.
  * Production nginx historically exposes them under /prod/api/* (same as Budibase).
  * Local Express mounts them at the root (without /api).
  */
 export function getScraperActionUrl(endpoint: string): string {
-  const base = getBackendBaseUrl();
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const prefix = getPublicApiPrefix();
 
-  const isLocal = /localhost|127\.0\.0\.1/i.test(base);
-  if (isLocal) {
-    return `${base}${path}`;
+  if (isLocalBase(prefix)) {
+    return `${prefix}${path}`;
   }
 
-  // Already points at .../prod/api or .../api
-  if (/\/prod\/api$/i.test(base) || /\/api$/i.test(base)) {
-    return `${base}${path}`;
-  }
-
-  // Points at .../prod → append /api
-  if (/\/prod$/i.test(base)) {
-    return `${base}/api${path}`;
-  }
-
-  // Bare host (e.g. https://api.sellin.cz) → Budibase default prefix
-  return `${base}/prod/api${path}`;
+  // Non-/api scraper actions sit next to /api on the same nginx prefix
+  return `${prefix}${path}`;
 }
 
 /** Resolve absolute backend URL for /api/* and scraper paths. */
@@ -56,10 +64,19 @@ export function backendUrl(pathWithQuery: string): string {
   const qIndex = raw.indexOf('?');
   const path = qIndex >= 0 ? raw.slice(0, qIndex) : raw;
   const search = qIndex >= 0 ? raw.slice(qIndex) : '';
+  const prefix = getPublicApiPrefix();
 
-  if (path === '/testsellin' || path.startsWith('/api/') || path.startsWith('/cron/')) {
-    return `${getBackendBaseUrl()}${path}${search}`;
+  // /testsellin is mounted at Express root (not under /api)
+  if (path === '/testsellin') {
+    return `${prefix}${path}${search}`;
   }
+
+  if (path.startsWith('/api/') || path.startsWith('/cron/')) {
+    // Local: http://localhost:3300/api/offers/create
+    // Prod:  https://api.sellin.cz/prod/api/api/offers/create  (nginx strips /prod/api)
+    return `${prefix}${path}${search}`;
+  }
+
   return `${getScraperActionUrl(path)}${search}`;
 }
 
@@ -69,9 +86,28 @@ export async function backendFetch(pathWithQuery: string, init?: RequestInit): P
   if (init?.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  return fetch(backendUrl(pathWithQuery), {
+  const url = backendUrl(pathWithQuery);
+  const res = await fetch(url, {
     ...init,
     headers,
     cache: 'no-store',
   });
+
+  // Common misconfig: base ends with /prod (not /prod/api) → Express 404 "Cannot POST /offers/create"
+  // Retry once with forced /api segment after prefix.
+  if (!res.ok && res.status === 404 && pathWithQuery.includes('/api/') && !isLocalBase(url)) {
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const fixed = url.replace(/\/prod\/api\/(?!api\/)/i, '/prod/api/api/');
+      if (fixed !== url) {
+        return fetch(fixed, {
+          ...init,
+          headers,
+          cache: 'no-store',
+        });
+      }
+    }
+  }
+
+  return res;
 }

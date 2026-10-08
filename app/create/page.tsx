@@ -731,7 +731,11 @@ function CreateOfferContent() {
       });
 
       if (!response.ok) {
-        throw new Error('Nepodařilo se vytvořit inzerát');
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(
+          (errBody && (errBody.error || errBody.message)) ||
+            `Nepodařilo se vytvořit inzerát (${response.status})`
+        );
       }
 
       rememberBbEmail(formData.bb_email);
@@ -740,7 +744,7 @@ function CreateOfferContent() {
       const returnAccount = selectedSeller?.email || selectedCustomEmail;
       router.push(returnAccount ? `/?account=${encodeURIComponent(returnAccount)}` : '/');
     } catch (err: any) {
-      setError('Nepodařilo se vytvořit inzerát. Zkuste to prosím znovu.');
+      setError(err?.message || 'Nepodařilo se vytvořit inzerát. Zkuste to prosím znovu.');
       console.error(err);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {

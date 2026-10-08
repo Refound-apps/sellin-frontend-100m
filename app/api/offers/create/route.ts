@@ -32,8 +32,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isAdmin && !allowedEmails.includes(bbEmail)) {
+      console.warn('[offers/create] forbidden bb_email', {
+        bbEmail,
+        user: user.email,
+        allowedCount: allowedEmails.length,
+      });
       return NextResponse.json(
-        { success: false, error: 'Nemůžete vytvořit nabídku na cizí účet.' },
+        {
+          success: false,
+          error: 'Nemůžete vytvořit nabídku na cizí účet. Zvolte účet ze seznamu prodejce.',
+        },
         { status: 403 }
       );
     }
@@ -43,7 +51,29 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    const contentType = backendRes.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await backendRes.text().catch(() => '');
+      console.error('[offers/create] non-JSON backend response', backendRes.status, text.slice(0, 200));
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            backendRes.status === 404
+              ? 'Backend endpoint pro vytvoření nabídky není dostupný (špatná API URL).'
+              : 'Backend vrátil neočekávanou odpověď při vytváření nabídky.',
+        },
+        { status: 502 }
+      );
+    }
+
     const data = await backendRes.json().catch(() => null);
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: 'Prázdná odpověď z backendu.' },
+        { status: 502 }
+      );
+    }
     return NextResponse.json(data, { status: backendRes.status });
   } catch (err: unknown) {
     console.error('POST /api/offers/create error:', err);
