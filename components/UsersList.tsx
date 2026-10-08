@@ -569,7 +569,15 @@ export default function UsersList() {
                   return (
                     <Fragment key={group.key}>
                       <AccountRow
-                        user={{ ...group.main, error_count: group.main.error_count || 0 }}
+                        user={{
+                          ...group.main,
+                          error_count: group.main.error_count || 0,
+                          // Show newest login in the group (sub may own the auth session)
+                          last_sign_in_at:
+                            group.lastActivityMs > 0
+                              ? new Date(group.lastActivityMs).toISOString()
+                              : group.main.last_sign_in_at,
+                        }}
                         hasSubs={group.subs.length > 0}
                         subCount={group.subs.length}
                         expanded={open}

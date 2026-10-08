@@ -75,10 +75,30 @@ export async function GET() {
       return NextResponse.json({ success: false, error: credsError.message }, { status: 500 });
     }
 
-    // Auth last_sign_in_at (service role) — fetch all pages
+    // Auth last_sign_in_at — prefer RPC (works without service role), else admin.listUsers
     const loginByUserId = new Map<string, string>();
     const loginByEmail = new Map<string, string>();
-    if (service) {
+
+    const ingestLogin = (userId: string | null | undefined, email: string | null | undefined, at: string | null | undefined) => {
+      if (!at) return;
+      if (userId) loginByUserId.set(String(userId), at);
+      if (email) loginByEmail.set(email.toLowerCase().trim(), at);
+    };
+
+    try {
+      const { data: rpcLogins, error: rpcErr } = await (supabase as any).rpc('admin_list_auth_logins');
+      if (rpcErr) {
+        console.error('[admin/users] admin_list_auth_logins failed:', rpcErr);
+      } else if (Array.isArray(rpcLogins)) {
+        for (const row of rpcLogins) {
+          ingestLogin(row?.user_id, row?.email, row?.last_sign_in_at);
+        }
+      }
+    } catch (e) {
+      console.error('[admin/users] admin_list_auth_logins threw:', e);
+    }
+
+    if (loginByUserId.size === 0 && loginByEmail.size === 0 && service) {
       try {
         let page = 1;
         const perPage = 1000;
@@ -90,12 +110,7 @@ export async function GET() {
           }
           const batch = data?.users || [];
           for (const u of batch) {
-            const at = u.last_sign_in_at;
-            if (!at) continue;
-            loginByUserId.set(u.id, at);
-            if (u.email) {
-              loginByEmail.set(u.email.toLowerCase().trim(), at);
-            }
+            ingestLogin(u.id, u.email, u.last_sign_in_at);
           }
           if (batch.length < perPage) break;
           page += 1;
