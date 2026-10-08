@@ -15,6 +15,7 @@ import {
   CrmLead,
   CrmStats,
 } from './types';
+import { toShopMediaUrl } from './shop/mediaUrl';
 
 export const SHOP_SBAZAR_EMAIL = 'duplux@seznam.cz';
 
@@ -546,7 +547,9 @@ export async function getShopOfferImages(id: number): Promise<string[]> {
     }
 
     const data: ApiResponse<string[]> = await response.json();
-    const images = data.data || [];
+    const images = (data.data || [])
+      .map((url) => toShopMediaUrl(url) || url)
+      .filter(Boolean);
     if (images.length > 0) {
       shopOfferImagesCache.set(id, images);
     }

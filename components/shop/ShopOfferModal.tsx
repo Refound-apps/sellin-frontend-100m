@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { ShopOffer } from '@/lib/types';
 import { getShopOfferImages, submitShopInquiry } from '@/lib/api';
+import { collectShopOfferImageUrls } from '@/lib/shop/mediaUrl';
 import { formatCzk, getOfferPricingInfo, getOfferSpecsList, getOfferTags } from './offerMeta';
 import { useShop } from './ShopContext';
 import { getProductUrl } from '@/lib/shop/seo';
@@ -56,9 +57,7 @@ export default function ShopOfferModal({ offer, onClose }: ShopOfferModalProps) 
     shop,
   } = useShop();
 
-  const [images, setImages] = useState<string[]>(
-    offer.preview_image ? [offer.preview_image] : []
-  );
+  const [images, setImages] = useState<string[]>(() => collectShopOfferImageUrls(offer));
   const [index, setIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [copied, setCopied] = useState(false);

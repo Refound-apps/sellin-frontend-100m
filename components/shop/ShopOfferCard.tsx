@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ShopOffer } from '@/lib/types';
+import { collectShopOfferImageUrls } from '@/lib/shop/mediaUrl';
 import { getProductPath } from '@/lib/shop/seo';
 import { formatCzk, getOfferPricingInfo, getOfferSpecsList, isAluDiskyOffer, isSteelWheelOffer, isWheelOffer } from './offerMeta';
 
@@ -15,7 +16,14 @@ interface ShopOfferCardProps {
 
 export default function ShopOfferCard({ offer, onClick, href }: ShopOfferCardProps) {
   const productHref = href || getProductPath(offer.id);
-  const [imgError, setImgError] = useState(false);
+  const imageCandidates = useMemo(() => collectShopOfferImageUrls(offer), [offer]);
+  const [imageIndex, setImageIndex] = useState(0);
+
+  useEffect(() => {
+    setImageIndex(0);
+  }, [offer.id, offer.preview_image]);
+
+  const currentImage = imageCandidates[imageIndex] || null;
   const isAlu = isAluDiskyOffer(offer);
   const isWheel = isWheelOffer(offer);
   const isSteel = isSteelWheelOffer(offer);
@@ -113,15 +121,15 @@ export default function ShopOfferCard({ offer, onClick, href }: ShopOfferCardPro
             </div>
           )}
 
-          {offer.preview_image && !imgError ? (
+          {currentImage ? (
             <Image
-              src={offer.preview_image}
+              src={currentImage}
               alt={offer.title}
               fill
               itemProp="image"
               className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              onError={() => setImgError(true)}
+              onError={() => setImageIndex((idx) => idx + 1)}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-400">

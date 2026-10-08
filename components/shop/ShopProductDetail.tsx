@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ShopOffer } from '@/lib/types';
 import { getShopOfferImages, submitShopInquiry } from '@/lib/api';
+import { collectShopOfferImageUrls, toShopMediaUrl } from '@/lib/shop/mediaUrl';
 import {
   formatCzk,
   getOfferPricingInfo,
@@ -65,13 +66,12 @@ export default function ShopProductDetail({
     shop,
   } = useShop();
 
-  const [images, setImages] = useState<string[]>(
-    initialImages.length > 0
-      ? initialImages
-      : offer.preview_image
-        ? [offer.preview_image]
-        : []
-  );
+  const [images, setImages] = useState<string[]>(() => {
+    if (initialImages.length > 0) {
+      return initialImages.map((url) => toShopMediaUrl(url) || url).filter(Boolean);
+    }
+    return collectShopOfferImageUrls(offer);
+  });
   const [index, setIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [buyModalOpen, setBuyModalOpen] = useState(false);

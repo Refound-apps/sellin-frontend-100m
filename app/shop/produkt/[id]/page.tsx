@@ -13,6 +13,7 @@ import {
   fetchShopOfferImages,
   resolveShopFromRequest,
 } from '@/lib/shop/server';
+import { toShopMediaUrl } from '@/lib/shop/mediaUrl';
 import { getOfferPricingInfo, getOfferSpecsList } from '@/components/shop/offerMeta';
 
 export const dynamic = 'force-dynamic';
@@ -81,8 +82,10 @@ export default async function ShopProductPage({ params }: PageProps) {
   if (!offer) notFound();
 
   const images = await fetchShopOfferImages(offer.id);
-  const gallery =
+  const galleryAbs =
     images.length > 0 ? images : offer.preview_image ? [offer.preview_image] : [];
+  // Absolute URLs for JSON-LD / SEO; same-origin /r2 proxy for <Image> (ad-filter safe)
+  const gallery = galleryAbs.map((url) => toShopMediaUrl(url) || url);
 
   const specs = getOfferSpecsList(offer);
   const pricing = getOfferPricingInfo(offer);
@@ -96,7 +99,7 @@ export default async function ShopProductPage({ params }: PageProps) {
     '@id': productUrl,
     name: offer.title,
     description: offer.description || getOfferSeoDescription(offer, 500),
-    image: gallery,
+    image: galleryAbs,
     sku: `SHOP-${offer.id}`,
     brand: brand
       ? {
