@@ -47,9 +47,8 @@ const ALLOWED_PREFIXES = ['categories', 'upload'];
 
 function isBlocked(subpath: string): boolean {
   const lower = subpath.toLowerCase();
-  return BLOCKED_PREFIXES.some(
-    (p) => lower === p || lower.startsWith(`${p}/`) || lower.startsWith(p)
-  );
+  // Exact or path prefix only — avoid `startsWith('offers')` false positives
+  return BLOCKED_PREFIXES.some((p) => lower === p || lower.startsWith(`${p}/`));
 }
 
 function isAllowed(subpath: string): boolean {
