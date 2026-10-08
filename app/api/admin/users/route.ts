@@ -75,21 +75,26 @@ export async function GET() {
       return NextResponse.json({ success: false, error: credsError.message }, { status: 500 });
     }
 
-    // Auth last_sign_in_at (service role)
+    // Auth last_sign_in_at (service role) — fetch all pages
     const loginByUserId = new Map<string, string>();
     const loginByEmail = new Map<string, string>();
     if (service) {
       try {
         let page = 1;
-        const perPage = 200;
-        while (page <= 10) {
+        const perPage = 1000;
+        while (page <= 50) {
           const { data, error: listErr } = await service.auth.admin.listUsers({ page, perPage });
-          if (listErr) break;
+          if (listErr) {
+            console.error('[admin/users] listUsers page failed:', listErr);
+            break;
+          }
           const batch = data?.users || [];
           for (const u of batch) {
-            if (u.last_sign_in_at) {
-              loginByUserId.set(u.id, u.last_sign_in_at);
-              if (u.email) loginByEmail.set(u.email.toLowerCase().trim(), u.last_sign_in_at);
+            const at = u.last_sign_in_at;
+            if (!at) continue;
+            loginByUserId.set(u.id, at);
+            if (u.email) {
+              loginByEmail.set(u.email.toLowerCase().trim(), at);
             }
           }
           if (batch.length < perPage) break;
@@ -98,6 +103,26 @@ export async function GET() {
       } catch (e) {
         console.error('[admin/users] listUsers failed:', e);
       }
+    }
+
+    function pickLatestLogin(...candidates: Array<string | null | undefined>): string | null {
+      let best: string | null = null;
+      let bestMs = 0;
+      for (const c of candidates) {
+        if (!c) continue;
+        const ms = new Date(c).getTime();
+        if (Number.isFinite(ms) && ms > bestMs) {
+          bestMs = ms;
+          best = c;
+        }
+      }
+      return best;
+    }
+
+    function credEmailKeys(row: Record<string, unknown>): string[] {
+      return [row.email, row.sbazar_email, row.bazos_email, row.facebook_email]
+        .map((e) => String(e || '').toLowerCase().trim())
+        .filter(Boolean);
     }
 
     // Scraper job errors (14 days) — each job increments each related email at most once
@@ -166,10 +191,9 @@ export async function GET() {
 
     const rows = (creds || []).map((row: any) => {
       const email = String(row.email || '').toLowerCase().trim();
-      const lastSignIn =
-        (row.user_id && loginByUserId.get(row.user_id)) ||
-        loginByEmail.get(email) ||
-        null;
+      const byUserId = row.user_id ? loginByUserId.get(String(row.user_id)) : null;
+      const byEmails = credEmailKeys(row).map((e) => loginByEmail.get(e));
+      const lastSignIn = pickLatestLogin(byUserId, ...byEmails);
 
       return {
         ...row,
@@ -179,12 +203,22 @@ export async function GET() {
       };
     });
 
+    // Newest login first (UI also groups/sorts; API order helps debugging + other consumers)
+    rows.sort((a: any, b: any) => {
+      const aMs = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
+      const bMs = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
+      if (bMs !== aMs) return bMs - aMs;
+      return String(a.email || '').localeCompare(String(b.email || ''), 'cs');
+    });
+
     return NextResponse.json({
       success: true,
       data: rows,
       meta: {
         windowDays: 14,
-        authLoginsAvailable: loginByUserId.size + loginByEmail.size > 0,
+        authLoginsAvailable: loginByUserId.size > 0 || loginByEmail.size > 0,
+        authUsersWithLogin: loginByUserId.size,
+        authEmailsWithLogin: loginByEmail.size,
       },
     });
   } catch (err: any) {
