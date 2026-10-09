@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppErrorLog } from '@/lib/types';
 import { getAdminAppErrors, patchAppError, purgeResolvedAppErrors } from '@/lib/api';
 import { formatDateTime } from '../TransactionsView';
@@ -8,17 +8,20 @@ import { formatDateTime } from '../TransactionsView';
 export default function AppErrorsTable({
   initialItems,
   onCountsChange,
+  refreshKey = 0,
 }: {
   initialItems?: AppErrorLog[];
   onCountsChange?: (unresolved: number) => void;
+  refreshKey?: number;
 }) {
   const [items, setItems] = useState<AppErrorLog[]>(initialItems || []);
-  const [loading, setLoading] = useState(!initialItems);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [source, setSource] = useState<'all' | 'frontend' | 'backend'>('all');
   const [resolvedFilter, setResolvedFilter] = useState<'unresolved' | 'resolved' | 'all'>('unresolved');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [summary, setSummary] = useState({
@@ -27,6 +30,19 @@ export default function AppErrorsTable({
     unresolvedBackend: 0,
   });
 
+  const onCountsChangeRef = useRef(onCountsChange);
+  useEffect(() => {
+    onCountsChangeRef.current = onCountsChange;
+  }, [onCountsChange]);
+
+  // Debounce vyhledávání (300 ms), aby se neposílal request při každém stisku klávesy
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -34,18 +50,18 @@ export default function AppErrorsTable({
       const res = await getAdminAppErrors({
         source: source === 'all' ? undefined : source,
         resolved: resolvedFilter,
-        q: search.trim() || undefined,
+        q: debouncedSearch.trim() || undefined,
         limit: 150,
       });
       setItems(res.data);
       setSummary(res.summary);
-      onCountsChange?.(res.summary.unresolved);
+      onCountsChangeRef.current?.(res.summary.unresolved);
     } catch (err: any) {
       setError(err?.message || 'Načtení chyb aplikace selhalo.');
     } finally {
       setLoading(false);
     }
-  }, [source, resolvedFilter, search, onCountsChange]);
+  }, [source, resolvedFilter, debouncedSearch, refreshKey]);
 
   useEffect(() => {
     loadData();
@@ -63,10 +79,22 @@ export default function AppErrorsTable({
             : i
         )
       );
-      setSummary((prev) => ({
-        ...prev,
-        unresolved: Math.max(0, prev.unresolved + (nextResolved ? -1 : 1)),
-      }));
+      setSummary((prev) => {
+        const nextUnresolved = Math.max(0, prev.unresolved + (nextResolved ? -1 : 1));
+        const isFrontend = item.source === 'frontend';
+        const isBackend = item.source === 'backend';
+        onCountsChangeRef.current?.(nextUnresolved);
+        return {
+          ...prev,
+          unresolved: nextUnresolved,
+          unresolvedFrontend: isFrontend
+            ? Math.max(0, prev.unresolvedFrontend + (nextResolved ? -1 : 1))
+            : prev.unresolvedFrontend,
+          unresolvedBackend: isBackend
+            ? Math.max(0, prev.unresolvedBackend + (nextResolved ? -1 : 1))
+            : prev.unresolvedBackend,
+        };
+      });
     } catch (err: any) {
       alert(err?.message || 'Nepodařilo se změnit stav.');
     } finally {

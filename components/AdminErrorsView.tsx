@@ -377,6 +377,20 @@ export default function AdminErrorsView() {
   const [shotsPlatform, setShotsPlatform] = useState('');
   const [shotsQuery, setShotsQuery] = useState('');
   const [shotsError, setShotsError] = useState<string | null>(null);
+  const [appErrorsRefreshKey, setAppErrorsRefreshKey] = useState(0);
+
+  const handleAppErrorsCountChange = useCallback((unresolved: number) => {
+    setData((prev) => {
+      if (!prev || prev.summary.appErrorsUnresolved === unresolved) return prev;
+      return {
+        ...prev,
+        summary: {
+          ...prev.summary,
+          appErrorsUnresolved: unresolved,
+        },
+      };
+    });
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -501,6 +515,7 @@ export default function AdminErrorsView() {
               setLoading(true);
               void load();
               if (tab === 'screenshots') void loadShots();
+              if (tab === 'app_errors') setAppErrorsRefreshKey((k) => k + 1);
             }}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
           >
@@ -624,19 +639,8 @@ export default function AdminErrorsView() {
         {tab === 'app_errors' ? (
           <AppErrorsTable
             initialItems={data?.appErrors}
-            onCountsChange={(unresolved) => {
-              setData((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      summary: {
-                        ...prev.summary,
-                        appErrorsUnresolved: unresolved,
-                      },
-                    }
-                  : prev
-              );
-            }}
+            onCountsChange={handleAppErrorsCountChange}
+            refreshKey={appErrorsRefreshKey}
           />
         ) : tab === 'screenshots' ? (
           <ScreenshotsGallery
