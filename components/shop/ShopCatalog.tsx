@@ -779,8 +779,8 @@ export default function ShopCatalog() {
                   loading && page === 0 ? 'opacity-60 pointer-events-none' : 'opacity-100'
                 }`}
               >
-                {offers.map((offer) => (
-                  <ShopOfferCard key={offer.id} offer={offer} />
+                {offers.map((offer, index) => (
+                  <ShopOfferCard key={offer.id} offer={offer} priority={index < 4} />
                 ))}
               </div>
 

@@ -6,8 +6,8 @@
  * errors on Vercel (4.5 MB limit) and backend servers.
  */
 
-const TARGET_MAX_DIMENSION = 1600;
-const INITIAL_JPEG_QUALITY = 0.80;
+const TARGET_MAX_DIMENSION = 1440;
+const INITIAL_JPEG_QUALITY = 0.82;
 const MAX_BASE64_LENGTH = 1_500_000; // ~1.1 MB raw payload cap
 
 function readAsDataUrl(file: File): Promise<string> {

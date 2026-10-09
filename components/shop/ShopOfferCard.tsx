@@ -12,9 +12,10 @@ interface ShopOfferCardProps {
   offer: ShopOffer;
   onClick?: () => void;
   href?: string;
+  priority?: boolean;
 }
 
-export default function ShopOfferCard({ offer, onClick, href }: ShopOfferCardProps) {
+export default function ShopOfferCard({ offer, onClick, href, priority = false }: ShopOfferCardProps) {
   const productHref = href || getProductPath(offer.id);
   const imageCandidates = useMemo(() => collectShopOfferImageUrls(offer), [offer]);
   const [imageIndex, setImageIndex] = useState(0);
@@ -126,6 +127,7 @@ export default function ShopOfferCard({ offer, onClick, href }: ShopOfferCardPro
               src={currentImage}
               alt={offer.title}
               fill
+              priority={priority}
               itemProp="image"
               className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
