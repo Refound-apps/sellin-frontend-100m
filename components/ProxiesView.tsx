@@ -111,6 +111,45 @@ export default function ProxiesView() {
   const [assignAccountId, setAssignAccountId] = useState<number | ''>('');
   const [assignIp, setAssignIp] = useState('');
   const [assignField, setAssignField] = useState<'proxy_ip' | 'proxy_ip_sbazar'>('proxy_ip');
+  const [reaping, setReaping] = useState(false);
+
+  const reapBrowsers = async (forceAll: boolean) => {
+    const confirmMsg = forceAll
+      ? 'OKAMŽITĚ zabít VŠECHNY Chromium/Firefox procesy na VPS?\nBěžící scrapy se přeruší.'
+      : 'Zabít hung Chromium/Firefox procesy starší než 30 minut na VPS?';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      setReaping(true);
+      setError(null);
+      setMessage(null);
+      const res = await fetch('/api/admin/reap-browsers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          maxAgeSeconds: 1800,
+          forceAll,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Reap browsers selhal');
+      }
+      const killed = Number(json.killed || 0);
+      const details: string[] = Array.isArray(json.details) ? json.details : [];
+      setMessage(
+        killed === 0
+          ? forceAll
+            ? 'Žádné browser procesy k zabití.'
+            : 'Žádné hung browsery starší 30 min.'
+          : `Ukončeno ${killed} proces(ů).${details.length ? ` ${details.slice(0, 5).join(' · ')}` : ''}`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reap browsers selhal');
+    } finally {
+      setReaping(false);
+    }
+  };
 
   const load = useCallback(async (nextZone?: string) => {
     try {
@@ -263,6 +302,24 @@ export default function ProxiesView() {
             className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-2xs hover:bg-sky-500 disabled:opacity-50"
           >
             Spustit health check
+          </button>
+          <button
+            type="button"
+            disabled={busy || loading || reaping}
+            onClick={() => reapBrowsers(false)}
+            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-900 shadow-2xs hover:bg-amber-100 disabled:opacity-50"
+            title="Zabije Chromium/Firefox starší než 30 minut"
+          >
+            {reaping ? 'Ukončuji…' : 'Kill hung browsery (30m+)'}
+          </button>
+          <button
+            type="button"
+            disabled={busy || loading || reaping}
+            onClick={() => reapBrowsers(true)}
+            className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-900 shadow-2xs hover:bg-rose-100 disabled:opacity-50"
+            title="Okamžitě zabije všechny headless browsery na VPS"
+          >
+            Kill ALL browsery
           </button>
         </div>
       </div>
