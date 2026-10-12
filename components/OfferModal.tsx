@@ -391,7 +391,8 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     return isLiveMarketplaceLink(d.link) && c && c !== 'ok_deleted' && c !== 'app_archive';
   });
 
-  /** Live channels keyed by normalized portal */
+  /** Live channels: scan ALL detail generations per portal, pick newest ok_* + http
+   * (ignore newer ok_deleted rows — older live listing may still be on the portal). */
   const liveChannelByPortal = (() => {
     const live = details.filter(
       (d) => isActiveChannelCondition(d.condition) && isLiveMarketplaceLink(d.link)
