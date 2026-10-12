@@ -49,6 +49,23 @@ function isLiveMarketplaceLink(link: string | null | undefined): boolean {
   return href.startsWith('http://') || href.startsWith('https://');
 }
 
+/** Fold marketplace labels so "Bazoš" / "bazoš" / "Bazos" all match. */
+function normalizePortalKey(value: string | null | undefined): string {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/š/g, 's')
+    .replace(/č/g, 'c')
+    .replace(/ž/g, 'z');
+}
+
+function detailRowId(d: { id?: number; 'auto id'?: number; auto_id?: number }): number {
+  const n = Number(d.id ?? d['auto id'] ?? d.auto_id ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function renderTextWithPhoneLinks(text: string) {
   const phoneRegex = /(\+420\s*)?([1-9]\d{2}\s*\d{3}\s*\d{3})\b/g;
   const parts: (string | React.ReactNode)[] = [];
@@ -133,16 +150,22 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
 
     // Fetch marketplace links
     if (offer.bb_id) {
-      getOfferDetails(offer.bb_id).then((data) => {
-        setDetails(data);
-        setLoadingDetails(false);
-        const freqFromDetail = data.find(
-          (d) => d.autorenew_freq && d.autorenew_freq !== 'Neobnovovat'
-        )?.autorenew_freq;
-        if (freqFromDetail && !offer.autorenew_freq) {
-          setEditedOffer((prev) => ({ ...prev, autorenew_freq: freqFromDetail }));
-        }
-      });
+      getOfferDetails(offer.bb_id)
+        .then((data) => {
+          setDetails(Array.isArray(data) ? data : []);
+          setLoadingDetails(false);
+          const freqFromDetail = data.find(
+            (d) => d.autorenew_freq && d.autorenew_freq !== 'Neobnovovat'
+          )?.autorenew_freq;
+          if (freqFromDetail && !offer.autorenew_freq) {
+            setEditedOffer((prev) => ({ ...prev, autorenew_freq: freqFromDetail }));
+          }
+        })
+        .catch((err) => {
+          console.error('[OfferModal] getOfferDetails failed:', err);
+          setDetails([]);
+          setLoadingDetails(false);
+        });
     } else {
       setLoadingDetails(false);
     }
@@ -399,22 +422,19 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     );
     const latestByMarket = new Map<string, (typeof live)[number]>();
     for (const d of live) {
-      const key = String(d.bb_marketplace_id || '').toLowerCase().trim() || 'unknown';
+      const key = normalizePortalKey(d.bb_marketplace_id) || 'unknown';
       const prev = latestByMarket.get(key);
-      const dId = Number(d.id ?? d['auto id'] ?? 0);
-      const pId = Number(prev?.id ?? prev?.['auto id'] ?? 0);
-      if (!prev || dId > pId) latestByMarket.set(key, d);
+      if (!prev || detailRowId(d) > detailRowId(prev)) latestByMarket.set(key, d);
     }
     return latestByMarket;
   })();
 
   const findLiveDetailForPortal = (portalKey: 'bazos' | 'bazos_sk' | 'sbazar') => {
     for (const [key, detail] of liveChannelByPortal.entries()) {
-      // Normalize so "Bazoš" → "bazos"; check sbazar before bazos ("sbazar" contains "baz")
-      const k = key.normalize('NFD').replace(/\p{M}/gu, '');
-      if (portalKey === 'sbazar' && k.includes('sbazar')) return detail;
-      if (portalKey === 'bazos_sk' && k.includes('bazos') && k.includes('sk')) return detail;
-      if (portalKey === 'bazos' && k.includes('bazos') && !k.includes('sk')) return detail;
+      // sbazar before bazos ("sbazar" contains "baz")
+      if (portalKey === 'sbazar' && key.includes('sbazar')) return detail;
+      if (portalKey === 'bazos_sk' && key.includes('bazos') && key.includes('sk')) return detail;
+      if (portalKey === 'bazos' && key.includes('bazos') && !key.includes('sk')) return detail;
     }
     return null;
   };
@@ -449,10 +469,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
   if (
     findLiveDetailForPortal('bazos_sk') ||
     details.some((d) => {
-      const k = String(d.bb_marketplace_id || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/\p{M}/gu, '');
+      const k = normalizePortalKey(d.bb_marketplace_id);
       return k.includes('bazos') && k.includes('sk');
     })
   ) {

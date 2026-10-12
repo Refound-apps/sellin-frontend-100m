@@ -180,11 +180,21 @@ export async function getOfferDetails(bbOfferId: string): Promise<OfferDetail[]>
   try {
     const response = await apiFetch(`/api/offers/${encodeURIComponent(bbOfferId)}/details`);
     if (!response.ok) {
-      throw new Error('Failed to fetch offer details');
+      const errBody = await response.json().catch(() => null);
+      console.error('getOfferDetails failed', response.status, errBody);
+      throw new Error(errBody?.error || `Failed to fetch offer details (${response.status})`);
     }
-    
+
     const data: ApiResponse<OfferDetail[]> = await response.json();
-    return data.data || [];
+    const rows = Array.isArray(data.data) ? data.data : [];
+    return rows.map((row: any) => {
+      const autoId = Number(row?.id ?? row?.['auto id'] ?? row?.auto_id ?? 0);
+      return {
+        ...row,
+        id: Number.isFinite(autoId) && autoId > 0 ? autoId : row?.id,
+        'auto id': row?.['auto id'] ?? (Number.isFinite(autoId) && autoId > 0 ? autoId : undefined),
+      } as OfferDetail;
+    });
   } catch (error) {
     console.error('Error fetching offer details:', error);
     return [];
