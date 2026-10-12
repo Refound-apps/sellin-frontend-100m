@@ -120,28 +120,23 @@ async function filterToLatestDetailsPerOffer(
     );
   };
 
-  type Ranked = { id: number; gone: boolean; time: number };
+  type Ranked = { id: number; gone: boolean };
   const bestByOffer = new Map<string, Ranked>();
   for (const row of peers || []) {
     const offerId = String(row.bb_offer_id || '');
     const id = Number(row['auto id']);
     if (!offerId || !Number.isFinite(id)) continue;
     const gone = isGone(row.condition);
-    const time = new Date(row.last_date_renewed || row.date || 0).getTime() || 0;
     const prev = bestByOffer.get(offerId);
     if (!prev) {
-      bestByOffer.set(offerId, { id, gone, time });
+      bestByOffer.set(offerId, { id, gone });
       continue;
     }
-    // Live beats deleted; then newer renewal/creation time; then higher auto id wins.
+    // Live beats deleted; among same class, highest auto id (latest live generation).
     if (prev.gone && !gone) {
-      bestByOffer.set(offerId, { id, gone, time });
-    } else if (prev.gone === gone) {
-      if (time > prev.time) {
-        bestByOffer.set(offerId, { id, gone, time });
-      } else if (time === prev.time && id > prev.id) {
-        bestByOffer.set(offerId, { id, gone, time });
-      }
+      bestByOffer.set(offerId, { id, gone });
+    } else if (prev.gone === gone && id > prev.id) {
+      bestByOffer.set(offerId, { id, gone });
     }
   }
 
