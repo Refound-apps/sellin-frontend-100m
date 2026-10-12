@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '@/lib/types';
-import { updateCredential, createCredential } from '@/lib/api';
+import { updateCredential, createCredential, getCredential } from '@/lib/api';
 import { trackEvent } from '@/lib/analytics';
 
 interface BazosAccountsModalProps {
@@ -11,6 +11,10 @@ interface BazosAccountsModalProps {
   mainEmail: string;
   onAccountsUpdated: (updatedAccount: User) => void;
   onAccountCreated?: (newAccount: User) => void;
+}
+
+function hasBazosBkod(account: User): boolean {
+  return Boolean(account.bazos_bkod?.trim() || account.cookies?.has_bazos_bkod);
 }
 
 function buildBazosForm(account: User): Partial<User> {
@@ -41,12 +45,14 @@ export default function BazosAccountsModal({
   const [selectedId, setSelectedId] = useState<number>(accounts[0]?.id || 0);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadingSecrets, setLoadingSecrets] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const lastSyncedId = useRef<number | null>(accounts[0]?.id ?? null);
+  const secretsCache = useRef<Map<number, User>>(new Map());
+  const loadSeq = useRef(0);
 
   const [newDraft, setNewDraft] = useState({
     email: '',
@@ -71,14 +77,53 @@ export default function BazosAccountsModal({
     accounts[0] ? buildBazosForm(accounts[0]) : {}
   );
 
+  // List API redacts secrets — load full credential for the selected account
   useEffect(() => {
-    if (!currentAccount || lastSyncedId.current === currentAccount.id) return;
-    lastSyncedId.current = currentAccount.id;
+    if (!currentAccount || isAddingNew) return;
+
+    const cached = secretsCache.current.get(currentAccount.id);
+    if (cached) {
+      setForm(buildBazosForm({ ...currentAccount, ...cached }));
+      setSaveSuccess(false);
+      setError(null);
+      setFieldErrors({});
+      return;
+    }
+
     setForm(buildBazosForm(currentAccount));
     setSaveSuccess(false);
     setError(null);
     setFieldErrors({});
-  }, [currentAccount]);
+
+    const seq = ++loadSeq.current;
+    setLoadingSecrets(true);
+    getCredential(currentAccount.id)
+      .then((full) => {
+        if (loadSeq.current !== seq) return;
+        secretsCache.current.set(full.id, full);
+        setForm(buildBazosForm(full));
+        onAccountsUpdated({
+          ...currentAccount,
+          ...full,
+          cookies: {
+            has_bazos_bkod: Boolean(full.bazos_bkod?.trim()),
+            has_bazos_sk_bkod: Boolean(full.bazos_sk_bkod?.trim()),
+            has_sbazar_cookie: Boolean(full.sbazar_cookie_ds?.trim()),
+            has_facebook_cookies: Boolean(full.facebook_cuser?.trim() && full.facebook_xs?.trim()),
+            has_proxy: Boolean(full.proxy_ip?.trim()),
+            has_proxy_sbazar: Boolean(full.proxy_ip_sbazar?.trim()),
+          },
+        });
+      })
+      .catch((err: unknown) => {
+        if (loadSeq.current !== seq) return;
+        console.error('Error loading credential secrets:', err);
+        setError(err instanceof Error ? err.message : 'Nepodařilo se načíst B-kódy účtu.');
+      })
+      .finally(() => {
+        if (loadSeq.current === seq) setLoadingSecrets(false);
+      });
+  }, [currentAccount?.id, isAddingNew]);
 
   // Filter accounts by search
   const filteredAccounts = useMemo(() => {
@@ -140,7 +185,26 @@ export default function BazosAccountsModal({
       };
 
       const updated = await updateCredential(currentAccount.id, payload);
-      onAccountsUpdated(updated);
+      // List/update responses redact secrets — keep form values in cache + parent state
+      const withSecrets: User = {
+        ...currentAccount,
+        ...updated,
+        bazos_password: String(form.bazos_password || updated.bazos_password || ''),
+        bazos_bkod: String(form.bazos_bkod || updated.bazos_bkod || ''),
+        bazos_sk_bkod: String(form.bazos_sk_bkod || updated.bazos_sk_bkod || ''),
+        cookies: {
+          has_bazos_bkod: Boolean(String(form.bazos_bkod || '').trim()),
+          has_bazos_sk_bkod: Boolean(String(form.bazos_sk_bkod || '').trim()),
+          has_sbazar_cookie: Boolean(currentAccount.cookies?.has_sbazar_cookie),
+          has_facebook_cookies: Boolean(currentAccount.cookies?.has_facebook_cookies),
+          has_proxy: Boolean(currentAccount.proxy_ip?.trim() || currentAccount.cookies?.has_proxy),
+          has_proxy_sbazar: Boolean(
+            currentAccount.proxy_ip_sbazar?.trim() || currentAccount.cookies?.has_proxy_sbazar
+          ),
+        },
+      };
+      secretsCache.current.set(withSecrets.id, withSecrets);
+      onAccountsUpdated(withSecrets);
       trackEvent('account_connected', { channel: 'bazos', action: 'update' });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -280,7 +344,7 @@ export default function BazosAccountsModal({
             <div className="flex-1 overflow-y-auto p-2 space-y-1.5 scrollbar-thin">
               {filteredAccounts.map((acc) => {
                 const isSelected = !isAddingNew && acc.id === currentAccount?.id;
-                const bkod = acc.bazos_bkod?.trim();
+                const bkodValue = acc.bazos_bkod?.trim() || secretsCache.current.get(acc.id)?.bazos_bkod?.trim();
                 const displayName = acc.bazos_name || acc.email.split('@')[0];
                 const isBlocked = acc.status_cz === 'BLOCKED';
 
@@ -291,12 +355,7 @@ export default function BazosAccountsModal({
                     onClick={() => {
                       setIsAddingNew(false);
                       if (acc.id !== selectedId) {
-                        lastSyncedId.current = acc.id;
                         setSelectedId(acc.id);
-                        setForm(buildBazosForm(acc));
-                        setSaveSuccess(false);
-                        setError(null);
-                        setFieldErrors({});
                       }
                     }}
                     className={`w-full text-left rounded-2xl p-3 transition-all border ${
@@ -322,10 +381,14 @@ export default function BazosAccountsModal({
                         </p>
                       </div>
 
-                      {/* B-kod badge */}
-                      {bkod ? (
+                      {/* B-kod badge — list API redacts value; show code when loaded, else flag */}
+                      {bkodValue ? (
                         <span className="shrink-0 rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-800">
-                          {bkod}
+                          {bkodValue}
+                        </span>
+                      ) : hasBazosBkod(acc) ? (
+                        <span className="shrink-0 rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                          B-kód OK
                         </span>
                       ) : (
                         <span className="shrink-0 rounded-md bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
@@ -605,6 +668,11 @@ export default function BazosAccountsModal({
                     <h5 className="text-xs font-black text-amber-950">
                       Ověřovací B-kódy pro okamžité vystavení bez SMS
                     </h5>
+                    {loadingSecrets && (
+                      <span className="text-[10px] font-semibold text-amber-700/80 animate-pulse">
+                        Načítám…
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-amber-900/80 leading-relaxed">
                     B-kód je stálé heslo generované Bazošem pro autorizované vkládání a obnovu inzerátů bez nutnosti potvrzování každého inzerátu přes SMS.

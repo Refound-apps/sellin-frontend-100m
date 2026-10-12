@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/lib/database.types';
-import { redactCredentialSecrets } from '@/lib/credentialsRedact';
+import {
+  PRESERVE_IF_EMPTY_SECRET_FIELDS,
+  redactCredentialSecrets,
+} from '@/lib/credentialsRedact';
 import { resolveCallerOfferScope } from '@/lib/offerScope';
 
 export const dynamic = 'force-dynamic';
 
 type CredentialUpdate = Database['public']['Tables']['credential_pg']['Update'];
 type CredentialUpdateKey = keyof CredentialUpdate;
+type CredentialRow = Database['public']['Tables']['credential_pg']['Row'];
 
 const ALLOWED_FIELDS: CredentialUpdateKey[] = [
   'email',
@@ -38,6 +42,92 @@ const ALLOWED_FIELDS: CredentialUpdateKey[] = [
   'tier',
 ];
 
+const PRESERVE_IF_EMPTY = new Set<string>(PRESERVE_IF_EMPTY_SECRET_FIELDS);
+
+async function loadAuthorizedCredential(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  credId: number
+) {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { error: NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 }) };
+  }
+
+  const { isAdmin, allowedEmails } = await resolveCallerOfferScope(supabase, user);
+  const userEmail = (user.email || '').toLowerCase().trim();
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from('credential_pg')
+    .select('*')
+    .eq('id', credId)
+    .limit(1)
+    .maybeSingle();
+
+  if (fetchErr) {
+    console.error('Error fetching credential:', fetchErr);
+  }
+
+  if (!existing) {
+    return {
+      error: NextResponse.json(
+        { success: false, error: 'Účet s tímto ID nebyl nalezen.' },
+        { status: 404 }
+      ),
+    };
+  }
+
+  if (!isAdmin) {
+    const ownerEmail = (existing.email || '').toLowerCase().trim();
+    const isOwner =
+      existing.user_id === user.id ||
+      (ownerEmail && allowedEmails.includes(ownerEmail)) ||
+      (existing.sbazar_email &&
+        allowedEmails.includes(existing.sbazar_email.toLowerCase().trim())) ||
+      (userEmail &&
+        (ownerEmail === userEmail ||
+          (existing.sbazar_email || '').toLowerCase().trim() === userEmail));
+
+    if (!isOwner) {
+      return {
+        error: NextResponse.json(
+          { success: false, error: 'Nemáte oprávnění k tomuto účtu.' },
+          { status: 403 }
+        ),
+      };
+    }
+  }
+
+  return { user, existing: existing as CredentialRow };
+}
+
+/** Full credential incl. secrets — only for authorized owner/admin (edit forms). */
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const credId = parseInt(id, 10);
+    if (isNaN(credId)) {
+      return NextResponse.json({ success: false, error: 'Neplatné ID účtu' }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const result = await loadAuthorizedCredential(supabase, credId);
+    if (result.error) return result.error;
+
+    return NextResponse.json({ success: true, data: result.existing });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Chyba při načítání účtu';
+    console.error('Unexpected error in GET /api/credentials/[id]:', error);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -51,57 +141,8 @@ export async function PUT(
 
     const body = await request.json();
     const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ success: false, error: 'Neautorizováno' }, { status: 401 });
-    }
-
-    const { isAdmin, allowedEmails } = await resolveCallerOfferScope(supabase, user);
-    const userEmail = (user.email || '').toLowerCase().trim();
-
-    // Check existing credential
-    const { data: existing, error: fetchErr } = await supabase
-      .from('credential_pg')
-      .select('*')
-      .eq('id', credId)
-      .limit(1)
-      .maybeSingle();
-
-    if (fetchErr) {
-      console.error('Error fetching credential before update:', fetchErr);
-    }
-
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Účet s tímto ID nebyl nalezen.' },
-        { status: 404 }
-      );
-    }
-
-    // Permission: admin any; seller only own / linked subaccounts
-    if (!isAdmin) {
-      const ownerEmail = (existing.email || '').toLowerCase().trim();
-      const isOwner =
-        existing.user_id === user.id ||
-        (ownerEmail && allowedEmails.includes(ownerEmail)) ||
-        (existing.sbazar_email &&
-          allowedEmails.includes(existing.sbazar_email.toLowerCase().trim())) ||
-        (userEmail &&
-          (ownerEmail === userEmail ||
-            (existing.sbazar_email || '').toLowerCase().trim() === userEmail));
-
-      if (!isOwner) {
-        return NextResponse.json(
-          { success: false, error: 'Nemáte oprávnění upravovat tento účet.' },
-          { status: 403 }
-        );
-      }
-    }
+    const result = await loadAuthorizedCredential(supabase, credId);
+    if (result.error) return result.error;
 
     const updates: CredentialUpdate = {};
     for (const key of ALLOWED_FIELDS) {
@@ -120,6 +161,11 @@ export async function PUT(
       } else if (typeof val === 'string') {
         val = val.trim();
         if (val === '') val = null;
+      }
+
+      // Don't wipe secrets when the client still has a redacted/empty value
+      if (PRESERVE_IF_EMPTY.has(key) && (val === null || val === undefined || val === '')) {
+        continue;
       }
 
       (updates as Record<string, unknown>)[key] = val;

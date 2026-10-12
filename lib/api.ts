@@ -605,7 +605,20 @@ function mapCredentialRow(row: Record<string, unknown>): User {
     created_at: (row.created_at as string | null) ?? null,
     last_sign_in_at: (row.last_sign_in_at as string | null) ?? null,
     error_count: Number(row.error_count || 0),
-    cookies: (row.cookies as User['cookies']) || undefined,
+    cookies: (row.cookies as User['cookies']) ?? {
+      has_bazos_bkod:
+        Boolean(row.has_bazos_bkod) || Boolean(String(row.bazos_bkod || '').trim()),
+      has_bazos_sk_bkod:
+        Boolean(row.has_bazos_sk_bkod) || Boolean(String(row.bazos_sk_bkod || '').trim()),
+      has_sbazar_cookie:
+        Boolean(row.has_sbazar_cookie_ds) || Boolean(String(row.sbazar_cookie_ds || '').trim()),
+      has_facebook_cookies:
+        (Boolean(row.has_facebook_cuser) && Boolean(row.has_facebook_xs)) ||
+        (Boolean(String(row.facebook_cuser || '').trim()) &&
+          Boolean(String(row.facebook_xs || '').trim())),
+      has_proxy: Boolean(String(row.proxy_ip || '').trim()),
+      has_proxy_sbazar: Boolean(String(row.proxy_ip_sbazar || '').trim()),
+    },
   };
 }
 
@@ -623,6 +636,16 @@ export async function getUsers(): Promise<User[]> {
     console.error('Error fetching users:', error);
     throw error;
   }
+}
+
+/** Full credential incl. secrets — for account edit forms only. */
+export async function getCredential(id: number): Promise<User> {
+  const response = await apiFetch(`/api/credentials/${id}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || `Nepodařilo se načíst účet (${response.status})`);
+  }
+  return mapCredentialRow((data.data || {}) as Record<string, unknown>);
 }
 
 export async function getAdminUsers(): Promise<User[]> {

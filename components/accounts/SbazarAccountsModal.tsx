@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '@/lib/types';
-import { updateCredential } from '@/lib/api';
+import { updateCredential, getCredential } from '@/lib/api';
 
 interface SbazarAccountsModalProps {
   onClose: () => void;
@@ -38,7 +38,8 @@ export default function SbazarAccountsModal({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
-  const lastSyncedId = useRef<number | null>(accounts[0]?.id ?? null);
+  const secretsCache = useRef<Map<number, User>>(new Map());
+  const loadSeq = useRef(0);
 
   const currentAccount = useMemo(() => {
     return accounts.find((a) => a.id === selectedId) || accounts[0] || null;
@@ -49,13 +50,47 @@ export default function SbazarAccountsModal({
   );
 
   useEffect(() => {
-    if (!currentAccount || lastSyncedId.current === currentAccount.id) return;
-    lastSyncedId.current = currentAccount.id;
+    if (!currentAccount) return;
+
+    const cached = secretsCache.current.get(currentAccount.id);
+    if (cached) {
+      setForm(buildSbazarForm({ ...currentAccount, ...cached }, mainEmail));
+      setSaveSuccess(false);
+      setError(null);
+      setFieldErrors({});
+      return;
+    }
+
     setForm(buildSbazarForm(currentAccount, mainEmail));
     setSaveSuccess(false);
     setError(null);
     setFieldErrors({});
-  }, [currentAccount, mainEmail]);
+
+    const seq = ++loadSeq.current;
+    getCredential(currentAccount.id)
+      .then((full) => {
+        if (loadSeq.current !== seq) return;
+        secretsCache.current.set(full.id, full);
+        setForm(buildSbazarForm(full, mainEmail));
+        onAccountsUpdated({
+          ...currentAccount,
+          ...full,
+          cookies: {
+            has_bazos_bkod: Boolean(full.bazos_bkod?.trim()),
+            has_bazos_sk_bkod: Boolean(full.bazos_sk_bkod?.trim()),
+            has_sbazar_cookie: Boolean(full.sbazar_cookie_ds?.trim()),
+            has_facebook_cookies: Boolean(full.facebook_cuser?.trim() && full.facebook_xs?.trim()),
+            has_proxy: Boolean(full.proxy_ip?.trim()),
+            has_proxy_sbazar: Boolean(full.proxy_ip_sbazar?.trim()),
+          },
+        });
+      })
+      .catch((err: unknown) => {
+        if (loadSeq.current !== seq) return;
+        console.error('Error loading Sbazar credential secrets:', err);
+        setError(err instanceof Error ? err.message : 'Nepodařilo se načíst údaje účtu.');
+      });
+  }, [currentAccount?.id, mainEmail]);
 
   const filteredAccounts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -104,7 +139,24 @@ export default function SbazarAccountsModal({
       };
 
       const updated = await updateCredential(currentAccount.id, payload);
-      onAccountsUpdated(updated);
+      const withSecrets: User = {
+        ...currentAccount,
+        ...updated,
+        sbazar_password: String(form.sbazar_password || updated.sbazar_password || ''),
+        sbazar_cookie_ds: String(form.sbazar_cookie_ds || updated.sbazar_cookie_ds || ''),
+        cookies: {
+          has_bazos_bkod: Boolean(currentAccount.cookies?.has_bazos_bkod),
+          has_bazos_sk_bkod: Boolean(currentAccount.cookies?.has_bazos_sk_bkod),
+          has_sbazar_cookie: Boolean(String(form.sbazar_cookie_ds || '').trim()),
+          has_facebook_cookies: Boolean(currentAccount.cookies?.has_facebook_cookies),
+          has_proxy: Boolean(currentAccount.proxy_ip?.trim() || currentAccount.cookies?.has_proxy),
+          has_proxy_sbazar: Boolean(
+            String(form.proxy_ip_sbazar || currentAccount.proxy_ip_sbazar || '').trim()
+          ),
+        },
+      };
+      secretsCache.current.set(withSecrets.id, withSecrets);
+      onAccountsUpdated(withSecrets);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -186,12 +238,7 @@ export default function SbazarAccountsModal({
                     type="button"
                     onClick={() => {
                       if (acc.id === selectedId) return;
-                      lastSyncedId.current = acc.id;
                       setSelectedId(acc.id);
-                      setForm(buildSbazarForm(acc, mainEmail));
-                      setSaveSuccess(false);
-                      setError(null);
-                      setFieldErrors({});
                     }}
                     className={`w-full text-left rounded-2xl p-3 transition-all border ${
                       isSelected
