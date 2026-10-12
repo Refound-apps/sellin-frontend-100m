@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client';
 import { User } from '@/lib/types';
 import SellerAccountSwitcher from '@/components/SellerAccountSwitcher';
 import { resolvePairedUserAccounts } from '@/lib/sellerAccounts';
+import BazosVerificationModal from '@/components/accounts/BazosVerificationModal';
 
 const BAZOS_TITLE_MAX = 59;
 const LAST_BB_EMAIL_KEY = 'sellin_last_bb_email';
@@ -68,6 +69,56 @@ function CreateOfferContent() {
   const [selectedSeller, setSelectedSeller] = useState<User | null>(null);
   const [selectedCustomEmail, setSelectedCustomEmail] = useState<string | null>(null);
   const [pairedAccounts, setPairedAccounts] = useState<User[]>([]);
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+
+  const isBazosVerified = useMemo(() => {
+    return Boolean(
+      selectedSeller?.bazos_bkod?.trim() ||
+      selectedSeller?.cookies?.has_bazos_bkod
+    );
+  }, [selectedSeller]);
+
+  const handleBazosVerifySuccess = (bkod: string) => {
+    if (selectedSeller) {
+      const updatedCookies = {
+        has_bazos_bkod: true,
+        has_bazos_sk_bkod: Boolean(selectedSeller.cookies?.has_bazos_sk_bkod),
+        has_sbazar_cookie: Boolean(selectedSeller.cookies?.has_sbazar_cookie),
+        has_facebook_cookies: Boolean(selectedSeller.cookies?.has_facebook_cookies),
+        has_proxy: Boolean(selectedSeller.cookies?.has_proxy),
+        has_proxy_sbazar: Boolean(selectedSeller.cookies?.has_proxy_sbazar),
+      };
+      const updatedSeller: User = {
+        ...selectedSeller,
+        bazos_bkod: bkod,
+        status_cz: 'OK',
+        cookies: updatedCookies,
+      };
+      setSelectedSeller(updatedSeller);
+    }
+    setAvailableUsers((prev) =>
+      prev.map((u) => {
+        if (u.email === selectedSeller?.email) {
+          const updatedCookies = {
+            has_bazos_bkod: true,
+            has_bazos_sk_bkod: Boolean(u.cookies?.has_bazos_sk_bkod),
+            has_sbazar_cookie: Boolean(u.cookies?.has_sbazar_cookie),
+            has_facebook_cookies: Boolean(u.cookies?.has_facebook_cookies),
+            has_proxy: Boolean(u.cookies?.has_proxy),
+            has_proxy_sbazar: Boolean(u.cookies?.has_proxy_sbazar),
+          };
+          return {
+            ...u,
+            bazos_bkod: bkod,
+            status_cz: 'OK',
+            cookies: updatedCookies,
+          };
+        }
+        return u;
+      })
+    );
+    setError(null);
+  };
 
   // Categories & Photos
   const [categories, setCategories] = useState<OfferCategoryItem[]>(DEFAULT_OFFER_CATEGORIES);
@@ -694,6 +745,13 @@ function CreateOfferContent() {
       formData.description.trim().length < 15
     ) {
       setError('Sbazar vyžaduje popis alespoň 15 znaků.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (formData.marketplace.includes('Bazoš') && !isBazosVerified) {
+      setError('Před prvním vystavením na Bazoš musíte mít ověřené telefonní číslo pro vybraný účet.');
+      setVerifyModalOpen(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -1521,55 +1579,84 @@ function CreateOfferContent() {
               <div className="space-y-2">
                 {MARKETPLACES.map((marketplace) => {
                   const isChecked = formData.marketplace.includes(marketplace.id);
+                  const isBazos = marketplace.id === 'Bazoš';
                   return (
-                    <button
-                      key={marketplace.id}
-                      type="button"
-                      onClick={() => handleMarketplaceToggle(marketplace.id)}
-                      className={`w-full group flex items-center justify-between p-3 rounded-2xl border text-left transition-all active:scale-[0.99] ${
-                        isChecked
-                          ? 'border-emerald-500/80 bg-emerald-50/40 text-slate-950 ring-2 ring-emerald-500/15 shadow-xs'
-                          : 'border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/70 text-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base transition-transform group-hover:scale-105 ${
-                            isChecked
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {marketplace.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs sm:text-sm font-bold text-slate-950 truncate">
-                            {marketplace.label}
-                          </p>
-                          <p className="text-[11px] text-slate-500 truncate">{marketplace.desc}</p>
-                        </div>
-                      </div>
-
-                      {/* Moderní přepínač (switch) */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        {isChecked && (
-                          <span className="hidden sm:inline-block text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
-                            Aktivní
-                          </span>
-                        )}
-                        <div
-                          className={`h-6 w-11 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
-                            isChecked ? 'bg-emerald-600' : 'bg-slate-200'
-                          }`}
-                        >
+                    <div key={marketplace.id} className="space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleMarketplaceToggle(marketplace.id)}
+                        className={`w-full group flex items-center justify-between p-3 rounded-2xl border text-left transition-all active:scale-[0.99] ${
+                          isChecked
+                            ? 'border-emerald-500/80 bg-emerald-50/40 text-slate-950 ring-2 ring-emerald-500/15 shadow-xs'
+                            : 'border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/70 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <div
-                            className={`h-5 w-5 rounded-full bg-white shadow-xs transform transition-transform duration-200 ease-in-out ${
-                              isChecked ? 'translate-x-5' : 'translate-x-0'
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base transition-transform group-hover:scale-105 ${
+                              isChecked
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-slate-100 text-slate-600'
                             }`}
-                          />
+                          >
+                            {marketplace.icon}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-bold text-slate-950 truncate">
+                              {marketplace.label}
+                            </p>
+                            <p className="text-[11px] text-slate-500 truncate">{marketplace.desc}</p>
+                          </div>
                         </div>
-                      </div>
-                    </button>
+
+                        {/* Moderní přepínač (switch) */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isChecked && (
+                            <span className="hidden sm:inline-block text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
+                              Aktivní
+                            </span>
+                          )}
+                          <div
+                            className={`h-6 w-11 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
+                              isChecked ? 'bg-emerald-600' : 'bg-slate-200'
+                            }`}
+                          >
+                            <div
+                              className={`h-5 w-5 rounded-full bg-white shadow-xs transform transition-transform duration-200 ease-in-out ${
+                                isChecked ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </button>
+
+                      {isBazos && isChecked && !isBazosVerified && (
+                        <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-2.5 text-xs text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 animate-in fade-in">
+                          <div className="flex items-start gap-2">
+                            <span className="text-sm mt-0.5">⚠️</span>
+                            <div>
+                              <p className="font-bold text-[11px]">Bazoš vyžaduje ověření telefonu</p>
+                              <p className="text-[10px] text-amber-800 leading-tight">
+                                Pro tento účet ještě nebyl ověřen telefon (B-kód).
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setVerifyModalOpen(true)}
+                            className="shrink-0 rounded-lg bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-600 transition-all shadow-xs"
+                          >
+                            📱 Ověřit telefon
+                          </button>
+                        </div>
+                      )}
+
+                      {isBazos && isChecked && isBazosVerified && (
+                        <p className="px-2 text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                          <span>✓</span> Bazoš telefon ověřen (B-kód aktivní)
+                        </p>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -1697,6 +1784,16 @@ function CreateOfferContent() {
           </button>
         </div>
       </form>
+
+      <BazosVerificationModal
+        isOpen={verifyModalOpen}
+        onClose={() => setVerifyModalOpen(false)}
+        onSuccess={handleBazosVerifySuccess}
+        credentialId={selectedSeller?.id}
+        initialPhone={selectedSeller?.telephone1 || ''}
+        accountEmail={selectedSeller?.bazos_email || selectedSeller?.email}
+        accountName={selectedSeller?.bazos_name || ''}
+      />
     </main>
   );
 }

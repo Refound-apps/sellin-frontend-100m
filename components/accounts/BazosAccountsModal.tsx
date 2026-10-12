@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '@/lib/types';
-import { updateCredential, createCredential, getCredential } from '@/lib/api';
+import { updateCredential, createCredential, getCredential, checkBazosVerificationStatus } from '@/lib/api';
 import { trackEvent } from '@/lib/analytics';
+import BazosVerificationModal from './BazosVerificationModal';
 
 interface BazosAccountsModalProps {
   onClose: () => void;
@@ -51,6 +52,9 @@ export default function BazosAccountsModal({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [checkStatusMsg, setCheckStatusMsg] = useState<string | null>(null);
   const secretsCache = useRef<Map<number, User>>(new Map());
   const loadSeq = useRef(0);
 
@@ -213,6 +217,58 @@ export default function BazosAccountsModal({
       setError(err?.message || 'Uložení změn se nezdařilo.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleVerificationSuccess = (newBkod: string) => {
+    setForm((p) => ({
+      ...p,
+      bazos_bkod: newBkod,
+      status_cz: 'OK',
+    }));
+    setFieldErrors((p) => ({ ...p, bazos_bkod: '' }));
+    if (currentAccount) {
+      const updatedCookies = {
+        has_bazos_bkod: true,
+        has_bazos_sk_bkod: Boolean(currentAccount.cookies?.has_bazos_sk_bkod),
+        has_sbazar_cookie: Boolean(currentAccount.cookies?.has_sbazar_cookie),
+        has_facebook_cookies: Boolean(currentAccount.cookies?.has_facebook_cookies),
+        has_proxy: Boolean(currentAccount.cookies?.has_proxy),
+        has_proxy_sbazar: Boolean(currentAccount.cookies?.has_proxy_sbazar),
+      };
+      const updated: User = {
+        ...currentAccount,
+        bazos_bkod: newBkod,
+        status_cz: 'OK',
+        cookies: updatedCookies,
+      };
+      secretsCache.current.set(currentAccount.id, updated);
+      onAccountsUpdated(updated);
+    }
+  };
+
+  const handleCheckBkodHealth = async () => {
+    if (!currentAccount?.id && !form.bazos_bkod) return;
+    setCheckingStatus(true);
+    setCheckStatusMsg(null);
+    try {
+      const res = await checkBazosVerificationStatus({
+        credentialId: currentAccount?.id,
+        bkod: form.bazos_bkod || undefined,
+        email: form.bazos_email || currentAccount?.email,
+      });
+      if (res.verified) {
+        setCheckStatusMsg('✓ B-kód je plně aktivní a funkční na Bazoši');
+        setForm((p) => ({ ...p, status_cz: 'OK' }));
+      } else {
+        setCheckStatusMsg('⚠ Bazoš vyžaduje ověření (B-kód expiroval nebo je neplatný)');
+        setForm((p) => ({ ...p, status_cz: 'Not working' }));
+      }
+    } catch (err: unknown) {
+      setCheckStatusMsg(err instanceof Error ? err.message : 'Chyba při kontrole funkčnosti B-kódu');
+    } finally {
+      setCheckingStatus(false);
+      setTimeout(() => setCheckStatusMsg(null), 6000);
     }
   };
 
@@ -661,19 +717,66 @@ export default function BazosAccountsModal({
 
                 {/* Section 2: B-kódy (Critical for fast listing) */}
                 <div className="rounded-2xl border border-amber-200/90 bg-amber-50/40 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                      B
-                    </span>
-                    <h5 className="text-xs font-black text-amber-950">
-                      Ověřovací B-kódy pro okamžité vystavení bez SMS
-                    </h5>
-                    {loadingSecrets && (
-                      <span className="text-[10px] font-semibold text-amber-700/80 animate-pulse">
-                        Načítám…
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                        B
                       </span>
-                    )}
+                      <h5 className="text-xs font-black text-amber-950">
+                        Ověřovací B-kódy pro okamžité vystavení bez SMS
+                      </h5>
+                      {loadingSecrets && (
+                        <span className="text-[10px] font-semibold text-amber-700/80 animate-pulse">
+                          Načítám…
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Verification Action Buttons & Pill */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {form.bazos_bkod ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
+                          ✓ B-kód aktivní
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-200/80 px-2.5 py-1 text-[11px] font-bold text-amber-900">
+                          ⚠ Telefon neověřen
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setVerifyModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 transition-all shadow-xs"
+                      >
+                        📱 {form.bazos_bkod ? 'Znovu ověřit telefon' : 'Ověřit telefon (SMS)'}
+                      </button>
+
+                      {form.bazos_bkod && (
+                        <button
+                          type="button"
+                          disabled={checkingStatus}
+                          onClick={handleCheckBkodHealth}
+                          className="inline-flex items-center gap-1 rounded-xl bg-white border border-amber-300 px-2.5 py-1.5 text-[11px] font-bold text-amber-900 hover:bg-amber-100/60 transition-all"
+                        >
+                          {checkingStatus ? 'Testuji…' : 'Otestovat funkčnost'}
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {checkStatusMsg && (
+                    <div
+                      className={`rounded-xl p-2.5 text-xs font-semibold ${
+                        checkStatusMsg.startsWith('✓')
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : 'bg-amber-100/90 text-amber-900 border border-amber-300'
+                      }`}
+                    >
+                      {checkStatusMsg}
+                    </div>
+                  )}
+
                   <p className="text-[11px] text-amber-900/80 leading-relaxed">
                     B-kód je stálé heslo generované Bazošem pro autorizované vkládání a obnovu inzerátů bez nutnosti potvrzování každého inzerátu přes SMS.
                   </p>
@@ -851,6 +954,16 @@ export default function BazosAccountsModal({
           </div>
         </div>
       </div>
+
+      <BazosVerificationModal
+        isOpen={verifyModalOpen}
+        onClose={() => setVerifyModalOpen(false)}
+        onSuccess={handleVerificationSuccess}
+        credentialId={currentAccount?.id}
+        initialPhone={form.telephone1 || currentAccount?.telephone1 || ''}
+        accountEmail={form.bazos_email || currentAccount?.email}
+        accountName={form.bazos_name || currentAccount?.bazos_name || ''}
+      />
     </div>
   );
 }

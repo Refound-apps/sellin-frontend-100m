@@ -18,6 +18,7 @@ import {
   AUTORENEW_OPTIONS,
 } from './offerStatus';
 import { createClient } from '@/lib/supabase/client';
+import BazosVerificationModal from './accounts/BazosVerificationModal';
 
 interface OfferModalProps {
   offer: Offer;
@@ -101,6 +102,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(Boolean(isAdminProp));
+  const [bazosVerifyOpen, setBazosVerifyOpen] = useState(false);
   const [editedOffer, setEditedOffer] = useState({
     title: offer.title,
     description: offer.description,
@@ -506,7 +508,13 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
       }
     } catch (err: unknown) {
       console.error(err);
-      setSaveError(err instanceof Error ? err.message : 'Chyba při vystavení na portál');
+      const errMsg = err instanceof Error ? err.message : 'Chyba při vystavení na portál';
+      if (marketplace.toLowerCase().includes('bazo') && !marketplace.toLowerCase().includes('sk')) {
+        if (errMsg.includes('BAZOS_NOT_VERIFIED') || errMsg.includes('ověřené telefonní číslo') || errMsg.includes('B-kód')) {
+          setBazosVerifyOpen(true);
+        }
+      }
+      setSaveError(errMsg);
       setTimeout(() => setSaveError(null), 5000);
     } finally {
       setPublishingMarketplace(null);
@@ -1633,6 +1641,19 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
           )}
         </div>
       )}
+
+      <BazosVerificationModal
+        isOpen={bazosVerifyOpen}
+        onClose={() => setBazosVerifyOpen(false)}
+        onSuccess={() => {
+          setSaveSuccessMessage('Telefon byl ověřen! Nyní můžete inzerát vystavit na Bazoš.');
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 5000);
+        }}
+        initialPhone={offer.seller_phone || ''}
+        accountEmail={offer.bb_email || ''}
+        accountName={offer.seller_name || ''}
+      />
     </div>
   );
 }

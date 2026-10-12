@@ -846,6 +846,96 @@ export async function restoreOfferById(
   }
 }
 
+export interface BazosVerifyStartResponse {
+  success: boolean;
+  sessionId?: string;
+  status?: 'code_sent' | 'already_verified';
+  phone?: string;
+  bkod?: string;
+  info?: string;
+  error?: string;
+}
+
+export interface BazosVerifyConfirmResponse {
+  success: boolean;
+  status?: 'verified' | 'bank_required';
+  bkod?: string;
+  canRetry?: boolean;
+  bankInfo?: {
+    message: string;
+    infoText?: string;
+    qrSrc?: string | null;
+  } | null;
+  error?: string;
+}
+
+export interface BazosVerifyCheckResponse {
+  success: boolean;
+  verified: boolean;
+  status: string;
+  bkod?: string;
+  error?: string;
+}
+
+export async function startBazosVerification(params: {
+  phone: string;
+  credentialId?: number;
+  email?: string;
+}): Promise<BazosVerifyStartResponse> {
+  const response = await apiFetch('/api/bazos/verify/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || 'Nepodařilo se zahájit ověření na Bazoši');
+  }
+  return data;
+}
+
+export async function confirmBazosVerification(params: {
+  sessionId: string;
+  code: string;
+  credentialId?: number;
+}): Promise<BazosVerifyConfirmResponse> {
+  const response = await apiFetch('/api/bazos/verify/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || 'Nepodařilo se ověřit SMS kód');
+  }
+  return data;
+}
+
+export async function checkBazosVerificationStatus(params: {
+  credentialId?: number;
+  bkod?: string;
+  email?: string;
+}): Promise<BazosVerifyCheckResponse> {
+  const response = await apiFetch('/api/bazos/verify/check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || 'Nepodařilo se zkontrolovat stav ověření');
+  }
+  return data;
+}
+
+export async function cancelBazosVerification(sessionId: string): Promise<void> {
+  await apiFetch('/api/bazos/verify/cancel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  }).catch(() => {});
+}
+
 export async function getTransactions(params: {
   limit?: number;
   offset?: number;
