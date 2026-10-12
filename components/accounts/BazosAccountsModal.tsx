@@ -308,14 +308,15 @@ export default function BazosAccountsModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60"
-      onClick={onClose}
-    >
+    <>
       <div
-        className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-2xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60"
+        onClick={onClose}
       >
+        <div
+          className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-2xl flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Modal Top Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-linear-to-r from-amber-500/10 via-white to-white px-6 py-4">
           <div className="flex items-center gap-3">
@@ -954,16 +955,17 @@ export default function BazosAccountsModal({
           </div>
         </div>
       </div>
-
-      <BazosVerificationModal
-        isOpen={verifyModalOpen}
-        onClose={() => setVerifyModalOpen(false)}
-        onSuccess={handleVerificationSuccess}
-        credentialId={currentAccount?.id}
-        initialPhone={form.telephone1 || currentAccount?.telephone1 || ''}
-        accountEmail={form.bazos_email || currentAccount?.email}
-        accountName={form.bazos_name || currentAccount?.bazos_name || ''}
-      />
     </div>
-  );
+
+    <BazosVerificationModal
+      isOpen={verifyModalOpen}
+      onClose={() => setVerifyModalOpen(false)}
+      onSuccess={handleVerificationSuccess}
+      credentialId={currentAccount?.id}
+      initialPhone={form.telephone1 || currentAccount?.telephone1 || ''}
+      accountEmail={form.bazos_email || currentAccount?.email}
+      accountName={form.bazos_name || currentAccount?.bazos_name || ''}
+    />
+  </>
+);
 }

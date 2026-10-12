@@ -601,8 +601,9 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     'Neobnovovat';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
-      {/* Backdrop */}
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
+        {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
         onClick={onClose}
@@ -1641,6 +1642,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
           )}
         </div>
       )}
+      </div>
 
       <BazosVerificationModal
         isOpen={bazosVerifyOpen}
@@ -1654,6 +1656,6 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
         accountEmail={offer.bb_email || ''}
         accountName={offer.seller_name || ''}
       />
-    </div>
+    </>
   );
 }

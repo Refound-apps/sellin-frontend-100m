@@ -75,6 +75,7 @@ export default function BazosVerificationModal({
 
   const handleStartVerification = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!phone.trim()) {
       setError('Vyplňte prosím telefonní číslo.');
       return;
@@ -116,6 +117,7 @@ export default function BazosVerificationModal({
 
   const handleConfirmCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!sessionId) {
       setError('Relace vypršela. Začněte prosím znovu.');
       return;
@@ -192,8 +194,17 @@ export default function BazosVerificationModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-100 overflow-hidden text-slate-900">
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={(e) => {
+        e.stopPropagation();
+        handleClose();
+      }}
+    >
+      <div
+        className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-100 overflow-hidden text-slate-900"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/60">
           <div className="flex items-center gap-2.5">
@@ -260,7 +271,7 @@ export default function BazosVerificationModal({
 
           {/* STEP 1: Phone input */}
           {step === 'phone' && (
-            <form onSubmit={handleStartVerification} className="space-y-4">
+            <form onSubmit={handleStartVerification} onClick={(e) => e.stopPropagation()} className="space-y-4">
               <div>
                 <p className="text-xs text-slate-600 leading-relaxed mb-3">
                   Před prvním vystavením inzerátu vyžaduje Bazoš ověření telefonního čísla.
@@ -337,7 +348,7 @@ export default function BazosVerificationModal({
 
           {/* STEP 2: SMS Code input */}
           {step === 'code' && (
-            <form onSubmit={handleConfirmCode} className="space-y-5">
+            <form onSubmit={handleConfirmCode} onClick={(e) => e.stopPropagation()} className="space-y-5">
               <div className="rounded-xl bg-amber-50/70 border border-amber-200/80 p-3.5 text-xs text-amber-950">
                 <p className="font-semibold">
                   SMS s kódem byla odeslána na číslo <strong>{phone}</strong>.
