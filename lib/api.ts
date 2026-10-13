@@ -936,6 +936,112 @@ export async function cancelBazosVerification(sessionId: string): Promise<void> 
   }).catch(() => {});
 }
 
+export interface SbazarLoginStartResponse {
+  success: boolean;
+  sessionId?: string;
+  status: 'ok' | 'sms_required' | 'app_confirm_required' | 'error';
+  email?: string;
+  sbazar_cookie_ds?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface SbazarLoginConfirmResponse {
+  success: boolean;
+  status: 'ok' | 'error';
+  email?: string;
+  sbazar_cookie_ds?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface SbazarLoginPollResponse {
+  success: boolean;
+  status: 'ok' | 'waiting' | 'error';
+  email?: string;
+  sbazar_cookie_ds?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface SbazarLoginCheckResponse {
+  success: boolean;
+  valid: boolean;
+  status: 'ok' | 'expired' | 'error';
+  error?: string;
+}
+
+export async function startSbazarLogin(params: {
+  credentialId?: number;
+  email?: string;
+  password?: string;
+}): Promise<SbazarLoginStartResponse> {
+  const response = await apiFetch('/api/sbazar/login/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && data?.status === 'error') {
+    throw new Error(data?.error || 'Nepodařilo se přihlásit na Sbazar');
+  }
+  return data;
+}
+
+export async function confirmSbazarLogin(params: {
+  sessionId: string;
+  code: string;
+}): Promise<SbazarLoginConfirmResponse> {
+  const response = await apiFetch('/api/sbazar/login/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || 'Nepodařilo se ověřit SMS kód');
+  }
+  return data;
+}
+
+export async function pollSbazarLogin(sessionId: string): Promise<SbazarLoginPollResponse> {
+  const response = await apiFetch('/api/sbazar/login/poll', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || 'Chyba při kontrole schválení');
+  }
+  return data;
+}
+
+export async function checkSbazarSession(params: {
+  credentialId?: number;
+  email?: string;
+  sbazar_cookie_ds?: string;
+}): Promise<SbazarLoginCheckResponse> {
+  const response = await apiFetch('/api/sbazar/login/check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || 'Chyba při testování Sbazar session');
+  }
+  return data;
+}
+
+export async function cancelSbazarLogin(sessionId: string): Promise<void> {
+  await apiFetch('/api/sbazar/login/cancel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  }).catch(() => {});
+}
+
 export async function getTransactions(params: {
   limit?: number;
   offset?: number;

@@ -2,7 +2,15 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { User } from '@/lib/types';
-import { updateCredential, getCredential } from '@/lib/api';
+import {
+  updateCredential,
+  getCredential,
+  startSbazarLogin,
+  confirmSbazarLogin,
+  pollSbazarLogin,
+  checkSbazarSession,
+  cancelSbazarLogin,
+} from '@/lib/api';
 
 interface SbazarAccountsModalProps {
   onClose: () => void;
@@ -41,6 +49,16 @@ export default function SbazarAccountsModal({
   const secretsCache = useRef<Map<number, User>>(new Map());
   const loadSeq = useRef(0);
 
+  // Auto-login & 2FA / Session test states
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [testingSession, setTestingSession] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<'ok' | 'expired' | null>(null);
+  const [loginStep, setLoginStep] = useState<'idle' | 'sms' | 'app'>('idle');
+  const [loginSessionId, setLoginSessionId] = useState<string | null>(null);
+  const [smsCode, setSmsCode] = useState('');
+  const [loginSuccessMsg, setLoginSuccessMsg] = useState<string | null>(null);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const currentAccount = useMemo(() => {
     return accounts.find((a) => a.id === selectedId) || accounts[0] || null;
   }, [accounts, selectedId]);
@@ -65,6 +83,15 @@ export default function SbazarAccountsModal({
     setSaveSuccess(false);
     setError(null);
     setFieldErrors({});
+    setSessionStatus(null);
+    setLoginStep('idle');
+    setLoginSessionId(null);
+    setSmsCode('');
+    setLoginSuccessMsg(null);
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
 
     const seq = ++loadSeq.current;
     getCredential(currentAccount.id)
@@ -91,6 +118,184 @@ export default function SbazarAccountsModal({
         setError(err instanceof Error ? err.message : 'Nepodařilo se načíst údaje účtu.');
       });
   }, [currentAccount?.id, mainEmail]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleStartLogin = async () => {
+    if (!currentAccount) return;
+    const email = String(form.sbazar_email || '').trim();
+    const password = String(form.sbazar_password || '').trim();
+
+    if (!email) {
+      setError('Vyplňte prosím Seznam přihlašovací e-mail.');
+      return;
+    }
+    if (!password) {
+      setError('Vyplňte prosím heslo k Seznam účtu.');
+      return;
+    }
+
+    try {
+      setLoginLoading(true);
+      setError(null);
+      setLoginSuccessMsg(null);
+      setSessionStatus(null);
+
+      const res = await startSbazarLogin({
+        credentialId: currentAccount.id,
+        email,
+        password,
+      });
+
+      if (res.status === 'ok' && res.sbazar_cookie_ds) {
+        setForm((prev) => ({ ...prev, sbazar_cookie_ds: res.sbazar_cookie_ds }));
+        setSessionStatus('ok');
+        setLoginSuccessMsg('Přihlášení úspěšné! Session cookie (DS) byla získána a uložena.');
+        // Update local credential
+        const updatedUser: User = {
+          ...currentAccount,
+          sbazar_cookie_ds: res.sbazar_cookie_ds,
+          status_cz: 'OK',
+          cookies: {
+            has_bazos_bkod: Boolean(currentAccount.cookies?.has_bazos_bkod),
+            has_bazos_sk_bkod: Boolean(currentAccount.cookies?.has_bazos_sk_bkod),
+            has_sbazar_cookie: true,
+            has_facebook_cookies: Boolean(currentAccount.cookies?.has_facebook_cookies),
+            has_proxy: Boolean(currentAccount.cookies?.has_proxy),
+            has_proxy_sbazar: Boolean(currentAccount.cookies?.has_proxy_sbazar),
+          },
+        };
+        secretsCache.current.set(updatedUser.id, updatedUser);
+        onAccountsUpdated(updatedUser);
+      } else if (res.status === 'sms_required' && res.sessionId) {
+        setLoginSessionId(res.sessionId);
+        setLoginStep('sms');
+      } else if (res.status === 'app_confirm_required' && res.sessionId) {
+        setLoginSessionId(res.sessionId);
+        setLoginStep('app');
+        // Start polling every 3s
+        pollTimerRef.current = setInterval(async () => {
+          try {
+            const pollRes = await pollSbazarLogin(res.sessionId!);
+            if (pollRes.status === 'ok' && pollRes.sbazar_cookie_ds) {
+              if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+              setForm((prev) => ({ ...prev, sbazar_cookie_ds: pollRes.sbazar_cookie_ds }));
+              setSessionStatus('ok');
+              setLoginStep('idle');
+              setLoginSuccessMsg('Přihlášení v aplikaci potvrzeno! Session cookie uložena.');
+              const updatedUser: User = {
+                ...currentAccount,
+                sbazar_cookie_ds: pollRes.sbazar_cookie_ds,
+                status_cz: 'OK',
+                cookies: {
+                  has_bazos_bkod: Boolean(currentAccount.cookies?.has_bazos_bkod),
+                  has_bazos_sk_bkod: Boolean(currentAccount.cookies?.has_bazos_sk_bkod),
+                  has_sbazar_cookie: true,
+                  has_facebook_cookies: Boolean(currentAccount.cookies?.has_facebook_cookies),
+                  has_proxy: Boolean(currentAccount.cookies?.has_proxy),
+                  has_proxy_sbazar: Boolean(currentAccount.cookies?.has_proxy_sbazar),
+                },
+              };
+              secretsCache.current.set(updatedUser.id, updatedUser);
+              onAccountsUpdated(updatedUser);
+            } else if (pollRes.status === 'error') {
+              if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+              setError(pollRes.error || 'Přihlášení nebylo v aplikaci schváleno.');
+              setLoginStep('idle');
+            }
+          } catch (e) {}
+        }, 3000);
+      } else {
+        setError(res.error || 'Přihlášení na Sbazar se nezdařilo.');
+      }
+    } catch (err: any) {
+      console.error('Error starting Sbazar login:', err);
+      setError(err?.message || 'Chyba při přihlašování na Sbazar.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleConfirmSms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginSessionId || !smsCode.trim() || !currentAccount) return;
+
+    try {
+      setLoginLoading(true);
+      setError(null);
+      const res = await confirmSbazarLogin({
+        sessionId: loginSessionId,
+        code: smsCode.trim(),
+      });
+
+      if (res.status === 'ok' && res.sbazar_cookie_ds) {
+        setForm((prev) => ({ ...prev, sbazar_cookie_ds: res.sbazar_cookie_ds }));
+        setSessionStatus('ok');
+        setLoginStep('idle');
+        setLoginSuccessMsg('SMS kód ověřen! Session cookie (DS) byla uložena.');
+        const updatedUser: User = {
+          ...currentAccount,
+          sbazar_cookie_ds: res.sbazar_cookie_ds,
+          status_cz: 'OK',
+          cookies: {
+            has_bazos_bkod: Boolean(currentAccount.cookies?.has_bazos_bkod),
+            has_bazos_sk_bkod: Boolean(currentAccount.cookies?.has_bazos_sk_bkod),
+            has_sbazar_cookie: true,
+            has_facebook_cookies: Boolean(currentAccount.cookies?.has_facebook_cookies),
+            has_proxy: Boolean(currentAccount.cookies?.has_proxy),
+            has_proxy_sbazar: Boolean(currentAccount.cookies?.has_proxy_sbazar),
+          },
+        };
+        secretsCache.current.set(updatedUser.id, updatedUser);
+        onAccountsUpdated(updatedUser);
+      } else {
+        setError(res.error || 'Neplatný SMS kód.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Chyba při ověření SMS kódu.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleTestSession = async () => {
+    if (!currentAccount) return;
+    const ds = String(form.sbazar_cookie_ds || '').trim();
+    if (!ds) {
+      setError('Účet nemá nastavenou session cookie (DS). Nejprve se přihlaste.');
+      return;
+    }
+
+    try {
+      setTestingSession(true);
+      setError(null);
+      setLoginSuccessMsg(null);
+      const res = await checkSbazarSession({
+        credentialId: currentAccount.id,
+        email: form.sbazar_email || currentAccount.email,
+        sbazar_cookie_ds: ds,
+      });
+
+      if (res.valid) {
+        setSessionStatus('ok');
+        setLoginSuccessMsg('Session cookie je plně funkční a aktivní na Sbazar.cz!');
+      } else {
+        setSessionStatus('expired');
+        setError(res.error || 'Session cookie již není platná. Přihlaste se znovu.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Chyba při testování session.');
+    } finally {
+      setTestingSession(false);
+    }
+  };
 
   const filteredAccounts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -263,7 +468,14 @@ export default function SbazarAccountsModal({
 
                     <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
                       <span>{acc.telephone1 || 'Bez telefonu'}</span>
-                      <span>{acc.sbazar_profile ? 'Profil ✓' : 'Bez profilu'}</span>
+                      <div className="flex items-center gap-1.5">
+                        {acc.sbazar_cookie_ds || acc.cookies?.has_sbazar_cookie ? (
+                          <span className="text-emerald-600 font-bold">Session ✓</span>
+                        ) : (
+                          <span className="text-amber-500 font-medium">Bez session</span>
+                        )}
+                        <span>{acc.sbazar_profile ? 'Profil ✓' : 'Bez profilu'}</span>
+                      </div>
                     </div>
                   </button>
                 );
@@ -409,30 +621,153 @@ export default function SbazarAccountsModal({
                   </div>
                 </div>
 
-                {/* Section 2: Session Cookie DS & Proxy */}
-                <div className="rounded-2xl border border-red-200/90 bg-red-50/40 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold">
-                      🔑
-                    </span>
-                    <h5 className="text-xs font-black text-red-950">
-                      Seznam Session Cookie (DS) & Vyhrazená Proxy
-                    </h5>
+                {/* Section 2: Session Cookie DS, Login & Proxy */}
+                <div className="rounded-2xl border border-red-200/90 bg-red-50/40 p-4 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
+                        🔑
+                      </span>
+                      <div>
+                        <h5 className="text-xs font-black text-red-950">
+                          Seznam Session Cookie (DS) & Automatické přihlášení
+                        </h5>
+                        <p className="text-[11px] text-red-900/80">
+                          Umožňuje okamžité a bezpečné vkládání inzerátů bez ručního opisování cookies.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={handleStartLogin}
+                        disabled={loginLoading || testingSession}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-red-700 transition-all shadow-xs disabled:opacity-50"
+                      >
+                        {loginLoading ? (
+                          <>
+                            <span className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                            Přihlašuji…
+                          </>
+                        ) : (
+                          <>🚀 Přihlásit se na Seznam</>
+                        )}
+                      </button>
+
+                      {form.sbazar_cookie_ds && (
+                        <button
+                          type="button"
+                          onClick={handleTestSession}
+                          disabled={testingSession || loginLoading}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-white px-3 py-1.5 text-xs font-bold text-red-900 hover:bg-red-50 transition-all disabled:opacity-50"
+                        >
+                          {testingSession ? (
+                            <>
+                              <span className="h-3 w-3 rounded-full border-2 border-red-600 border-t-transparent animate-spin" />
+                              Testuji…
+                            </>
+                          ) : (
+                            <>⚡ Testovat spojení</>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[11px] text-red-900/80 leading-relaxed">
-                    Sbazar využívá autorizační cookie <code className="font-bold">DS</code> pro přímé a bezpečné vkládání inzerátů bez nutnosti opakovaného SMS ověřování.
-                  </p>
+
+                  {loginSuccessMsg && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-800 font-bold flex items-center gap-2">
+                      <span>✓</span>
+                      <span>{loginSuccessMsg}</span>
+                    </div>
+                  )}
+
+                  {/* 2FA SMS Modal / Box */}
+                  {loginStep === 'sms' && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-900">
+                          📱 Dvoufázové ověření – Zadejte SMS kód:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (loginSessionId) cancelSbazarLogin(loginSessionId);
+                            setLoginStep('idle');
+                          }}
+                          className="text-[11px] text-amber-700 hover:underline"
+                        >
+                          Zrušit
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={smsCode}
+                          onChange={(e) => setSmsCode(e.target.value)}
+                          placeholder="Např. 123456"
+                          className="flex-1 rounded-xl border border-amber-300 bg-white px-3 py-1.5 text-xs font-mono font-bold text-slate-900 outline-none focus:border-amber-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleConfirmSms}
+                          disabled={loginLoading || !smsCode.trim()}
+                          className="rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50"
+                        >
+                          {loginLoading ? 'Ověřuji…' : 'Ověřit kód'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2FA App Modal / Box */}
+                  {loginStep === 'app' && (
+                    <div className="rounded-xl border border-blue-300 bg-blue-50 p-3 space-y-2 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="h-3 w-3 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+                          <span className="text-xs font-bold text-blue-900">
+                            Potvrďte prosím přihlášení v mobilní aplikaci Seznam...
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                            if (loginSessionId) cancelSbazarLogin(loginSessionId);
+                            setLoginStep('idle');
+                          }}
+                          className="text-[11px] text-blue-700 hover:underline"
+                        >
+                          Zrušit
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-3 pt-1">
                     <div>
-                      <label className="block text-xs font-bold text-red-950 mb-1">
-                        Seznam Cookie DS
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-red-950">
+                          Seznam Cookie DS
+                        </label>
+                        {sessionStatus === 'ok' && (
+                          <span className="text-[11px] font-bold text-emerald-600">
+                            ✓ Aktivní relace
+                          </span>
+                        )}
+                        {sessionStatus === 'expired' && (
+                          <span className="text-[11px] font-bold text-rose-600">
+                            ✕ Neplatná relace
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={form.sbazar_cookie_ds || ''}
                         onChange={(e) => setForm((p) => ({ ...p, sbazar_cookie_ds: e.target.value }))}
-                        placeholder="2YCJv_lQMQzY6N0AYYzY6N0AYgourlypLumtUmMAE4u4mxrgg..."
+                        placeholder="Automaticky získáno po kliknutí na 'Přihlásit se na Seznam'..."
                         className="w-full rounded-xl border border-red-300 bg-white px-3 py-2 font-mono text-[11px] text-slate-900 focus:border-red-600 outline-none"
                       />
                     </div>
