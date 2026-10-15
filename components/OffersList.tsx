@@ -738,18 +738,18 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           {!searchQuery && mode === 'user' && (
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               <Link
-                href="/accounts"
+                href="/accounts?open=bazos"
                 onClick={() => trackEvent('empty_state_cta', { target: 'accounts' })}
-                className="inline-flex min-h-10 items-center rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
+                className="inline-flex min-h-10 items-center rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-amber-600 shadow-2xs"
               >
-                Napojit Bazoš
+                📲 Propojit Bazoš (SMS)
               </Link>
               <Link
                 href="/create"
                 onClick={() => trackEvent('empty_state_cta', { target: 'create' })}
-                className="inline-flex min-h-10 items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-50"
+                className="inline-flex min-h-10 items-center rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
               >
-                Nový inzerát
+                + Nový inzerát
               </Link>
             </div>
           )}

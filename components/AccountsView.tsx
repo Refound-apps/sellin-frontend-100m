@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { User, ShopConfigData } from '@/lib/types';
 import { getUsers, getUserShop } from '@/lib/api';
@@ -37,9 +38,9 @@ const ALL_CHANNELS: ChannelItem[] = [
     categoryLabel: 'Inzertní portál',
     isReady: true,
     statusLabel: 'Aktivní synchronizace',
-    tagline: 'Přímý prodej bez provizí • B-kód autorizace',
-    shortDesc: 'Nejvyšší obrat inzerce v ČR a SK. Přímé telefonické i e-mailové poptávky, nulové transakční poplatky a okamžitá obnova.',
-    tags: ['0 % provize', 'B-kód autorizace', 'Auto-TOP', 'CZ & SK'],
+    tagline: 'Nejvyšší prodej v ČR • 0 % provize',
+    shortDesc: 'Největší bazar v ČR a SK. Přímé telefonické i e-mailové poptávky, nulové transakční poplatky a automatická obnova inzerátů bez ruční práce.',
+    tags: ['0 % provize', 'Rychlé SMS ověření', 'Auto-TOP', 'CZ & SK'],
   },
 
   // 2. SBAZAR.CZ - AKTIVNÍ
@@ -51,8 +52,8 @@ const ALL_CHANNELS: ChannelItem[] = [
     isReady: true,
     statusLabel: 'Aktivní synchronizace',
     tagline: 'Bezplatná inzerce na Seznamu',
-    shortDesc: 'Silný regionální dosah z vyhledávání Seznam.cz. Přímý kontakt se zájemci bez transakčních srážek s podporou Cookie DS.',
-    tags: ['0 % provize', 'Seznam.cz', 'Cookie DS', 'Auto-obnova'],
+    shortDesc: 'Silný dosah z vyhledávače Seznam.cz. Přímý kontakt se zájemci bez poplatků a snadné přihlášení jedním kliknutím.',
+    tags: ['0 % provize', 'Seznam.cz', 'Jednoduché přihlášení', 'Auto-obnova'],
   },
 
   // 3. VLASTNÍ E-SHOP (STOREFRONT) - AKTIVNÍ
@@ -64,7 +65,7 @@ const ALL_CHANNELS: ChannelItem[] = [
     isReady: true,
     statusLabel: 'Aktivní storefront',
     tagline: 'Přímý prodej se 100% marží na vlastní doméně',
-    shortDesc: 'Plná marže bez zprostředkovatelských provizí. Přímý nákup přes webový košík, vlastní doména a napojení všech skladů.',
+    shortDesc: 'Plná marže bez provizí zprostředkovatelům. Přímý nákup přes webový košík, vlastní adresa a přehled všech skladů.',
     tags: ['100 % marže', 'Vlastní doména', 'Online košík', 'Centrální sklad'],
   },
 
@@ -299,11 +300,45 @@ export default function AccountsView() {
     };
   }, [supabase]);
 
+  const searchParams = useSearchParams();
+  const openParam = searchParams.get('open');
+
   // Compute paired subaccounts for the active seller
   const pairedAccounts = useMemo(() => {
     if (!currentEmail || allUsers.length === 0) return [];
     return resolvePairedUserAccounts(currentEmail, allUsers);
   }, [currentEmail, allUsers]);
+
+  // Is Bazos verified for active seller?
+  const isBazosConnected = useMemo(() => {
+    return pairedAccounts.some(
+      (a) => Boolean(a.bazos_bkod?.trim() || a.cookies?.has_bazos_bkod)
+    );
+  }, [pairedAccounts]);
+
+  const isSbazarConnected = useMemo(() => {
+    return pairedAccounts.some(
+      (a) => Boolean(a.sbazar_cookie_ds?.trim() || a.cookies?.has_sbazar_cookie)
+    );
+  }, [pairedAccounts]);
+
+  const primaryBazosAccount = useMemo(() => {
+    return (
+      pairedAccounts.find((a) => Boolean(a.bazos_bkod?.trim() || a.cookies?.has_bazos_bkod)) ||
+      pairedAccounts[0] ||
+      null
+    );
+  }, [pairedAccounts]);
+
+  // Auto-open Bazos modal if ?open=bazos is in URL
+  useEffect(() => {
+    if (openParam === 'bazos' && !loading) {
+      const bazosChannel = ALL_CHANNELS.find((c) => c.id === 'bazos');
+      if (bazosChannel) {
+        setSelectedChannel(bazosChannel);
+      }
+    }
+  }, [openParam, loading]);
 
   // When switcher changes seller
   const handleSelectSeller = (user: User | null, customEmail?: string) => {
@@ -377,7 +412,7 @@ export default function AccountsView() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Napojení účtů
+            Napojení účtů a prodejních kanálů
           </h1>
           <p className="mt-1.5 text-sm text-slate-500 max-w-2xl">
             {loading
@@ -405,6 +440,92 @@ export default function AccountsView() {
           </Link>
         </div>
       </div>
+
+      {/* Priority Onboarding Banner: Start with Bazos */}
+      {!loading && !isBazosConnected ? (
+        <div className="mb-6 rounded-3xl border border-amber-300/80 bg-gradient-to-r from-amber-50 via-amber-50/60 to-white p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-xs p-2">
+                <svg viewBox="0 0 74 56" className="w-full h-full" fill="currentColor">
+                  <path d="M49.15,42.33h6.05c-1.9,3.86-4.8,6.89-8.72,9.08c-4.49,2.51-9.97,3.77-16.43,3.77c-6.25,0-11.65-1.06-16.2-3.18c-4.55-2.12-7.93-5.25-10.15-9.39c-2.22-4.14-3.33-8.64-3.33-13.52c0-5.35,1.26-10.33,3.78-14.94c2.52-4.61,5.97-8.08,10.34-10.39c4.38-2.31,9.38-3.47,15-3.47c4.77,0,9.02,0.93,12.73,2.8c3.71,1.87,6.55,4.52,8.51,7.95c1.96,3.44,2.94,7.19,2.94,11.26c0,4.85-1.49,9.24-4.46,13.16c-3.73,4.95-8.52,7.42-14.35,7.42c-1.57,0-2.76-0.28-3.55-0.83c-0.8-0.55-1.33-1.36-1.59-2.43c-2.24,2.17-4.81,3.25-7.73,3.25c-3.15,0-5.75-1.09-7.83-3.27c-2.07-2.18-3.11-5.08-3.11-8.69c0-4.47,1.25-8.55,3.75-12.25c3.03-4.49,6.92-6.74,11.65-6.74c3.37,0,5.86,1.29,7.47,3.88l0.71-3.17h7.5l-4.29,20.47c-0.27,1.29-0.4,2.13-0.4,2.51c0,0.48,0.11,0.83,0.33,1.07c0.22,0.24,0.48,0.36,0.78,0.36c0.91,0,2.08-0.55,3.52-1.66c1.93-1.45,3.5-3.39,4.69-5.82c1.19-2.44,1.79-4.96,1.79-7.56c0-4.68-1.69-8.6-5.06-11.75c-3.37-3.15-8.08-4.72-14.12-4.72c-5.13,0-9.49,1.05-13.06,3.15c-3.57,2.1-6.26,5.06-8.07,8.88c-1.81,3.82-2.71,7.79-2.71,11.92c0,4.02,1.01,7.67,3.03,10.96c2.02,3.29,4.85,5.7,8.5,7.21c3.65,1.51,7.82,2.27,12.52,2.27c4.53,0,8.42-0.63,11.68-1.9C44.54,46.76,47.16,44.86,49.15,42.33z" />
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-amber-200/90 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950">
+                    Krok 1 ze 2: Začněte zde
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500">Trvá necelou minutu</span>
+                </div>
+                <h2 className="mt-1 text-base sm:text-lg font-black text-slate-950">
+                  Propojte Bazoš – zde se v ČR prodá nejvíce zboží
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-600 max-w-2xl leading-relaxed">
+                  Zadejte své telefonní číslo a přepište 4 čísla z SMSky. Během chvilky můžete vystavit svou první nabídku a Prodejomat ji začne sám obnovovat.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const bazos = ALL_CHANNELS.find((c) => c.id === 'bazos');
+                if (bazos) openChannel(bazos);
+              }}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 text-xs sm:text-sm font-black text-white hover:bg-amber-600 transition-all shadow-md active:scale-[0.98]"
+            >
+              <span>📲 Propojit Bazoš za 1 minutu</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+      ) : !loading && isBazosConnected ? (
+        <div className="mb-6 rounded-3xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50/70 via-emerald-50/30 to-white p-5 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-white font-black text-xl shadow-2xs">
+                ✓
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-black text-slate-950">
+                    Bazoš je připraven k prodeji
+                  </h2>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                    Aktivní synchronizace
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600">
+                  Prodejce: <strong className="text-slate-900">{primaryBazosAccount?.bazos_name || currentEmail}</strong>
+                  {primaryBazosAccount?.telephone1 ? ` · Telefon: ${primaryBazosAccount.telephone1}` : ''}
+                  {' · '}Inzeráty se samy obnovují na první pozice.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/create"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-2xs"
+              >
+                <span>+</span>
+                <span>Vložit nabídku</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  const bazos = ALL_CHANNELS.find((c) => c.id === 'bazos');
+                  if (bazos) openChannel(bazos);
+                }}
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+              >
+                <span>⚙️ Spravovat Bazoš</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Category Pills & Search */}
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -473,11 +594,19 @@ export default function AccountsView() {
           let dynamicBadgeStyle = 'bg-slate-100 text-slate-600 border-slate-200';
 
           if (channel.id === 'bazos') {
-            dynamicBadge = `Aktivní (${pairedAccounts.length} účtů)`;
-            dynamicBadgeStyle = 'bg-amber-50 text-amber-900 border-amber-200 font-bold';
+            dynamicBadge = isBazosConnected
+              ? `Aktivní (${pairedAccounts.length} účtů)`
+              : '⚡ Zbývá propojit SMS';
+            dynamicBadgeStyle = isBazosConnected
+              ? 'bg-emerald-50 text-emerald-900 border-emerald-200 font-bold'
+              : 'bg-amber-100 text-amber-950 border-amber-300 font-black';
           } else if (channel.id === 'sbazar') {
-            dynamicBadge = `Aktivní (${pairedAccounts.length} účtů)`;
-            dynamicBadgeStyle = 'bg-red-50 text-red-900 border-red-200 font-bold';
+            dynamicBadge = isSbazarConnected
+              ? `Aktivní (${pairedAccounts.length} účtů)`
+              : 'Přihlásit Seznamem';
+            dynamicBadgeStyle = isSbazarConnected
+              ? 'bg-emerald-50 text-emerald-900 border-emerald-200 font-bold'
+              : 'bg-red-50 text-red-900 border-red-200 font-bold';
           } else if (channel.id === 'sellin-shop') {
             dynamicBadge = shopConfig?.is_active ? 'Aktivní storefront' : 'Vlastní storefront';
             dynamicBadgeStyle = 'bg-emerald-50 text-emerald-900 border-emerald-200 font-bold';
@@ -580,13 +709,51 @@ export default function AccountsView() {
                 {/* Action Row */}
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold">
                   {isReady ? (
-                    <>
-                      <span className="text-slate-800 group-hover:text-slate-950 flex items-center gap-1">
-                        <span>Upravit credentials & napojení</span>
-                        <span className="group-hover:translate-x-0.5 transition-transform">→</span>
-                      </span>
-                      <span className="text-slate-400 text-[11px]">Nastavit</span>
-                    </>
+                    channel.id === 'bazos' ? (
+                      isBazosConnected ? (
+                        <>
+                          <span className="text-slate-800 group-hover:text-slate-950 flex items-center gap-1 font-bold">
+                            <span>Spravovat Bazoš</span>
+                            <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                          </span>
+                          <span className="text-emerald-700 text-[11px] font-bold">✓ Připraveno</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-amber-700 group-hover:text-amber-900 flex items-center gap-1 font-black">
+                            <span>📲 Propojit přes SMS za 1 min</span>
+                            <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                          </span>
+                          <span className="text-amber-800 text-[11px] font-bold">Krok 1</span>
+                        </>
+                      )
+                    ) : channel.id === 'sbazar' ? (
+                      isSbazarConnected ? (
+                        <>
+                          <span className="text-slate-800 group-hover:text-slate-950 flex items-center gap-1 font-bold">
+                            <span>Spravovat Seznam účet</span>
+                            <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                          </span>
+                          <span className="text-emerald-700 text-[11px] font-bold">✓ Aktivní</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-red-700 group-hover:text-red-900 flex items-center gap-1 font-bold">
+                            <span>Přihlásit se Seznamem</span>
+                            <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                          </span>
+                          <span className="text-red-700 text-[11px] font-bold">Doporučeno</span>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <span className="text-slate-800 group-hover:text-slate-950 flex items-center gap-1">
+                          <span>Nastavit napojení</span>
+                          <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                        </span>
+                        <span className="text-slate-400 text-[11px]">Nastavit</span>
+                      </>
+                    )
                   ) : (
                     <>
                       <span className="text-slate-400 flex items-center gap-1">
@@ -603,11 +770,11 @@ export default function AccountsView() {
       </div>
 
       {/* Active Modals */}
-      {selectedChannel?.id === 'bazos' && pairedAccounts.length > 0 && (
+      {selectedChannel?.id === 'bazos' && (
         <BazosAccountsModal
           onClose={() => setSelectedChannel(null)}
           accounts={pairedAccounts}
-          mainEmail={currentEmail || 'duplux@seznam.cz'}
+          mainEmail={currentEmail || myEmail || 'duplux@seznam.cz'}
           onAccountsUpdated={handleAccountUpdated}
           onAccountCreated={handleAccountCreated}
         />

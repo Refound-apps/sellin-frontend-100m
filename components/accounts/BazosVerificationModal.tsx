@@ -19,6 +19,15 @@ interface BazosVerificationModalProps {
   accountName?: string;
 }
 
+function normalizeCzPhone(input: string): string {
+  const clean = input.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+  if (!clean) return '';
+  if (clean.startsWith('+')) return clean;
+  if (clean.startsWith('420') && clean.length === 12) return `+${clean}`;
+  if (clean.length === 9) return `+420${clean}`;
+  return clean;
+}
+
 export default function BazosVerificationModal({
   isOpen,
   onClose,
@@ -76,8 +85,11 @@ export default function BazosVerificationModal({
   const handleStartVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!phone.trim()) {
-      setError('Vyplňte prosím telefonní číslo.');
+    const normalizedPhone = normalizeCzPhone(phone);
+    const digits = normalizedPhone.replace(/\D/g, '');
+
+    if (!normalizedPhone || digits.length < 9) {
+      setError('Vyplňte prosím platné telefonní číslo (např. 777 123 456 nebo +420 777 123 456).');
       return;
     }
     if (!agreeTerms) {
@@ -90,7 +102,7 @@ export default function BazosVerificationModal({
 
     try {
       const res = await startBazosVerification({
-        phone: phone.trim(),
+        phone: normalizedPhone,
         credentialId,
         email: accountEmail,
       });
