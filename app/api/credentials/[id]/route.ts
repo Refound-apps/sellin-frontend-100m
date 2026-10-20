@@ -144,6 +144,13 @@ export async function PUT(
     const result = await loadAuthorizedCredential(supabase, credId);
     if (result.error) return result.error;
 
+    const emailFields = new Set([
+      'email',
+      'bazos_email',
+      'sbazar_email',
+      'facebook_email',
+    ]);
+
     const updates: CredentialUpdate = {};
     for (const key of ALLOWED_FIELDS) {
       if (!(key in body)) continue;
@@ -161,6 +168,7 @@ export async function PUT(
       } else if (typeof val === 'string') {
         val = val.trim();
         if (val === '') val = null;
+        else if (emailFields.has(key)) val = val.toLowerCase();
       }
 
       // Don't wipe secrets when the client still has a redacted/empty value

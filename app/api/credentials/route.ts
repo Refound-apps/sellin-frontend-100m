@@ -12,6 +12,26 @@ type CredentialRow = Database['public']['Tables']['credential_pg']['Row'];
 const SAFE_SELECT =
   'id, email, bazos_name, bazos_email, telephone1, telephone2, location, zipcode, zipcode_sk, bazos_rewrite, bazos_top_max, status_cz, status_sk, sbazar_email, sbazar_profile, proxy_ip, proxy_ip_sbazar, facebook_email, role, user_id, created_at, bazos_bkod, bazos_sk_bkod, sbazar_cookie_ds, bazos_password, sbazar_password, facebook_password, facebook_cuser, facebook_xs';
 
+/** Quote PostgREST filter values so emails with @ don't break parsing. */
+function quoteFilterValue(value: string): string {
+  return `"${value.replace(/"/g, '')}"`;
+}
+
+function normEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const clean = value.toLowerCase().trim();
+  return clean || null;
+}
+
+/** Case-insensitive email match for .or() filters (PostgREST .in is case-sensitive). */
+function emailIlikeOr(emails: string[]): string {
+  return emails
+    .map((e) => e.toLowerCase().trim())
+    .filter(Boolean)
+    .map((e) => `email.ilike.${quoteFilterValue(e)}`)
+    .join(',');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -38,9 +58,10 @@ export async function GET(request: NextRequest) {
       if (allowedEmails.length === 0) {
         return NextResponse.json({ success: true, data: [] });
       }
-      query = query.in('email', allowedEmails);
+      // .in('email', ...) is case-sensitive — mismatched casing dropped accounts from filters/create
+      query = query.or(emailIlikeOr(allowedEmails));
     } else if (emailParam) {
-      const clean = emailParam.toLowerCase().trim();
+      const clean = quoteFilterValue(emailParam.toLowerCase().trim());
       query = query.or(
         `email.ilike.${clean},sbazar_email.ilike.${clean},bazos_email.ilike.${clean}`
       );
@@ -84,7 +105,8 @@ export async function POST(request: NextRequest) {
     const { isAdmin } = await resolveCallerOfferScope(supabase, user);
     const userEmail = (user.email || '').toLowerCase().trim();
 
-    if (!body.email) {
+    const email = normEmail(body.email);
+    if (!email) {
       return NextResponse.json(
         { success: false, error: 'E-mail účtu je povinný.' },
         { status: 400 }
@@ -92,9 +114,9 @@ export async function POST(request: NextRequest) {
     }
 
     const newRecord: CredentialInsert = {
-      email: body.email.trim(),
+      email,
       bazos_name: body.bazos_name?.trim() || null,
-      bazos_email: body.bazos_email?.trim() || null,
+      bazos_email: normEmail(body.bazos_email),
       bazos_password: body.bazos_password || null,
       bazos_bkod: body.bazos_bkod?.trim() || null,
       bazos_sk_bkod: body.bazos_sk_bkod?.trim() || null,
@@ -107,12 +129,13 @@ export async function POST(request: NextRequest) {
       bazos_top_max: body.bazos_top_max ? parseFloat(String(body.bazos_top_max)) : 0,
       status_cz: body.status_cz || 'OK',
       status_sk: body.status_sk || null,
-      sbazar_email: body.sbazar_email?.trim() || userEmail || null,
+      sbazar_email: normEmail(body.sbazar_email) || userEmail || null,
       sbazar_password: body.sbazar_password || null,
       sbazar_profile: body.sbazar_profile?.trim() || null,
       sbazar_cookie_ds: body.sbazar_cookie_ds?.trim() || null,
       proxy_ip: body.proxy_ip?.trim() || null,
       proxy_ip_sbazar: body.proxy_ip_sbazar?.trim() || null,
+      facebook_email: normEmail(body.facebook_email),
       // Never allow self-promotion to admin
       role: isAdmin && body.role === 'admin' ? 'admin' : 'seller',
       user_id: user.id,
