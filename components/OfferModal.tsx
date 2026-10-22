@@ -7,6 +7,7 @@ import { getOfferDetails, getShopOfferImages, updateOfferById, uploadImagesToR2,
 import { compressImageFile, filesToCompressedBase64 } from '@/lib/compressImage';
 import { logClientError } from '@/lib/logger';
 import { formatCzk, getOfferTags } from '@/components/shop/offerMeta';
+import { toAbsoluteR2Url } from '@/lib/shop/mediaUrl';
 import {
   formatOfferDate,
   formatOfferDateTime,
@@ -322,9 +323,14 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     setSaving(true);
     setSaveError(null);
     try {
+      // Persist absolute R2 URLs — never store FE `/r2/...` proxy paths in DB
+      const imagesForSave = editedImages
+        .map((url) => toAbsoluteR2Url(url) || url)
+        .filter(Boolean);
+
       const res = await updateOfferById(offer.id, {
         ...editedOffer,
-        images: editedImages,
+        images: imagesForSave,
         state: 'app_update',
       });
 
@@ -333,15 +339,15 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
       offer.price = editedOffer.price;
       offer.autorenew_freq = editedOffer.autorenew_freq;
       offer.state = 'app_update';
-      offer.preview_image = editedImages[0] || '';
-      offer.image2 = editedImages[1] || null;
-      offer.image3 = editedImages[2] || null;
-      offer.image4 = editedImages[3] || null;
-      offer.image5 = editedImages[4] || null;
-      offer.image6 = editedImages[5] || null;
-      offer.image7 = editedImages[6] || null;
-      offer.image8 = editedImages[7] || null;
-      offer.image9 = editedImages[8] || null;
+      offer.preview_image = imagesForSave[0] || '';
+      offer.image2 = imagesForSave[1] || null;
+      offer.image3 = imagesForSave[2] || null;
+      offer.image4 = imagesForSave[3] || null;
+      offer.image5 = imagesForSave[4] || null;
+      offer.image6 = imagesForSave[5] || null;
+      offer.image7 = imagesForSave[6] || null;
+      offer.image8 = imagesForSave[7] || null;
+      offer.image9 = imagesForSave[8] || null;
 
       setImages([...editedImages]);
       setImageIndex(0);

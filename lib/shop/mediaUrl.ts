@@ -23,6 +23,10 @@ export function toShopMediaUrl(url?: string | null): string | null {
   try {
     const u = new URL(trimmed);
     if (u.hostname.endsWith('.r2.dev')) {
+      // Avoid double-prefix if path already starts with /r2/
+      if (u.pathname.startsWith('/r2/')) {
+        return `${u.pathname}${u.search}`;
+      }
       return `/r2${u.pathname}${u.search}`;
     }
   } catch {
@@ -36,6 +40,33 @@ export function toShopMediaUrl(url?: string | null): string | null {
     trimmed.startsWith('prod-budi-app-assets/')
   ) {
     return `/r2/${trimmed.replace(/^\/+/, '')}`;
+  }
+
+  return trimmed;
+}
+
+/**
+ * Inverse of toShopMediaUrl — absolute R2 HTTPS for DB / API persistence.
+ * Never store `/r2/...` proxy paths in offer_pg.
+ */
+export function toAbsoluteR2Url(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = String(url).trim();
+  if (!trimmed) return null;
+
+  const base = r2PublicBase();
+
+  if (trimmed.startsWith('/r2/')) {
+    return `${base}/${trimmed.slice('/r2/'.length)}`;
+  }
+
+  try {
+    const u = new URL(trimmed);
+    if (u.hostname.endsWith('.r2.dev') && u.pathname.startsWith('/r2/')) {
+      return `${base}${u.pathname.slice('/r2'.length)}${u.search}`;
+    }
+  } catch {
+    /* relative / non-URL */
   }
 
   return trimmed;
