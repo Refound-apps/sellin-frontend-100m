@@ -187,6 +187,14 @@ function IconExternal({ className = 'h-3 w-3' }: { className?: string }) {
   );
 }
 
+function IconWhatsApp({ className = 'h-3.5 w-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+    </svg>
+  );
+}
+
 export default function AdminCrmView() {
   const [activeTab, setActiveTab] = useState<TabId>('worklist');
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
@@ -217,6 +225,7 @@ export default function AdminCrmView() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPlaybook, setShowPlaybook] = useState(false);
+  const [whatsAppLead, setWhatsAppLead] = useState<CrmLead | null>(null);
   const [copiedPhoneId, setCopiedPhoneId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -355,6 +364,44 @@ export default function AdminCrmView() {
     setCopiedPhoneId(id);
     setTimeout(() => setCopiedPhoneId(null), 1800);
     showToast('Telefon zkopírován');
+  };
+
+  const handleOpenWhatsApp = (lead: CrmLead) => {
+    setWhatsAppLead(lead);
+  };
+
+  const handleWhatsAppSent = async (
+    lead: CrmLead,
+    updatedStage?: string,
+    noteEntry?: string,
+    updatedPhone?: string
+  ) => {
+    const updates: Partial<CrmLead> = {};
+    if (updatedStage && updatedStage !== lead.stage) {
+      updates.stage = updatedStage;
+    }
+    if (updatedPhone && updatedPhone !== (lead.phone || '')) {
+      updates.phone = updatedPhone;
+    }
+    if (noteEntry) {
+      const existing = lead.notes ? lead.notes.trim() : '';
+      updates.notes = existing ? `${noteEntry}\n\n${existing}` : noteEntry;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      try {
+        const updated = await updateCrmLead(lead.id, updates);
+        setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, ...updated } : l)));
+        if (selectedLead && selectedLead.id === lead.id) {
+          setSelectedLead((prev) => (prev ? { ...prev, ...updated } : null));
+        }
+        showToast('WhatsApp otevřen & kontakt aktualizován');
+      } catch {
+        showToast('WhatsApp otevřen (zápis do CRM selhal)');
+      }
+    } else {
+      showToast('WhatsApp otevřen');
+    }
   };
 
   const handleExportCsv = () => {
@@ -852,6 +899,7 @@ export default function AdminCrmView() {
           onCopyPhone={handleCopyPhone}
           onMarkDone={markDoneToday}
           onOutcome={handleWorklistOutcome}
+          onOpenWhatsApp={handleOpenWhatsApp}
         />
       ) : viewMode === 'kanban' ? (
         <div className="-mx-1 flex gap-3 overflow-x-auto pb-2">
@@ -906,21 +954,35 @@ export default function AdminCrmView() {
                             >
                               {lead.phone}
                             </a>
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyPhone(lead.id, lead.phone!);
-                              }}
-                              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                            >
-                              {copiedPhoneId === lead.id ? (
-                                <span className="text-[10px] font-bold text-emerald-600">OK</span>
-                              ) : (
-                                <IconCopy />
-                              )}
-                            </span>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenWhatsApp(lead);
+                                }}
+                                className="rounded-md p-1 text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+                                title="Napsat na WhatsApp"
+                              >
+                                <IconWhatsApp className="h-3.5 w-3.5" />
+                              </span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyPhone(lead.id, lead.phone!);
+                                }}
+                                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                              >
+                                {copiedPhoneId === lead.id ? (
+                                  <span className="text-[10px] font-bold text-emerald-600">OK</span>
+                                ) : (
+                                  <IconCopy />
+                                )}
+                              </span>
+                            </div>
                           </div>
                         )}
                         {lead.notes && (
@@ -1042,6 +1104,17 @@ export default function AdminCrmView() {
                               >
                                 {lead.phone}
                               </a>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenWhatsApp(lead);
+                                }}
+                                className="rounded-md p-1 text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+                                title="Napsat na WhatsApp"
+                              >
+                                <IconWhatsApp className="h-3.5 w-3.5" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1233,14 +1306,36 @@ export default function AdminCrmView() {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-4 gap-1.5">
+              <div className="mt-3 grid grid-cols-5 gap-1.5">
+                {selectedLead.phone ? (
+                  <a
+                    href={`tel:${selectedLead.phone}`}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50 py-2 text-[11px] font-bold text-slate-800 transition hover:bg-slate-100"
+                  >
+                    <IconPhone />
+                    Zavolat
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center justify-center rounded-xl border border-transparent py-2 text-[11px] font-medium text-slate-300">
+                    Zavolat
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenWhatsApp(selectedLead)}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-xl border py-2 text-[11px] font-bold transition active:scale-95 ${
+                    selectedLead.phone
+                      ? 'border-emerald-200/90 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 shadow-2xs'
+                      : 'border-slate-200/70 bg-slate-50 text-slate-500 hover:bg-slate-100'
+                  }`}
+                  title="Odeslat zprávu na WhatsApp"
+                >
+                  <IconWhatsApp className="h-3.5 w-3.5 text-emerald-600" />
+                  WhatsApp
+                </button>
+
                 {[
-                  {
-                    ok: !!selectedLead.phone,
-                    href: selectedLead.phone ? `tel:${selectedLead.phone}` : undefined,
-                    label: 'Zavolat',
-                    icon: <IconPhone />,
-                  },
                   {
                     ok: !!selectedLead.email,
                     href: selectedLead.email ? `mailto:${selectedLead.email}` : undefined,
@@ -1271,7 +1366,6 @@ export default function AdminCrmView() {
                       rel={action.external ? 'noreferrer' : undefined}
                       className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50 py-2 text-[11px] font-bold text-slate-800 transition hover:bg-slate-100"
                     >
-                      {action.icon}
                       {action.label}
                     </a>
                   ) : (
@@ -1498,6 +1592,13 @@ export default function AdminCrmView() {
           }}
         />
       )}
+      {whatsAppLead && (
+        <WhatsAppModal
+          lead={whatsAppLead}
+          onClose={() => setWhatsAppLead(null)}
+          onSent={handleWhatsAppSent}
+        />
+      )}
     </div>
   );
 }
@@ -1594,6 +1695,7 @@ function WorklistBoard({
   onCopyPhone,
   onMarkDone,
   onOutcome,
+  onOpenWhatsApp,
 }: {
   loading: boolean;
   grouped: Record<CrmWorklistBucket, CrmLead[]> | null;
@@ -1608,6 +1710,7 @@ function WorklistBoard({
   onCopyPhone: (id: number, phone: string) => void;
   onMarkDone: (id: number) => void;
   onOutcome: (id: number, stage: string) => void;
+  onOpenWhatsApp: (lead: CrmLead) => void;
 }) {
   const sections = WORKLIST_BUCKETS.filter((b) => b.id !== 'all').filter(
     (b) => selectedBucket === 'all' || selectedBucket === b.id
@@ -1739,6 +1842,15 @@ function WorklistBoard({
                                   <IconPhone />
                                   {lead.phone}
                                 </a>
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenWhatsApp(lead)}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200/90 bg-emerald-50 px-2.5 py-2 text-[11px] font-bold text-emerald-800 shadow-2xs transition hover:bg-emerald-100 active:scale-95"
+                                  title="Napsat na WhatsApp"
+                                >
+                                  <IconWhatsApp className="h-3.5 w-3.5 text-emerald-600" />
+                                  WhatsApp
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => onCopyPhone(lead.id, lead.phone!)}
@@ -1875,6 +1987,278 @@ function WorklistBoard({
             className="rounded-xl border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 disabled:opacity-40"
           >
             Další
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatPhoneForWhatsApp(phone: string | null | undefined): string {
+  if (!phone) return '';
+  let cleaned = phone.replace(/[^\d+]/g, '');
+  if (cleaned.startsWith('+')) {
+    cleaned = cleaned.slice(1);
+  } else if (cleaned.startsWith('00')) {
+    cleaned = cleaned.slice(2);
+  } else if (cleaned.startsWith('0') && cleaned.length === 10) {
+    cleaned = '421' + cleaned.slice(1);
+  } else if (/^\d{9}$/.test(cleaned)) {
+    cleaned = '420' + cleaned;
+  }
+  return cleaned;
+}
+
+interface WhatsAppTemplate {
+  id: string;
+  label: string;
+  badge: string;
+  getText: (lead: CrmLead) => string;
+}
+
+const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
+  {
+    id: 'bazos_cold',
+    label: 'Bazoš oslovení',
+    badge: 'Cold',
+    getText: (l) => {
+      const cat = l.category && l.category !== 'Ostatní' && l.category !== 'all' ? ` (${l.category})` : '';
+      return `Dobrý den, vidím vaše nabídky na Bazoši${cat}. V Sellin.cz děláme nástroj na automatické obnovování a topování inzerátů bez ručního přepisování.\n\nMělo by pro vás smysl ušetřit pár hodin týdně? Rád pošlu rychlou 2min ukázku.`;
+    },
+  },
+  {
+    id: 'missed_call',
+    label: 'Po nezvednutém hovoru',
+    badge: 'Follow-up',
+    getText: (_l) => {
+      return `Dobrý den, zkoušel jsem vám před chvílí krátce volat ohledně inzerce. V Sellin.cz řešíme automatickou správu a obnovu inzerátů na Bazoši a Sbazaru.\n\nKdy vám můžu zavolat na 2 minuty, nebo vám mám poslat rychlý odkaz sem?`;
+    },
+  },
+  {
+    id: 'demo_trial',
+    label: 'Odkaz & 7 dní trial',
+    badge: 'Nabídka',
+    getText: (_l) => {
+      return `Dobrý den, posílám slíbený odkaz na Sellin.cz: https://sellin.cz .\n\nUmí to automatické vystavování, obnovu i hlídání smazaných inzerátů. Můžete si to vyzkoušet na 7 dní zdarma na vlastních inzerátech. Kdyby cokoli, stačí napsat.`;
+    },
+  },
+  {
+    id: 'eshop',
+    label: 'E-shop / sklad',
+    badge: 'B2B',
+    getText: (l) => {
+      const firm = l.company_name || l.name;
+      return `Dobrý den, dívám se na nabídku ${firm}. Propojujeme e-shopy a sklady přímo do inzerce na Bazoš a Sbazar přes Sellin.cz.\n\nMá pro vás smysl inzerovat nabídku i tímto kanálem?`;
+    },
+  },
+  {
+    id: 'custom',
+    label: 'Vlastní text',
+    badge: 'Čistý',
+    getText: (_l) => 'Dobrý den, ',
+  },
+];
+
+function WhatsAppModal({
+  lead,
+  onClose,
+  onSent,
+}: {
+  lead: CrmLead;
+  onClose: () => void;
+  onSent: (lead: CrmLead, updatedStage?: string, noteEntry?: string, updatedPhone?: string) => Promise<void>;
+}) {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('bazos_cold');
+  const [phoneInput, setPhoneInput] = useState<string>(lead.phone || '');
+  const [message, setMessage] = useState<string>(() => {
+    const tpl = WHATSAPP_TEMPLATES.find((t) => t.id === 'bazos_cold') || WHATSAPP_TEMPLATES[0];
+    return tpl.getText(lead);
+  });
+  const [updateStageToContacted, setUpdateStageToContacted] = useState<boolean>(lead.stage === 'lead');
+  const [saveToNotes, setSaveToNotes] = useState<boolean>(true);
+  const [sending, setSending] = useState(false);
+
+  const cleanPhone = formatPhoneForWhatsApp(phoneInput);
+
+  const handleSelectTemplate = (tpl: WhatsAppTemplate) => {
+    setSelectedTemplateId(tpl.id);
+    setMessage(tpl.getText(lead));
+  };
+
+  const handleSend = async () => {
+    if (!cleanPhone) {
+      alert('Vyplňte platné telefonní číslo pro WhatsApp');
+      return;
+    }
+    setSending(true);
+
+    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message.trim())}`;
+    window.open(waUrl, '_blank');
+
+    const tplObj = WHATSAPP_TEMPLATES.find((t) => t.id === selectedTemplateId);
+    const now = new Date();
+    const dateFormatted = `${now.getDate()}.${now.getMonth() + 1}. ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const noteEntry = saveToNotes
+      ? `[WhatsApp ${dateFormatted} · ${tplObj?.label || 'Zpráva'}]:\n"${message.trim()}"`
+      : undefined;
+
+    const newStage = updateStageToContacted ? 'contacted' : undefined;
+    const phoneToUpdate = phoneInput.trim() !== (lead.phone || '').trim() ? phoneInput.trim() : undefined;
+
+    try {
+      await onSent(lead, newStage, noteEntry, phoneToUpdate);
+    } finally {
+      setSending(false);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]" onClick={onClose}>
+      <div
+        className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-slate-200/90 bg-emerald-50/50 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+              <IconWhatsApp className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black tracking-tight text-slate-950">
+                  {lead.company_name || lead.name}
+                </h3>
+                <span className="rounded-md border border-emerald-200/80 bg-white px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                  {lead.category}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Přímá zpráva na WhatsApp přes wa.me
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="space-y-4 overflow-y-auto p-5 text-xs">
+          {/* Phone */}
+          <div>
+            <label className="mb-1 block font-bold text-slate-700">Telefon příjemce</label>
+            <div className="relative">
+              <input
+                type="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                placeholder="+420 777 123 456"
+                className="w-full rounded-xl border border-slate-200/90 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
+              />
+              <span className="absolute right-3 top-2 text-[11px] font-mono font-medium text-slate-400">
+                {cleanPhone ? `wa.me/${cleanPhone}` : 'Neplatné číslo'}
+              </span>
+            </div>
+            {!cleanPhone && (
+              <p className="mt-1 text-[11px] font-semibold text-rose-600">
+                Zadejte platné telefonní číslo, aby se otevřel WhatsApp chat.
+              </p>
+            )}
+          </div>
+
+          {/* Quick templates */}
+          <div>
+            <label className="mb-1.5 block font-bold text-slate-700">Rychlé šablony (to the point)</label>
+            <div className="flex flex-wrap gap-1.5">
+              {WHATSAPP_TEMPLATES.map((tpl) => {
+                const active = selectedTemplateId === tpl.id;
+                return (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => handleSelectTemplate(tpl)}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition-all ${
+                      active
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200/90 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-600' : 'bg-slate-300'}`} />
+                    {tpl.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Message Textarea */}
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="font-bold text-slate-700">Znění zprávy</label>
+              <span className="text-[10px] text-slate-400">{message.length} znaků</span>
+            </div>
+            <textarea
+              rows={5}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full rounded-xl border border-slate-200/90 p-3 text-xs leading-relaxed text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
+              placeholder="Text zprávy..."
+            />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Text můžete libovolně upravit. Otevře WhatsApp s předvyplněným kontaktem i zprávou.
+            </p>
+          </div>
+
+          {/* Automations */}
+          <div className="space-y-2 rounded-xl border border-slate-200/80 bg-slate-50 p-3">
+            <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={updateStageToContacted}
+                onChange={(e) => setUpdateStageToContacted(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span>
+                Posunout lead do fáze <strong className="text-slate-900">Osloveno (Contacted)</strong>
+              </span>
+            </label>
+            <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={saveToNotes}
+                onChange={(e) => setSaveToNotes(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span>
+                Uložit záznam o odeslané zprávě do poznámky kontaktu
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-slate-200/90 bg-slate-50/80 px-5 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+          >
+            Zrušit
+          </button>
+          <button
+            type="button"
+            disabled={!cleanPhone || !message.trim() || sending}
+            onClick={handleSend}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-40 active:scale-95"
+          >
+            <IconWhatsApp className="h-4 w-4" />
+            {sending ? 'Ukládám…' : 'Otevřít WhatsApp'}
           </button>
         </div>
       </div>
