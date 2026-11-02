@@ -1613,7 +1613,7 @@ function PlaybookModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between border-b border-slate-200/90 px-5 py-4">
           <div>
             <h3 className="text-base font-black tracking-tight text-slate-950">Sales playbook</h3>
-            <p className="mt-0.5 text-xs text-slate-500">Námitky a skripty z cold callů Sellin</p>
+            <p className="mt-0.5 text-xs text-slate-500">Námitky a skripty z cold callů Prodejomat</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
             ✕
@@ -2023,7 +2023,7 @@ const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
     badge: 'Cold',
     getText: (l) => {
       const cat = l.category && l.category !== 'Ostatní' && l.category !== 'all' ? ` (${l.category})` : '';
-      return `Dobrý den, vidím vaše nabídky na Bazoši${cat}. V Sellin.cz děláme nástroj na automatické obnovování a topování inzerátů bez ručního přepisování.\n\nMělo by pro vás smysl ušetřit pár hodin týdně? Rád pošlu rychlou 2min ukázku.`;
+      return `Dobrý den, vidím vaše nabídky na Bazoši${cat}. V Prodejomat.cz děláme nástroj na automatické obnovování a topování inzerátů bez ručního přepisování.\n\nMělo by pro vás smysl ušetřit pár hodin týdně? Rád pošlu rychlou 2min ukázku.`;
     },
   },
   {
@@ -2031,7 +2031,7 @@ const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
     label: 'Po nezvednutém hovoru',
     badge: 'Follow-up',
     getText: (_l) => {
-      return `Dobrý den, zkoušel jsem vám před chvílí krátce volat ohledně inzerce. V Sellin.cz řešíme automatickou správu a obnovu inzerátů na Bazoši a Sbazaru.\n\nKdy vám můžu zavolat na 2 minuty, nebo vám mám poslat rychlý odkaz sem?`;
+      return `Dobrý den, zkoušel jsem vám před chvílí krátce volat ohledně inzerce. V Prodejomat.cz řešíme automatickou správu a obnovu inzerátů na Bazoši a Sbazaru.\n\nKdy vám můžu zavolat na 2 minuty, nebo vám mám poslat rychlý odkaz sem?`;
     },
   },
   {
@@ -2039,7 +2039,7 @@ const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
     label: 'Odkaz & 7 dní trial',
     badge: 'Nabídka',
     getText: (_l) => {
-      return `Dobrý den, posílám slíbený odkaz na Sellin.cz: https://sellin.cz .\n\nUmí to automatické vystavování, obnovu i hlídání smazaných inzerátů. Můžete si to vyzkoušet na 7 dní zdarma na vlastních inzerátech. Kdyby cokoli, stačí napsat.`;
+      return `Dobrý den, posílám slíbený odkaz na Prodejomat.cz: https://prodejomat.cz .\n\nUmí to automatické vystavování, obnovu i hlídání smazaných inzerátů. Můžete si to vyzkoušet na 7 dní zdarma na vlastních inzerátech. Kdyby cokoli, stačí napsat.`;
     },
   },
   {
@@ -2048,7 +2048,7 @@ const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
     badge: 'B2B',
     getText: (l) => {
       const firm = l.company_name || l.name;
-      return `Dobrý den, dívám se na nabídku ${firm}. Propojujeme e-shopy a sklady přímo do inzerce na Bazoš a Sbazar přes Sellin.cz.\n\nMá pro vás smysl inzerovat nabídku i tímto kanálem?`;
+      return `Dobrý den, dívám se na nabídku ${firm}. Propojujeme e-shopy a sklady přímo do inzerce na Bazoš a Sbazar přes Prodejomat.cz.\n\nMá pro vás smysl inzerovat nabídku i tímto kanálem?`;
     },
   },
   {
