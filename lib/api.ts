@@ -433,6 +433,39 @@ export type ShopVisitStats = {
   month: number;
 };
 
+export type ProdejomatVisitStats = {
+  day: number;
+  week: number;
+  month: number;
+  history?: Array<{ day: string; visits: number }>;
+};
+
+export async function getProdejomatVisitStats(): Promise<{
+  success: boolean;
+  data?: ProdejomatVisitStats;
+  error?: string;
+}> {
+  try {
+    const response = await fetch('/api/admin/prodejomat-visits', { cache: 'no-store' });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.success) {
+      return { success: false, error: json.error || 'Načtení návštěvnosti selhalo.' };
+    }
+    return {
+      success: true,
+      data: {
+        day: Number(json.data?.day) || 0,
+        week: Number(json.data?.week) || 0,
+        month: Number(json.data?.month) || 0,
+        history: Array.isArray(json.data?.history) ? json.data.history : [],
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching prodejomat visit stats:', error);
+    return { success: false, error: 'Nepodařilo se načíst návštěvnost webu.' };
+  }
+}
+
 export async function getShopVisitStats(params?: {
   shop_id?: string;
 }): Promise<{ success: boolean; data?: ShopVisitStats; error?: string }> {

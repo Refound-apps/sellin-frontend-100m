@@ -22,6 +22,7 @@ async function shopSitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/reklamace`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${baseUrl}/obchodni-podminky`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${baseUrl}/llms.txt`, lastModified: now, changeFrequency: 'weekly', priority: 0.4 },
+    { url: `${baseUrl}/llms-full.txt`, lastModified: now, changeFrequency: 'weekly', priority: 0.4 },
   ];
 
   try {

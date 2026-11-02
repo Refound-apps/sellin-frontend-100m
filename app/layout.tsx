@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import ProdejomatVisitTracker from "@/components/prodejomat/ProdejomatVisitTracker";
 import { getRequestHost, isTenantHost } from "@/lib/prodejomat/host";
 import { buildProdejomatMetadata, prodejomatViewport } from "@/lib/prodejomat/seo";
 import { buildShopPageMetadata, getShopHomeMetadata } from "@/lib/shop/seo";
@@ -68,6 +69,7 @@ export default async function RootLayout({
     >
       <body className="flex min-h-full flex-col bg-[hsl(210_28%_97%)] font-sans text-[hsl(222_47%_11%)]">
         {!isTenant && <Navigation />}
+        {!isTenant && <ProdejomatVisitTracker />}
         {children}
       </body>
     </html>

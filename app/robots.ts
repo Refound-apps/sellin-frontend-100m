@@ -6,6 +6,25 @@ import { resolveShopFromRequest } from '@/lib/shop/server';
 
 export const dynamic = 'force-dynamic';
 
+const AI_BOT_USER_AGENTS = [
+  'GPTBot',
+  'ChatGPT-User',
+  'OAI-SearchBot',
+  'ClaudeBot',
+  'Claude-Web',
+  'PerplexityBot',
+  'Google-Extended',
+  'GoogleOther',
+  'Applebot',
+  'Applebot-Extended',
+  'CCBot',
+  'cohere-ai',
+  'Meta-ExternalAgent',
+  'Bytespider',
+  'Amazonbot',
+  'Diffbot',
+];
+
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const headersList = await headers();
   const shopDomainHeader = headersList.get('x-shop-domain');
@@ -27,15 +46,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
           disallow: ['/admin/', '/api/admin/', '/accounts', '/create', '/login'],
         },
         {
-          userAgent: [
-            'GPTBot',
-            'PerplexityBot',
-            'ClaudeBot',
-            'Google-Extended',
-            'Applebot-Extended',
-            'CCBot',
-            'ChatGPT-User',
-          ],
+          userAgent: AI_BOT_USER_AGENTS,
           allow: [
             '/',
             '/shop',
@@ -44,7 +55,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
             '/api/shop/ai-catalog',
             '/api/shop/feeds/',
             '/llms.txt',
+            '/llms-full.txt',
             '/.well-known/llms.txt',
+            '/.well-known/llms-full.txt',
           ],
           disallow: ['/admin/', '/api/admin/'],
         },
@@ -60,7 +73,18 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/login', '/llms.txt', '/.well-known/llms.txt', '/manifest.webmanifest'],
+        allow: [
+          '/',
+          '/landing',
+          '/login',
+          '/llms.txt',
+          '/llms-full.txt',
+          '/.well-known/llms.txt',
+          '/.well-known/llms-full.txt',
+          '/manifest.webmanifest',
+          '/opengraph-image',
+          '/twitter-image',
+        ],
         disallow: [
           '/admin/',
           '/api/',
@@ -74,16 +98,16 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         ],
       },
       {
-        userAgent: [
-          'GPTBot',
-          'PerplexityBot',
-          'ClaudeBot',
-          'Google-Extended',
-          'Applebot-Extended',
-          'CCBot',
-          'ChatGPT-User',
+        userAgent: AI_BOT_USER_AGENTS,
+        allow: [
+          '/',
+          '/landing',
+          '/login',
+          '/llms.txt',
+          '/llms-full.txt',
+          '/.well-known/llms.txt',
+          '/.well-known/llms-full.txt',
         ],
-        allow: ['/', '/login', '/llms.txt', '/.well-known/llms.txt'],
         disallow: ['/admin/', '/api/'],
       },
     ],

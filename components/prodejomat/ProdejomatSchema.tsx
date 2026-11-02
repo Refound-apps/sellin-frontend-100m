@@ -2,6 +2,8 @@ import {
   getProdejomatOrganizationSchema,
   getProdejomatSoftwareSchema,
   getProdejomatWebsiteSchema,
+  getProdejomatFaqSchema,
+  getProdejomatBreadcrumbSchema,
 } from '@/lib/prodejomat/seo';
 
 export default function ProdejomatSchema({ host }: { host?: string | null }) {
@@ -9,6 +11,8 @@ export default function ProdejomatSchema({ host }: { host?: string | null }) {
     getProdejomatOrganizationSchema(host),
     getProdejomatSoftwareSchema(host),
     getProdejomatWebsiteSchema(host),
+    getProdejomatFaqSchema(host),
+    getProdejomatBreadcrumbSchema(host),
   ];
 
   return (

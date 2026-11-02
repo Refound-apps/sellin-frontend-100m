@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 function buildShopLlmsTxt(origin: string): string {
   return `# E-shop kol a pneu (Prodejomat Storefront)
 > Specializovaný online katalog prověřených pneumatik, ALU disků a kompletních sad kol s fyzickým skladem a pneuservisem.
+> Kompletní specifikace a katalog pro AI: \`${origin}/llms-full.txt\`
 
 ## AI Agent API (Strukturovaný katalog)
 Pro autonomní nákupní asistenty, LLM agenty a vyhledávače:

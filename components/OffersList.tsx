@@ -11,6 +11,7 @@ import OfferModal from './OfferModal';
 import SellerAccountSwitcher from './SellerAccountSwitcher';
 import PairedAccountSwitcher from './PairedAccountSwitcher';
 import TrialOnboardingChecklist from './TrialOnboardingChecklist';
+import AdminWebTrafficStats from './admin/AdminWebTrafficStats';
 import { formatPhoneNumber, isOfferHiddenFromListings } from './offerStatus';
 import { resolveLinkedEmails, resolvePairedUserAccounts, getSubaccountFilterEmails } from '@/lib/sellerAccounts';
 import { trackEvent } from '@/lib/analytics';
@@ -578,6 +579,9 @@ export default function OffersList({ mode = 'user' }: OffersListProps) {
           />
         </div>
       )}
+
+      {/* Admin Web Traffic Stats for Prodejomat.cz */}
+      {mode === 'admin' && <AdminWebTrafficStats />}
 
       {/* Search Input Bar with layered depth */}
       <form onSubmit={(e) => e.preventDefault()} className="mb-6">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import AdminWebTrafficStats from '@/components/admin/AdminWebTrafficStats';
 
 /** Session cookie — bez `seller` middleware přesměruje admina z `/` na `/admin/offers`. */
 const ADMIN_VIEW_COOKIE = 'prodejomat_admin_view';
@@ -233,6 +234,8 @@ export default function Navigation() {
         </nav>
 
         <div className="space-y-3 border-t border-slate-100 px-3 py-4">
+          <AdminWebTrafficStats compact />
+
           {role === 'admin' && (
             <div
               className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-[11px]"

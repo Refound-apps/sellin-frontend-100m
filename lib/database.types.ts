@@ -619,6 +619,27 @@ export type Database = {
           },
         ]
       }
+      prodejomat_visit_daily: {
+        Row: {
+          day: string
+          visits: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          day: string
+          visits?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          day?: string
+          visits?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cron_jobs: {
         Row: {
           id: string
@@ -818,6 +839,7 @@ export type Database = {
     Functions: {
       get_current_user_role: { Args: never; Returns: string }
       increment_shop_visit: { Args: { p_shop_id: string }; Returns: undefined }
+      increment_prodejomat_visit: { Args: never; Returns: undefined }
       get_crm_stats: { Args: never; Returns: Json }
       get_crm_daily_worklist: {
         Args: {
