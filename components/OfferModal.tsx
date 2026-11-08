@@ -119,7 +119,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
   const getInitialImages = useCallback(() => {
     const arr: string[] = [];
     if (offer.preview_image) arr.push(offer.preview_image);
-    for (let i = 2; i <= 9; i++) {
+    for (let i = 2; i <= 20; i++) {
       const extra = (offer as any)[`image${i}`];
       if (extra && typeof extra === 'string' && !arr.includes(extra)) {
         arr.push(extra);
@@ -215,9 +215,9 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const remainingSlots = 9 - editedImages.length;
+    const remainingSlots = 20 - editedImages.length;
     if (remainingSlots <= 0) {
-      alert('Lze mít maximálně 9 fotografií na jeden inzerát.');
+      alert('Lze mít maximálně 20 fotografií na jeden inzerát.');
       return;
     }
 
@@ -238,7 +238,7 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
         const compressed = await compressImageFile(file);
         const uploadedUrl = await uploadSingleImageToR2(compressed);
         if (uploadedUrl) {
-          setEditedImages((prev) => [...prev, uploadedUrl].slice(0, 9));
+          setEditedImages((prev) => [...prev, uploadedUrl].slice(0, 20));
         }
       } catch (err: any) {
         console.error(`Upload to R2 failed in modal for ${file.name}:`, err);
@@ -267,8 +267,8 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
   const handleAddImageUrl = () => {
     const trimmed = customImageUrl.trim();
     if (!trimmed) return;
-    if (editedImages.length >= 9) {
-      alert('Lze mít maximálně 9 fotografií.');
+    if (editedImages.length >= 20) {
+      alert('Lze mít maximálně 20 fotografií.');
       return;
     }
     setEditedImages((prev) => [...prev, trimmed]);
@@ -340,14 +340,9 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
       offer.autorenew_freq = editedOffer.autorenew_freq;
       offer.state = 'app_update';
       offer.preview_image = imagesForSave[0] || '';
-      offer.image2 = imagesForSave[1] || null;
-      offer.image3 = imagesForSave[2] || null;
-      offer.image4 = imagesForSave[3] || null;
-      offer.image5 = imagesForSave[4] || null;
-      offer.image6 = imagesForSave[5] || null;
-      offer.image7 = imagesForSave[6] || null;
-      offer.image8 = imagesForSave[7] || null;
-      offer.image9 = imagesForSave[8] || null;
+      for (let i = 2; i <= 20; i++) {
+        (offer as any)[`image${i}`] = imagesForSave[i - 1] || null;
+      }
 
       setImages([...editedImages]);
       setImageIndex(0);
@@ -928,15 +923,15 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                         <span>Fotografie inzerátu</span>
                       </h3>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Nahrávání fotografií • Max. 9 fotek
+                        Nahrávání fotografií • Max. 20 fotek
                       </p>
                     </div>
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                      editedImages.length >= 9
+                      editedImages.length >= 20
                         ? 'bg-amber-100 text-amber-800'
                         : 'bg-slate-100 text-slate-700'
                     }`}>
-                      {editedImages.length} / 9
+                      {editedImages.length} / 20
                     </span>
                   </div>
 
@@ -946,14 +941,14 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                       type="file"
                       multiple
                       accept="image/*"
-                      disabled={uploadingImages || editedImages.length >= 9}
+                      disabled={uploadingImages || editedImages.length >= 20}
                       onChange={handleFilesSelected}
                       className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                     />
                     <div className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-4 text-center transition-all ${
                       uploadingImages
                         ? 'border-emerald-500 bg-emerald-50/50'
-                        : editedImages.length >= 9
+                        : editedImages.length >= 20
                         ? 'border-slate-200 bg-slate-50 opacity-60'
                         : 'border-slate-300 hover:border-slate-500 bg-slate-50/60 hover:bg-slate-50'
                     }`}>
@@ -968,8 +963,8 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                             📷
                           </div>
                           <p className="text-xs font-bold text-slate-800">
-                            {editedImages.length >= 9
-                              ? 'Dosažen limit 9 fotografií'
+                            {editedImages.length >= 20
+                              ? 'Dosažen limit 20 fotografií'
                               : 'Klikněte nebo přetáhněte nové fotografie'}
                           </p>
                           <p className="text-[10px] text-slate-400 mt-0.5">
@@ -992,14 +987,14 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                           handleAddImageUrl();
                         }
                       }}
-                      disabled={editedImages.length >= 9}
+                      disabled={editedImages.length >= 20}
                       placeholder="Nebo vložte URL adresu..."
                       className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 outline-none placeholder:text-slate-400"
                     />
                     <button
                       type="button"
                       onClick={handleAddImageUrl}
-                      disabled={!customImageUrl.trim() || editedImages.length >= 9}
+                      disabled={!customImageUrl.trim() || editedImages.length >= 20}
                       className="rounded-xl bg-slate-100 hover:bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
                     >
                       + Přidat

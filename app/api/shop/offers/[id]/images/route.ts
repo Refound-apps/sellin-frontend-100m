@@ -41,7 +41,7 @@ export async function GET(
           };
 
           pushImg(offer.preview_image);
-          for (let i = 2; i <= 9; i++) {
+          for (let i = 2; i <= 20; i++) {
             pushImg(offer[`image${i}`]);
           }
 

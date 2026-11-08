@@ -602,9 +602,9 @@ function CreateOfferContent() {
     );
     if (fileArray.length === 0) return;
 
-    const remainingSlots = 9 - imageList.length;
+    const remainingSlots = 20 - imageList.length;
     if (remainingSlots <= 0) {
-      alert('Lze nahrát maximálně 9 fotografií na jeden inzerát.');
+      alert('Lze nahrát maximálně 20 fotografií na jeden inzerát.');
       return;
     }
 
@@ -619,7 +619,7 @@ function CreateOfferContent() {
         const compressed = await compressImageFile(file);
         const uploadedUrl = await uploadSingleImageToR2(compressed);
         if (uploadedUrl) {
-          setImageList((prev) => [...prev, uploadedUrl].slice(0, 9));
+          setImageList((prev) => [...prev, uploadedUrl].slice(0, 20));
         }
       } catch (err: any) {
         console.error(`Upload failed for ${file.name}:`, err);
@@ -805,6 +805,17 @@ function CreateOfferContent() {
           image7: imageList[6] || null,
           image8: imageList[7] || null,
           image9: imageList[8] || null,
+          image10: imageList[9] || null,
+          image11: imageList[10] || null,
+          image12: imageList[11] || null,
+          image13: imageList[12] || null,
+          image14: imageList[13] || null,
+          image15: imageList[14] || null,
+          image16: imageList[15] || null,
+          image17: imageList[16] || null,
+          image18: imageList[17] || null,
+          image19: imageList[18] || null,
+          image20: imageList[19] || null,
           state: 'app_create',
           category: [
             {
@@ -974,7 +985,7 @@ function CreateOfferContent() {
                     <span>📸</span> Fotografie zboží
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Přidejte až 9 fotek. První fotka bude použita jako hlavní.
+                    Přidejte až 20 fotek. První fotka bude použita jako hlavní.
                   </p>
                 </div>
                 <span
@@ -984,7 +995,7 @@ function CreateOfferContent() {
                       : 'bg-slate-100 text-slate-600 border-slate-200'
                   }`}
                 >
-                  {imageList.length} / 9
+                  {imageList.length} / 20
                 </span>
               </div>
 
@@ -993,7 +1004,7 @@ function CreateOfferContent() {
                 className="relative"
                 onDragEnter={(e) => {
                   e.preventDefault();
-                  if (uploadingImages || imageList.length >= 9) return;
+                  if (uploadingImages || imageList.length >= 20) return;
                   if (e.dataTransfer.types.includes('Files')) setDropzoneActive(true);
                 }}
                 onDragOver={(e) => {
@@ -1008,7 +1019,7 @@ function CreateOfferContent() {
                 onDrop={(e) => {
                   e.preventDefault();
                   setDropzoneActive(false);
-                  if (uploadingImages || imageList.length >= 9) return;
+                  if (uploadingImages || imageList.length >= 20) return;
                   if (e.dataTransfer.files?.length) {
                     void uploadImageFiles(e.dataTransfer.files);
                   }
@@ -1019,7 +1030,7 @@ function CreateOfferContent() {
                   id="image_file_input"
                   multiple
                   accept="image/*"
-                  disabled={uploadingImages || imageList.length >= 9}
+                  disabled={uploadingImages || imageList.length >= 20}
                   onChange={handleFilesSelected}
                   className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                 />
@@ -1029,7 +1040,7 @@ function CreateOfferContent() {
                       ? 'border-emerald-500 bg-emerald-50/50'
                       : dropzoneActive
                       ? 'border-emerald-500 bg-emerald-50 scale-[1.01]'
-                      : imageList.length >= 9
+                      : imageList.length >= 20
                       ? 'border-slate-200 bg-slate-50 opacity-60'
                       : 'border-slate-300 hover:border-slate-500 bg-slate-50/60 hover:bg-slate-50'
                   }`}
@@ -1046,8 +1057,8 @@ function CreateOfferContent() {
                         📷
                       </div>
                       <p className="text-sm font-bold text-slate-800">
-                        {imageList.length >= 9
-                          ? 'Dosažen maximální počet 9 fotografií'
+                        {imageList.length >= 20
+                          ? 'Dosažen maximální počet 20 fotografií'
                           : dropzoneActive
                           ? 'Pusťte fotografie sem'
                           : 'Vyberte fotografie z mobilu / počítače'}

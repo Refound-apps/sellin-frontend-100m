@@ -786,6 +786,17 @@ export async function updateOfferById(
     image7?: string | null;
     image8?: string | null;
     image9?: string | null;
+    image10?: string | null;
+    image11?: string | null;
+    image12?: string | null;
+    image13?: string | null;
+    image14?: string | null;
+    image15?: string | null;
+    image16?: string | null;
+    image17?: string | null;
+    image18?: string | null;
+    image19?: string | null;
+    image20?: string | null;
   }
 ): Promise<{ success: boolean; message?: string; queued?: number; offer?: any }> {
   try {

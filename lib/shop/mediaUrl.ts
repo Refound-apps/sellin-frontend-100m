@@ -82,6 +82,17 @@ type OfferImages = {
   image7?: string | null;
   image8?: string | null;
   image9?: string | null;
+  image10?: string | null;
+  image11?: string | null;
+  image12?: string | null;
+  image13?: string | null;
+  image14?: string | null;
+  image15?: string | null;
+  image16?: string | null;
+  image17?: string | null;
+  image18?: string | null;
+  image19?: string | null;
+  image20?: string | null;
   images?: string[] | null;
 };
 
@@ -98,6 +109,17 @@ export function collectShopOfferImageUrls(offer: OfferImages): string[] {
     offer.image7,
     offer.image8,
     offer.image9,
+    offer.image10,
+    offer.image11,
+    offer.image12,
+    offer.image13,
+    offer.image14,
+    offer.image15,
+    offer.image16,
+    offer.image17,
+    offer.image18,
+    offer.image19,
+    offer.image20,
   ];
   const out: string[] = [];
   for (const item of raw) {
