@@ -378,6 +378,12 @@ export default function Navigation() {
                   Ceník
                 </Link>
                 <Link
+                  href="/#kontakt"
+                  className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors"
+                >
+                  Kontakt
+                </Link>
+                <Link
                   href="/login?mode=register&trial=1"
                   className="rounded-full bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition-colors"
                 >

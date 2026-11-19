@@ -235,9 +235,25 @@ export function getProdejomatOrganizationSchema(host?: string | null) {
     '@type': 'Organization',
     '@id': `${baseUrl}/#organization`,
     name: PRODEJOMAT_NAME,
+    legalName: 'Mai Digital s.r.o.',
+    taxID: '23980851',
+    vatID: 'CZ23980851',
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: 'Školská 660/3, Nové Město',
+      addressLocality: 'Praha 1',
+      postalCode: '110 00',
+      addressCountry: 'CZ',
+    },
     url: `${baseUrl}/`,
     logo: `${baseUrl}/icon`,
     description,
+    parentOrganization: {
+      '@type': 'Organization',
+      name: 'Mai Digital s.r.o.',
+      url: 'https://mai.cz',
+    },
+    sameAs: ['https://mai.cz', 'https://licencex.cz'],
     areaServed: [
       {
         '@type': 'Country',
