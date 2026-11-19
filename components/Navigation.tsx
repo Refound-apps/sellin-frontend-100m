@@ -372,6 +372,12 @@ export default function Navigation() {
                   Funkce
                 </Link>
                 <Link
+                  href="/#ukazka"
+                  className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors"
+                >
+                  Ukázka
+                </Link>
+                <Link
                   href="/#cenik"
                   className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors"
                 >

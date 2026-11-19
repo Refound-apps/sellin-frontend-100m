@@ -400,6 +400,367 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
         </div>
       </section>
 
+      {/* Case Study — Duplux (Alu Bazar Plzeň) Infografika */}
+      <section
+        id="ukazka"
+        className="relative mx-auto max-w-5xl scroll-mt-8 px-4 pb-12 sm:px-6 sm:pb-20 lg:px-8"
+        aria-label="Případová studie klienta Duplux"
+      >
+        {/* Horní hlavička */}
+        <div className="mx-auto max-w-2xl text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Reálná ukázka z praxe · Klient Duplux
+          </div>
+          <h2 className="mt-3 text-[1.65rem] font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+            1× nahrát u nás → okamžitě všude
+          </h2>
+          <p className="mt-2 text-[15px] text-slate-600 sm:mt-3 sm:text-base">
+            Podívejte se na konkrétní sadu disků našeho klienta <strong className="font-semibold text-slate-900">Duplux (Alu Bazar Plzeň)</strong>. Prodejce nahrál kola do Prodejomatu – a systém je sám rozeslal na Bazoš, Sbazar i na jeho vlastní e-shop.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 font-medium border border-slate-200 shadow-2xs">
+              📍 Pneuservis &amp; Alu kola, Plzeň
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 font-medium border border-slate-200 shadow-2xs">
+              📦 800+ aktivních inzerátů
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 font-bold text-emerald-800 border border-emerald-200/80 shadow-2xs">
+              ⚡ 0 min ručního přepisování
+            </span>
+          </div>
+        </div>
+
+        {/* Infografika kontejner */}
+        <div className="mt-8 space-y-6 sm:mt-12">
+          {/* KROK 1: Vstup — Nahraný inzerát v Prodejomatu */}
+          <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-black text-white">
+                  1
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold uppercase tracking-wide text-slate-950 sm:text-sm">
+                      Centrální sklad Prodejomat
+                    </span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                      Zdroj pravdy
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Prodejce Duplux vložil inzerát pouze jednou do aplikace</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 font-mono text-[11px] text-slate-600">
+                  ID položky: #46732
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                  ✓ Naskladněno
+                </span>
+              </div>
+            </div>
+
+            {/* Náhled inzerátu v Prodejomatu */}
+            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-12 md:items-center">
+              {/* Fotografie */}
+              <div className="md:col-span-5 space-y-2">
+                <div className="relative aspect-4/3 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100 shadow-2xs">
+                  <img
+                    src="https://pub-d4238224a90a49f98bf05b686985171f.r2.dev/offers/1795025511498_7nqrfjq.jpg"
+                    alt="Alu disky Volkswagen Transporter T6, 18 palců"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                  <span className="absolute bottom-2 left-2 rounded-lg bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
+                    Fotka z terénu · Duplux Plzeň
+                  </span>
+                </div>
+                {/* Miniatury dalších fotek */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="aspect-4/3 overflow-hidden rounded-lg border border-slate-200/60 bg-slate-100">
+                    <img
+                      src="https://pub-d4238224a90a49f98bf05b686985171f.r2.dev/offers/1795025514188_qckuos5.jpg"
+                      alt="Detail disku 2"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="aspect-4/3 overflow-hidden rounded-lg border border-slate-200/60 bg-slate-100">
+                    <img
+                      src="https://pub-d4238224a90a49f98bf05b686985171f.r2.dev/offers/1795025516763_ohezxy0.jpg"
+                      alt="Detail disku 3"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="aspect-4/3 overflow-hidden rounded-lg border border-slate-200/60 bg-slate-100">
+                    <img
+                      src="https://pub-d4238224a90a49f98bf05b686985171f.r2.dev/offers/1795025519206_fsoqqnn.jpg"
+                      alt="Detail disku 4"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Data inzerátu */}
+              <div className="md:col-span-7 flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                      Hliníková kola / Disky
+                    </span>
+                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      Sklad: Plzeň
+                    </span>
+                  </div>
+
+                  <h3 className="mt-2 text-lg font-bold text-slate-950 sm:text-xl">
+                    Alu disky na Volkswagen Transporter T6, 18&quot;, 5x120, ET 35
+                  </h3>
+
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-950">10 000 Kč</span>
+                    <span className="text-xs font-semibold text-slate-500">za celou sadu</span>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-slate-600">
+                    <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-medium">
+                      R18
+                    </span>
+                    <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-medium">
+                      Rozteč: 5x120
+                    </span>
+                    <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-medium">
+                      ET: 35
+                    </span>
+                    <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-medium">
+                      Šíře: 8J
+                    </span>
+                    <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-medium">
+                      Střed: 65,1 mm
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/70 p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                      </span>
+                      <span className="text-xs font-bold text-emerald-950">
+                        Autopilot Prodejomatu aktivní
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-emerald-800">
+                      Automatický export spuštěn
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-emerald-800/80">
+                    Po uložení položky systém okamžitě publikoval inzerát do 3 prodejních kanálů a hlídá jeho obnovu.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vizuální infografická spojka */}
+          <div className="relative py-2 text-center">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-dashed border-slate-300" />
+            </div>
+            <div className="relative inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-bold text-slate-800 shadow-xs">
+              <span className="text-emerald-500 font-bold">⚡</span>
+              <span>Automatický rozpad do 3 kanálů současně</span>
+              <span className="text-slate-400">↓</span>
+            </div>
+          </div>
+
+          {/* KROK 2: Výstup — 3 reálné cílové kanály */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
+            {/* Kanál 1: Bazoš.cz */}
+            <div className="flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+              {/* Hlavička kanálu stylizovaná pro Bazoš */}
+              <div className="border-b border-slate-100 bg-[#f4f7fb] px-4 py-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex h-5 w-5 items-center justify-center rounded bg-[#1e4e8c] text-[10px] font-black text-white">
+                      B
+                    </span>
+                    <span className="text-xs font-bold text-[#1e4e8c]">Bazoš.cz</span>
+                    <span className="text-[10px] font-medium text-slate-400">/ auto</span>
+                  </div>
+                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                    Aktivní online
+                  </span>
+                </div>
+              </div>
+
+              {/* Náhled inzerátu na Bazoši */}
+              <div className="p-4 space-y-3">
+                <div className="relative aspect-16/10 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100">
+                  <img
+                    src="https://pub-d4238224a90a49f98bf05b686985171f.r2.dev/offers/1795025511498_7nqrfjq.jpg"
+                    alt="Bazoš náhled"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                  <span className="absolute top-2 right-2 rounded bg-[#1e4e8c] px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                    TOP / TOPUJEME
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-400">Inzerát č. 226628735</p>
+                  <h4 className="mt-0.5 text-sm font-bold text-slate-900 line-clamp-2">
+                    Alu disky na Volkswagen Transporter T6, 18&quot;, 5x120, ET 35
+                  </h4>
+                  <p className="mt-1 text-base font-extrabold text-[#1e4e8c]">10 000 Kč</p>
+                  <p className="mt-1 text-[11px] text-slate-500">Lokalita: Plzeň · Prodejce: Vašek</p>
+                </div>
+              </div>
+
+              {/* Spodní badge autopilotu */}
+              <div className="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-[11px] font-semibold text-slate-700">
+                <span className="text-emerald-600 font-bold">✓ Autopilot:</span> Automatická obnova inzerátu drží nabídku nahoře bez ručního klikání.
+              </div>
+            </div>
+
+            {/* Kanál 2: Sbazar.cz */}
+            <div className="flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+              {/* Hlavička kanálu stylizovaná pro Sbazar */}
+              <div className="border-b border-slate-100 bg-[#fdf5f5] px-4 py-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex h-5 w-5 items-center justify-center rounded bg-[#cc0000] text-[10px] font-black text-white">
+                      S
+                    </span>
+                    <span className="text-xs font-bold text-[#cc0000]">Sbazar.cz</span>
+                    <span className="text-[10px] font-medium text-slate-400">/ Seznam</span>
+                  </div>
+                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                    Aktivní online
+                  </span>
+                </div>
+              </div>
+
+              {/* Náhled inzerátu na Sbazaru */}
+              <div className="p-4 space-y-3">
+                <div className="relative aspect-16/10 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100">
+                  <img
+                    src="https://pub-d4238224a90a49f98bf05b686985171f.r2.dev/offers/1795025511498_7nqrfjq.jpg"
+                    alt="Sbazar náhled"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                  <span className="absolute top-2 right-2 rounded bg-[#cc0000] px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                    Seznam ověřeno
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-400">Inzerát č. 235990857</p>
+                  <h4 className="mt-0.5 text-sm font-bold text-slate-900 line-clamp-2">
+                    Alu disky na Volkswagen Transporter T6, 18&quot;, 5x120
+                  </h4>
+                  <p className="mt-1 text-base font-extrabold text-[#cc0000]">10 000 Kč</p>
+                  <p className="mt-1 text-[11px] text-slate-500">Plzeň-město · Zboží k vyzvednutí</p>
+                </div>
+              </div>
+
+              {/* Spodní badge autopilotu */}
+              <div className="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-[11px] font-semibold text-slate-700">
+                <span className="text-emerald-600 font-bold">✓ Seznam.cz:</span> Inzerát se sám synchronizuje ze stejného skladu. Žádné dvojí vyplňování.
+              </div>
+            </div>
+
+            {/* Kanál 3: Vlastní E-shop */}
+            <div className="flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs sm:col-span-2 lg:col-span-1">
+              {/* Hlavička kanálu pro Vlastní e-shop */}
+              <div className="border-b border-slate-100 bg-slate-900 px-4 py-2.5 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500 text-[10px] font-black text-slate-950">
+                      🛒
+                    </span>
+                    <span className="text-xs font-bold text-white">Vlastní E-shop</span>
+                    <span className="text-[10px] font-medium text-slate-400">alubazarplzen.cz</span>
+                  </div>
+                  <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                    Skladem v e-shopu
+                  </span>
+                </div>
+              </div>
+
+              {/* Náhled na e-shopu */}
+              <div className="p-4 space-y-3">
+                <div className="relative aspect-16/10 overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100">
+                  <img
+                    src="https://pub-d4238224a90a49f98bf05b686985171f.r2.dev/offers/1795025511498_7nqrfjq.jpg"
+                    alt="E-shop náhled"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                  <span className="absolute top-2 left-2 rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                    Osobní odběr Plzeň
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-semibold text-emerald-600">Alu Bazar Plzeň Storefront</p>
+                  <h4 className="mt-0.5 text-sm font-bold text-slate-900 line-clamp-2">
+                    Sada alu kol VW Transporter T5/T6 R18 5x120
+                  </h4>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <p className="text-base font-extrabold text-slate-950">10 000 Kč</p>
+                    <span className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs">
+                      Rezervovat
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500">Možnost přezutí a vyvážení na místě</p>
+                </div>
+              </div>
+
+              {/* Spodní badge autopilotu */}
+              <div className="border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-[11px] font-semibold text-slate-700">
+                <span className="text-emerald-600 font-bold">✓ Vlastní storefront:</span> Žádné provize portálům. Zákazník nakupuje přímo u vás.
+              </div>
+            </div>
+          </div>
+
+          {/* KROK 3: Co se stane při prodeji? (Magická synchronizace) */}
+          <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 p-5 text-white shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400 text-xs font-black text-slate-950">
+                    ✓
+                  </span>
+                  <p className="text-sm font-bold text-white sm:text-base">
+                    Co se stane, když se kola prodají?
+                  </p>
+                </div>
+                <p className="text-xs text-slate-300 sm:text-sm">
+                  Kupující zavolá z Bazoše a odveze si je. Duplux v mobilu klikne na <span className="font-semibold text-emerald-400">„Prodáno“</span> — a Prodejomat do minuty stáhne nabídku z Bazoše, Sbazaru i e-shopu.
+                </p>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-xs font-bold text-emerald-300 backdrop-blur-xs">
+                <span>🛡️</span>
+                <span>0 duplicitních prodejů</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Pain → killer */}
       <section
         id="vysledek"
@@ -877,6 +1238,9 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
             <Link href="#jak-to-funguje" className="transition hover:text-slate-950">
               Jak to funguje
+            </Link>
+            <Link href="#ukazka" className="transition hover:text-slate-950">
+              Ukázka
             </Link>
             <Link href="#cenik" className="transition hover:text-slate-950">
               Ceník
