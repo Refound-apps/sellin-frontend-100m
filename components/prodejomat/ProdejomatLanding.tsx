@@ -684,217 +684,174 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
         </div>
       </section>
 
-      {/* O provozovateli, Ekosystém & Kontakt */}
+      {/* O autorech, Ekosystém & Kontakt */}
       <section
         id="kontakt"
-        className="relative mx-auto max-w-5xl scroll-mt-8 px-4 pb-12 sm:px-6 sm:pb-16 lg:px-8"
+        className="relative mx-auto max-w-5xl scroll-mt-8 px-4 pb-16 pt-4 sm:px-6 sm:pb-24 lg:px-8"
       >
-        <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.08)] sm:p-10">
-          {/* Horní hlavička sekce */}
-          <div className="flex flex-col gap-4 border-b border-slate-100 pb-8 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-800 border border-emerald-200/80">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Česká technologická platforma
-                </span>
-                <span className="hidden text-slate-300 sm:inline">·</span>
-                <span className="text-[11px] font-semibold text-slate-500">
-                  Od tvůrců Mai.cz &amp; LicenceX.cz
-                </span>
+        {/* Nadpis sekce s prostorem a lehkostí */}
+        <div className="mx-auto max-w-2xl text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Zázemí &amp; Ekosystém
+          </div>
+          <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl md:text-4xl">
+            Od tvůrců platforem{' '}
+            <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">
+              Mai.cz
+            </span>{' '}
+            a{' '}
+            <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent">
+              LicenceX.cz
+            </span>
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+            Projekt vyvíjí a provozuje česká společnost <strong className="font-semibold text-slate-900">Mai Digital s.r.o.</strong> se sídlem v Praze. Stavíme spolehlivý software, automatizace a e-commerce nástroje pro moderní prodejce.
+          </p>
+        </div>
+
+        {/* 2 výrazné, fluidní karty pro Mai.cz a LicenceX.cz */}
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-12 sm:grid-cols-2 sm:gap-6">
+          {/* Karta 1: Mai.cz */}
+          <a
+            href="https://mai.cz"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:p-8"
+          >
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-base font-black text-white shadow-xs transition-transform group-hover:scale-105">
+                  M
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 transition group-hover:bg-slate-100">
+                  <span>mai.cz</span>
+                  <span className="text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+                    ↗
+                  </span>
+                </div>
               </div>
-              <h2 className="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl">
-                Provozovatel platformy &amp; Kontakt
-              </h2>
-              <p className="max-w-2xl text-sm leading-relaxed text-slate-600">
-                Aplikaci vyvíjí a provozuje společnost <strong className="font-semibold text-slate-900">Mai Digital s.r.o.</strong> – česká technologická a vývojářská společnost se sídlem v Praze, působící v oblasti IT, vývoje softwaru, e-commerce nástrojů, reklamy, marketingu a digitálních produktů.
-              </p>
+
+              <div className="mt-5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Mateřská platforma
+                </span>
+                <h3 className="mt-1 text-xl font-bold tracking-tight text-slate-950 group-hover:text-emerald-600 transition-colors">
+                  Mai.cz
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Centrální technologická platforma, digitální produkty a vývoj softwaru se stabilní cloudovou infrastrukturou.
+                </p>
+              </div>
             </div>
 
-            <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+            <div className="mt-6 flex flex-wrap gap-2 pt-4 border-t border-slate-100">
+              <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                ⚡ Cloud &amp; Software
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                🔒 Vlastní infrastruktura
+              </span>
+            </div>
+          </a>
+
+          {/* Karta 2: LicenceX.cz */}
+          <a
+            href="https://licencex.cz"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md sm:p-8"
+          >
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-base font-black text-white shadow-xs transition-transform group-hover:scale-105">
+                  LX
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 transition group-hover:bg-emerald-100">
+                  <span>licencex.cz</span>
+                  <span className="text-emerald-500 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+                    ↗
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
+                  E-commerce &amp; Licence
+                </span>
+                <h3 className="mt-1 text-xl font-bold tracking-tight text-slate-950 group-hover:text-emerald-600 transition-colors">
+                  LicenceX.cz
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Specializovaný e-shop pro software, digitální licence a cloudové nástroje s automatickým okamžitým doručením.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2 pt-4 border-t border-slate-100">
+              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                🛒 E-shop platforma
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                ✓ Tisíce zákazníků
+              </span>
+            </div>
+          </a>
+        </div>
+
+        {/* Široká, čistá karta: Společnost Mai Digital s.r.o. + Přímý kontakt */}
+        <div className="mt-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs sm:p-8">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10 items-center">
+            {/* Levá část: Firemní údaje */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-800">
+                  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-slate-950">Mai Digital s.r.o.</h3>
+                  <p className="text-xs text-slate-500">Česká technologická společnost · Zapsána 22. 11. 2025 v Praze</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono font-medium text-slate-800">
+                  <span className="text-slate-400 font-sans">IČO:</span> 23980851
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono font-medium text-slate-800">
+                  <span className="text-slate-400 font-sans">DIČ:</span> CZ23980851
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-700">
+                  📍 Školská 660/3, Praha 1
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-500">
+                  ⚖️ Městský soud v Praze
+                </span>
+              </div>
+            </div>
+
+            {/* Pravá část: Rychlý kontakt a podpora */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between lg:justify-end gap-4 rounded-2xl bg-slate-50/80 p-4 sm:p-5 border border-slate-100">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-slate-950">Máte dotaz nebo zájem o onboarding?</p>
+                <p className="text-xs text-slate-500">Rádi pomůžeme se setupem skladu i kanálů.</p>
+                <div className="flex items-center gap-1.5 pt-1 text-[11px] font-semibold text-emerald-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span>Podpora Po–Pá 8:30–17:30</span>
+                </div>
+              </div>
+
               <a
                 href="mailto:info@prodejomat.cz"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 active:scale-95"
               >
                 <svg className="h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 <span>info@prodejomat.cz</span>
               </a>
-              <Link
-                href={trialHref}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-800 transition hover:bg-white hover:border-slate-300"
-              >
-                Vyzkoušet 7 dní zdarma
-              </Link>
-            </div>
-          </div>
-
-          {/* Mřížka 3 sloupců: Firemní údaje + Ekosystém platforem + Podpora */}
-          <div className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Karta 1: Firemní údaje */}
-            <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-5 sm:p-6">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white shadow-xs">
-                    M
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-950">Mai Digital s.r.o.</h3>
-                    <p className="text-[11px] font-medium text-slate-500">Provozovatel &amp; vývojář</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-2 text-xs text-slate-600">
-                  <div className="flex justify-between border-b border-slate-200/60 pb-1.5">
-                    <span className="text-slate-500">IČO:</span>
-                    <span className="font-mono font-semibold text-slate-900 select-all">23980851</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-200/60 pb-1.5">
-                    <span className="text-slate-500">DIČ:</span>
-                    <span className="font-mono font-semibold text-slate-900 select-all">CZ23980851</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-200/60 pb-1.5">
-                    <span className="text-slate-500">Sídlo:</span>
-                    <span className="font-medium text-right text-slate-800">
-                      Školská 660/3, Nové Město, 110 00 Praha 1
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-200/60 pb-1.5">
-                    <span className="text-slate-500">Datum vzniku:</span>
-                    <span className="font-medium text-slate-800">22. listopadu 2025</span>
-                  </div>
-                  <div className="pt-1 text-[11px] leading-relaxed text-slate-500">
-                    Zapsáno v obchodním rejstříku vedeném Městským soudem v Praze. Činnost: IT, software, digitální produkty, reklama a marketing.
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 font-bold">✓</span>
-                <span>Registrovaná česká společnost s.r.o.</span>
-              </div>
-            </div>
-
-            {/* Karta 2: Naše platformy & ekosystém (Mai.cz a LicenceX.cz) */}
-            <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-5 sm:p-6">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-600">
-                  Naše platformy &amp; ekosystém
-                </p>
-                <h3 className="mt-1 text-sm font-bold text-slate-950">
-                  Od autorů Mai.cz a LicenceX.cz
-                </h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-                  Projekt je součástí digitálního ekosystému Mai Digital. Stejné zázemí a technologie pohání naše osvědčené české platformy:
-                </p>
-
-                <div className="mt-4 space-y-2.5">
-                  <a
-                    href="https://mai.cz"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-3 transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-xs"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-xs font-bold text-white transition group-hover:scale-105">
-                        M
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-bold text-slate-950 group-hover:text-emerald-600 transition-colors">
-                            Mai.cz
-                          </p>
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-                            Platforma
-                          </span>
-                        </div>
-                        <p className="truncate text-[11px] text-slate-500">
-                          Centrální technologická platforma &amp; digitální portfolio
-                        </p>
-                      </div>
-                    </div>
-                    <span className="ml-2 text-xs font-bold text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-800">
-                      ↗
-                    </span>
-                  </a>
-
-                  <a
-                    href="https://licencex.cz"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-3 transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-xs"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-xs font-bold text-white transition group-hover:scale-105">
-                        LX
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-bold text-slate-950 group-hover:text-emerald-600 transition-colors">
-                            LicenceX.cz
-                          </p>
-                          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                            E-shop
-                          </span>
-                        </div>
-                        <p className="truncate text-[11px] text-slate-500">
-                          Specializovaný e-shop pro software a digitální licence
-                        </p>
-                      </div>
-                    </div>
-                    <span className="ml-2 text-xs font-bold text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-800">
-                      ↗
-                    </span>
-                  </a>
-                </div>
-              </div>
-
-              <p className="mt-4 text-[11px] text-slate-400">
-                Spolehlivá infrastruktura, bezpečnost a desítky tisíc vyřízených požadavků.
-              </p>
-            </div>
-
-            {/* Karta 3: Podpora & Rychlý kontakt */}
-            <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-5 sm:p-6 sm:col-span-2 lg:col-span-1">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                  Zákaznická podpora
-                </p>
-                <h3 className="mt-1 text-sm font-bold text-slate-950">
-                  Potřebujete poradit či pomoci?
-                </h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-                  Ať už máte dotaz k automatizaci inzerce, napojení vašeho skladu na Bazoš/Sbazar, nebo k vlastnímu e-shopu, jsme tu pro vás.
-                </p>
-
-                <div className="mt-4 space-y-2.5 text-xs">
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-3">
-                    <p className="text-[11px] font-medium text-slate-500">E-mailová podpora:</p>
-                    <a
-                      href="mailto:info@prodejomat.cz"
-                      className="mt-0.5 block font-bold text-slate-950 hover:text-emerald-600 transition-colors"
-                    >
-                      info@prodejomat.cz
-                    </a>
-                    <p className="mt-1 text-[11px] text-slate-400">Odpovídáme obvykle do několika hodin v pracovní dny.</p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-3">
-                    <p className="text-[11px] font-medium text-slate-500">Provozní doba podpory:</p>
-                    <p className="mt-0.5 font-semibold text-slate-800">Pondělí – Pátek · 8:30 – 17:30</p>
-                    <p className="mt-1 text-[11px] text-slate-400">Automatizace a synchronizace běží nonstop 24/7/365.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-200/60 pt-3 text-[11px]">
-                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Systémy plně v provozu
-                </span>
-                <span className="text-slate-400">Praha, Česká republika</span>
-              </div>
             </div>
           </div>
         </div>
@@ -902,62 +859,44 @@ export default function ProdejomatLanding({ user }: ProdejomatLandingProps) {
 
       {/* Footer */}
       <footer className="border-t border-slate-200/80 bg-white/80 pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 py-7 sm:flex-row sm:gap-5 sm:px-6 sm:py-8 lg:px-8">
-          <div className="flex flex-col items-center sm:items-start gap-1">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-black text-white">
-                P
-              </span>
-              <span className="text-sm font-black tracking-tight text-slate-950">
-                Prodej<span className="text-emerald-600">omat</span>
-                <span className="text-[10px] font-bold text-slate-400">.cz</span>
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 text-center sm:text-left">
-              Projekt společnosti <span className="font-semibold text-slate-700">Mai Digital s.r.o.</span> · Tvůrci platforem{' '}
-              <a
-                href="https://mai.cz"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-slate-700 underline decoration-slate-300 transition hover:text-emerald-600 hover:decoration-emerald-500"
-              >
-                Mai.cz
-              </a>{' '}
-              a{' '}
-              <a
-                href="https://licencex.cz"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-slate-700 underline decoration-slate-300 transition hover:text-emerald-600 hover:decoration-emerald-500"
-              >
-                LicenceX.cz
-              </a>
-            </p>
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-black text-white">
+              P
+            </span>
+            <span className="text-sm font-black tracking-tight text-slate-950">
+              Prodej<span className="text-emerald-600">omat</span>
+              <span className="text-[10px] font-bold text-slate-400">.cz</span>
+            </span>
+            <span className="text-slate-300">·</span>
+            <span className="text-xs text-slate-500">
+              by <span className="font-semibold text-slate-700">Mai Digital s.r.o.</span>
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
-            <Link href="#jak-to-funguje" className="inline-flex min-h-10 items-center transition hover:text-slate-950">
+            <Link href="#jak-to-funguje" className="transition hover:text-slate-950">
               Jak to funguje
             </Link>
-            <Link href="#cenik" className="inline-flex min-h-10 items-center transition hover:text-slate-950">
+            <Link href="#cenik" className="transition hover:text-slate-950">
               Ceník
             </Link>
-            <Link href="#faq" className="inline-flex min-h-10 items-center transition hover:text-slate-950">
+            <Link href="#faq" className="transition hover:text-slate-950">
               FAQ
             </Link>
-            <Link href="#kontakt" className="inline-flex min-h-10 items-center transition hover:text-slate-950">
-              Kontakt &amp; Provozovatel
+            <Link href="#kontakt" className="transition hover:text-slate-950">
+              Kontakt
             </Link>
-            <Link href="/login" className="inline-flex min-h-10 items-center transition hover:text-slate-950">
+            <Link href="/login" className="transition hover:text-slate-950">
               Přihlášení
             </Link>
           </div>
         </div>
 
         <div className="border-t border-slate-100 py-4 px-4 text-center text-[11px] text-slate-400">
-          <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 sm:flex-row">
+          <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-1.5 sm:flex-row">
             <span>© {new Date().getFullYear()} Prodejomat.cz &amp; Sellin.cz · Všechna práva vyhrazena.</span>
-            <span>Mai Digital s.r.o. · IČO: 23980851 · DIČ: CZ23980851 · Školská 660/3, Praha 1</span>
+            <span>IČO: 23980851 · DIČ: CZ23980851 · Školská 660/3, Praha 1</span>
           </div>
         </div>
       </footer>
