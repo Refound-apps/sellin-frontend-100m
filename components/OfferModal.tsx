@@ -51,6 +51,22 @@ function isLiveMarketplaceLink(link: string | null | undefined): boolean {
   return href.startsWith('http://') || href.startsWith('https://');
 }
 
+function isFailedChannelDetail(detail: OfferDetail | null | undefined): boolean {
+  if (!detail) return false;
+  const c = String(detail.condition || '').toLowerCase().trim();
+  const l = String(detail.link || '').toLowerCase().trim();
+  return (
+    c === 'error_create' ||
+    c === 'error_create_during_renewal' ||
+    c === 'error_create_blocked' ||
+    c === 'error_update' ||
+    c.startsWith('error_') ||
+    l === 'error_create' ||
+    l === 'error_create_blocked' ||
+    l.startsWith('error_')
+  );
+}
+
 /** Fold marketplace labels so "Bazoš" / "bazoš" / "Bazos" all match. */
 function normalizePortalKey(value: string | null | undefined): string {
   return String(value || '')
@@ -442,48 +458,76 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     return null;
   };
 
+  /** Latest detail per portal across all rows (including errors, blocked, or deleted) */
+  const latestDetailByPortal = (() => {
+    const latestByMarket = new Map<string, (typeof details)[number]>();
+    for (const d of details) {
+      const key = normalizePortalKey(d.bb_marketplace_id) || 'unknown';
+      const prev = latestByMarket.get(key);
+      if (!prev || detailRowId(d) > detailRowId(prev)) latestByMarket.set(key, d);
+    }
+    return latestByMarket;
+  })();
+
+  const findLatestDetailForPortal = (portalKey: 'bazos' | 'bazos_sk' | 'sbazar') => {
+    for (const [key, detail] of latestDetailByPortal.entries()) {
+      if (portalKey === 'sbazar' && key.includes('sbazar')) return detail;
+      if (portalKey === 'bazos_sk' && key.includes('bazos') && key.includes('sk')) return detail;
+      if (portalKey === 'bazos' && key.includes('bazos') && !key.includes('sk')) return detail;
+    }
+    return null;
+  };
+
   // Available to every seller (not admin-only) — archive blocks publish
   const canPublishManually = !isArchivedOffer && Boolean(offer.bb_id);
 
-  const channelSlots: Array<{
-    key: string;
-    marketplace: string;
-    label: string;
-    icon: string;
-    detail: OfferDetail | null;
-  }> = [
-    {
-      key: 'bazos',
-      marketplace: 'Bazoš',
-      label: 'Bazoš.cz',
-      icon: '🏷️',
-      detail: findLiveDetailForPortal('bazos'),
-    },
-    {
-      key: 'sbazar',
-      marketplace: 'Sbazar',
-      label: 'Sbazar.cz',
-      icon: '🛒',
-      detail: findLiveDetailForPortal('sbazar'),
-    },
+  const createChannelSlot = (
+    key: 'bazos' | 'bazos_sk' | 'sbazar',
+    marketplace: string,
+    label: string,
+    icon: string
+  ) => {
+    const liveDetail = findLiveDetailForPortal(key);
+    const latestDetail = findLatestDetailForPortal(key);
+    const isLive = Boolean(liveDetail && isLiveMarketplaceLink(liveDetail.link));
+    const isBlocked =
+      Boolean(latestDetail?.platform_blocked) ||
+      Boolean(latestDetail?.skip_renew) ||
+      String(latestDetail?.condition || '').toLowerCase().includes('blocked');
+    const isFailed = !isLive && !isBlocked && isFailedChannelDetail(latestDetail);
+
+    return {
+      key,
+      marketplace,
+      label,
+      icon,
+      detail: liveDetail,
+      latestDetail,
+      isLive,
+      isBlocked,
+      isFailed,
+    };
+  };
+
+  const channelSlots = [
+    createChannelSlot('bazos', 'Bazoš', 'Bazoš.cz', '🏷️'),
+    createChannelSlot('sbazar', 'Sbazar', 'Sbazar.cz', '🛒'),
   ];
 
   // Include Bazos.sk only when account already has SK history
   if (
     findLiveDetailForPortal('bazos_sk') ||
+    findLatestDetailForPortal('bazos_sk') ||
     details.some((d) => {
       const k = normalizePortalKey(d.bb_marketplace_id);
       return k.includes('bazos') && k.includes('sk');
     })
   ) {
-    channelSlots.splice(1, 0, {
-      key: 'bazos_sk',
-      marketplace: 'Bazoš.sk',
-      label: 'Bazoš.sk',
-      icon: '🏷️',
-      detail: findLiveDetailForPortal('bazos_sk'),
-    });
+    channelSlots.splice(1, 0, createChannelSlot('bazos_sk', 'Bazoš.sk', 'Bazoš.sk', '🏷️'));
   }
+
+  const failedChannels = channelSlots.filter((s) => s.isFailed);
+  const liveChannels = channelSlots.filter((s) => s.isLive);
 
   const handlePublishMarketplace = async (marketplace: string, label: string) => {
     if (!canPublishManually) return;
@@ -593,7 +637,41 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
     price: editedOffer.price,
   };
   const tags = getOfferTags(currentOfferForMeta);
-  const statusInfo = getOfferStatusInfo(offer.state);
+
+  // Dynamic status: if offer.state is still app_create (or pending), but details have already loaded:
+  const statusInfo = (() => {
+    if (offer.state === 'app_create' && !loadingDetails && details.length > 0) {
+      if (liveChannels.length > 0 && failedChannels.length > 0) {
+        return {
+          label: 'Částečně aktivní (chyba na portálu)',
+          badge: 'bg-amber-50 text-amber-900 border-amber-200/90',
+          dot: 'bg-amber-500',
+        };
+      }
+      if (failedChannels.length > 0 && liveChannels.length === 0) {
+        return {
+          label: 'Chyba vystavení',
+          badge: 'bg-rose-50 text-rose-800 border-rose-200/90',
+          dot: 'bg-rose-500',
+        };
+      }
+      if (liveChannels.length > 0 && failedChannels.length === 0) {
+        return {
+          label: 'Aktivní',
+          badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/90',
+          dot: 'bg-emerald-500',
+        };
+      }
+    }
+    if ((!offer.state || offer.state === 'app_active') && !loadingDetails && failedChannels.length > 0 && liveChannels.length > 0) {
+      return {
+        label: 'Aktivní (1 portál selhal)',
+        badge: 'bg-amber-50 text-amber-900 border-amber-200/90',
+        dot: 'bg-amber-500',
+      };
+    }
+    return getOfferStatusInfo(offer.state);
+  })();
 
   const effectiveAutorenewFreq =
     offer.autorenew_freq ||
@@ -1134,71 +1212,112 @@ export default function OfferModal({ offer, onClose, onOfferUpdated, isAdmin: is
                       <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/80 to-transparent" />
                     </div>
                   ) : (
-                    channelSlots.map((slot) => {
-                      const detail = slot.detail;
-                      const isBlocked =
-                        Boolean(detail?.platform_blocked) ||
-                        Boolean(detail?.skip_renew) ||
-                        String(detail?.condition || '').toLowerCase().includes('blocked');
-                      const isPublishing = publishingMarketplace === slot.marketplace;
-                      const isLive = Boolean(detail && isLiveMarketplaceLink(detail.link));
+                    <>
+                      {/* Notice when any marketplace failed */}
+                      {failedChannels.length > 0 && (
+                        <div className="flex items-start gap-2.5 rounded-xl border border-rose-200/90 bg-rose-50/80 p-2.5 text-xs text-rose-950">
+                          <span className="text-sm shrink-0 leading-none mt-0.5">⚠️</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-rose-950">
+                              Vystavení na {failedChannels.map((c) => c.label).join(', ')} selhalo
+                            </p>
+                            <p className="text-[11px] text-rose-800 mt-0.5 leading-relaxed">
+                              Při automatickém vkládání došlo k chybě (např. dočasný výpadek spojení či proxy). Kliknutím na <strong>Vystavit znovu</strong> u daného portálu můžete vystavení ihned zopakovat.
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
-                      return (
-                        <div
-                          key={slot.key}
-                          className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs ${
-                            isBlocked
-                              ? 'border-orange-200/90 bg-orange-50/70'
-                              : isLive
-                                ? 'border-slate-200/80 bg-white'
-                                : 'border-dashed border-slate-300/90 bg-white/70'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span>{slot.icon}</span>
-                            <span className="font-bold text-slate-900 truncate">{slot.label}</span>
-                            {isLive ? (
-                              <span className="shrink-0 rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                                Aktivní
-                              </span>
-                            ) : (
-                              <span className="shrink-0 rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-                                Chybí
-                              </span>
-                            )}
-                            {isBlocked && (
-                              <span
-                                className="shrink-0 inline-flex items-center gap-0.5 rounded-md border border-orange-300/90 bg-orange-100/90 px-1.5 py-0.5 text-[10px] font-bold text-orange-950"
-                                title="Inzerát je blokován touto platformou — obnova se přeskakuje"
+                      {channelSlots.map((slot) => {
+                        const detail = slot.detail;
+                        const isBlocked = slot.isBlocked;
+                        const isFailed = slot.isFailed;
+                        const isLive = slot.isLive;
+                        const isPublishing = publishingMarketplace === slot.marketplace;
+
+                        return (
+                          <div
+                            key={slot.key}
+                            className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs transition-colors ${
+                              isBlocked
+                                ? 'border-orange-200/90 bg-orange-50/70'
+                                : isFailed
+                                  ? 'border-rose-200/90 bg-rose-50/40'
+                                  : isLive
+                                    ? 'border-slate-200/80 bg-white'
+                                    : 'border-dashed border-slate-300/90 bg-white/70'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span>{slot.icon}</span>
+                              <span className="font-bold text-slate-900 truncate">{slot.label}</span>
+                              {isLive ? (
+                                <span className="shrink-0 rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                                  Aktivní
+                                </span>
+                              ) : isFailed ? (
+                                <span
+                                  className="shrink-0 inline-flex items-center gap-1 rounded-md bg-rose-100/90 border border-rose-300 px-1.5 py-0.5 text-[10px] font-bold text-rose-900"
+                                  title="Vystavení na tento portál selhalo — můžete zkusit vystavit znovu"
+                                >
+                                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
+                                  Selhalo
+                                </span>
+                              ) : (
+                                <span className="shrink-0 rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+                                  Chybí
+                                </span>
+                              )}
+                              {isBlocked && (
+                                <span
+                                  className="shrink-0 inline-flex items-center gap-0.5 rounded-md border border-orange-300/90 bg-orange-100/90 px-1.5 py-0.5 text-[10px] font-bold text-orange-950"
+                                  title="Inzerát je blokován touto platformou — obnova se přeskakuje"
+                                >
+                                  🚫 Blokováno
+                                </span>
+                              )}
+                            </div>
+                            {isLive && detail?.link ? (
+                              <a
+                                href={detail.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="shrink-0 font-semibold text-slate-600 hover:text-slate-950 transition-colors"
                               >
-                                🚫 Blokováno
-                              </span>
+                                Otevřít ↗
+                              </a>
+                            ) : canPublishManually ? (
+                              <button
+                                type="button"
+                                disabled={saving || Boolean(publishingMarketplace)}
+                                onClick={() => handlePublishMarketplace(slot.marketplace, slot.label)}
+                                className={`shrink-0 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                                  isFailed
+                                    ? 'border border-rose-600 bg-rose-600 text-white hover:bg-rose-700 shadow-xs'
+                                    : 'border border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
+                                }`}
+                              >
+                                {isPublishing ? (
+                                  <>
+                                    <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    <span>Zařazuji…</span>
+                                  </>
+                                ) : isFailed ? (
+                                  <>
+                                    <span>↻</span>
+                                    <span>Vystavit znovu</span>
+                                  </>
+                                ) : (
+                                  'Vystavit'
+                                )}
+                              </button>
+                            ) : (
+                              <span className="shrink-0 text-[11px] text-slate-400">Nevystaveno</span>
                             )}
                           </div>
-                          {isLive && detail?.link ? (
-                            <a
-                              href={detail.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="shrink-0 font-semibold text-slate-600 hover:text-slate-950 transition-colors"
-                            >
-                              Otevřít ↗
-                            </a>
-                          ) : canPublishManually ? (
-                            <button
-                              type="button"
-                              disabled={saving || Boolean(publishingMarketplace)}
-                              onClick={() => handlePublishMarketplace(slot.marketplace, slot.label)}
-                              className="shrink-0 rounded-lg border border-slate-900 bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                              {isPublishing ? 'Zařazuji…' : 'Vystavit'}
-                            </button>
-                          ) : (
-                            <span className="shrink-0 text-[11px] text-slate-400">Nevystaveno</span>
-                          )}
-                        </div>
-                      );
-                    })
+                        );
+                      })}
+                    </>
                   )}
                 </div>
               </div>
